@@ -1,27 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../../services/api';
+import { toast } from 'sonner';
+import { DataTable } from '../ui/datatable';
+import type { DataTableColumn } from '../ui/datatable';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from '../ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '../ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -42,8 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
-import { Checkbox } from '../ui/checkbox';
-import { toast } from 'sonner';
 import {
   Heart,
   MoreHorizontal,
@@ -174,15 +159,10 @@ export function WishlistManagement() {
     total: 0,
     totalPages: 1,
   });
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [selectedWishlists, setSelectedWishlists] = useState<string[]>([]);
-  const [selectAll, setSelectAll] = useState(false);
 
   // Modal states
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isModerateDialogOpen, setIsModerateDialogOpen] = useState(false);
   const [moderationAction, setModerationAction] = useState<'hide' | 'unhide' | 'flag' | 'unflag'>('hide');
   const [moderationReason, setModerationReason] = useState('');
@@ -199,8 +179,6 @@ export function WishlistManagement() {
       const params: Record<string, string | number> = {
         page: pagination.page,
         limit: pagination.limit,
-        sortBy,
-        sortOrder,
       };
       
       if (searchTerm) {
@@ -238,7 +216,7 @@ export function WishlistManagement() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, sortBy, sortOrder, searchTerm, filterCategory, filterPriority]);
+  }, [pagination.page, pagination.limit, searchTerm, filterCategory, filterPriority]);
 
   // Load statistics
   const loadStatistics = useCallback(async () => {
@@ -254,6 +232,18 @@ export function WishlistManagement() {
     loadWishlists();
     loadStatistics();
   }, [loadWishlists, loadStatistics]);
+
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm !== '') {
+        setPagination(prev => ({ ...prev, page: 1 }));
+        loadWishlists();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, loadWishlists]);
 
   // Handle search
   const handleSearch = (e: React.FormEvent) => {
@@ -281,46 +271,10 @@ export function WishlistManagement() {
     }, 0);
   };
 
-  // Handle sorting
-  const handleSort = (column: string) => {
-    if (sortBy === column) {
-      // Toggle sort order
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Set new sort column with default desc order
-      setSortBy(column);
-      setSortOrder('desc');
-    }
-    // Reset to first page
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-
   // Handle pagination
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > pagination.totalPages) return;
     setPagination(prev => ({ ...prev, page: newPage }));
-  };
-
-  // Selection handlers
-  const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedWishlists([]);
-    } else {
-      setSelectedWishlists(wishlists.map(wishlist => wishlist.wishlist_id));
-    }
-    setSelectAll(!selectAll);
-  };
-
-  const handleSelectWishlist = (wishlistId: string) => {
-    if (selectedWishlists.includes(wishlistId)) {
-      setSelectedWishlists(selectedWishlists.filter(id => id !== wishlistId));
-      setSelectAll(false);
-    } else {
-      setSelectedWishlists([...selectedWishlists, wishlistId]);
-      if (selectedWishlists.length + 1 === wishlists.length) {
-        setSelectAll(true);
-      }
-    }
   };
 
   // View wishlist details
@@ -343,41 +297,11 @@ export function WishlistManagement() {
       setIsDeleteDialogOpen(false);
       toast.success('Wishlist deleted successfully');
       
-      // Also remove from selected items if present
-      if (selectedWishlists.includes(selectedWishlist.wishlist_id)) {
-        setSelectedWishlists(selectedWishlists.filter(id => id !== selectedWishlist.wishlist_id));
-      }
-      
       // Refresh stats
       loadStatistics();
     } catch (err) {
       console.error('Error deleting wishlist:', err);
       toast.error('Failed to delete wishlist');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Bulk delete wishlists
-  const handleBulkDelete = async () => {
-    if (selectedWishlists.length === 0) return;
-    
-    try {
-      setActionLoading(true);
-      await apiService.bulkDeleteWishlists(selectedWishlists);
-      
-      // Clear selection
-      setSelectedWishlists([]);
-      setSelectAll(false);
-      setIsBulkDeleteDialogOpen(false);
-      toast.success(`${selectedWishlists.length} wishlist(s) deleted successfully`);
-      
-      // Reload data
-      loadWishlists();
-      loadStatistics();
-    } catch (err) {
-      console.error('Error bulk deleting wishlists:', err);
-      toast.error('Failed to delete wishlists');
     } finally {
       setActionLoading(false);
     }
@@ -483,6 +407,223 @@ export function WishlistManagement() {
     return category ? category.label : categoryValue;
   };
 
+  // DataTable columns configuration
+  const columns: DataTableColumn<Wishlist>[] = [
+    {
+      title: 'Item Name',
+      data: 'item_name',
+      orderable: true,
+      render: (data, type, row) => `
+        <div class="font-medium truncate max-w-[200px] cursor-pointer hover:underline" data-action="view" data-row-id="${row.wishlist_id}">
+          ${data}
+        </div>
+      `,
+    },
+    {
+      title: 'Category',
+      data: 'category',
+      render: (data) => `
+        <span class="inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium">
+          ${getCategoryLabel(data as string)}
+        </span>
+      `,
+    },
+    {
+      title: 'Priority',
+      data: 'priority',
+      render: (data) => `
+        <span class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${getPriorityColor(data as string)}">
+          ${data}
+        </span>
+      `,
+    },
+    {
+      title: 'Images',
+      data: 'image_count',
+      className: 'text-center',
+      render: (data) => `
+        <div class="flex items-center justify-center">
+          <svg class="w-4 h-4 mr-1 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+          <span>${data}</span>
+        </div>
+      `,
+    },
+    {
+      title: 'Created',
+      data: 'created_at',
+      orderable: true,
+      render: (data) => `
+        <div class="text-sm text-muted-foreground">
+          ${formatDate(data as string)}
+        </div>
+      `,
+    },
+    {
+      title: 'Username',
+      data: 'username',
+      render: (data) => `
+        <div class="flex items-center gap-2">
+          <div class="font-medium">${data}</div>
+        </div>
+      `,
+    },
+    {
+      title: 'Votes',
+      data: null,
+      orderable: false,
+      className: 'text-right',
+      render: (data, type, row) => `
+        <div class="flex items-center justify-end gap-2">
+          <span class="inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium text-green-600 border-green-600">
+            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+            </svg>
+            ${row.upvotes}
+          </span>
+          <span class="inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium text-red-600 border-red-600">
+            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+            </svg>
+            ${row.downvotes}
+          </span>
+        </div>
+      `,
+    },
+    {
+      title: 'Status',
+      data: null,
+      orderable: false,
+      render: (data, type, row) => {
+        const badges = [];
+        if (row.is_flagged) {
+          badges.push(`
+            <span class="inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium text-amber-600 border-amber-600">
+              <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4a4 4 0 014-4h.582l.707-.707A4 4 0 0114.414 12H17a4 4 0 014 4v4M3 7l9-4 9 4M3 7v10M21 7v10M12 3v18"></path>
+              </svg>
+              Flagged
+            </span>
+          `);
+        }
+        if (row.is_visible === false) {
+          badges.push(`
+            <span class="inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium text-gray-600 border-gray-600">
+              <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+              </svg>
+              Hidden
+            </span>
+          `);
+        }
+        if (!row.is_flagged && row.is_visible !== false) {
+          badges.push(`
+            <span class="inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium text-green-600 border-green-600">
+              <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              Active
+            </span>
+          `);
+        }
+        return `<div class="flex items-center gap-2">${badges.join('')}</div>`;
+      },
+    },
+    {
+      title: 'Actions',
+      data: null,
+      orderable: false,
+      className: 'w-[100px]',
+      render: (data, type, row) => `
+        <div class="dropdown position-static">
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
+            </svg>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-lg" style="z-index: 1050;">
+            <li><a class="dropdown-item" href="#" data-action="view" data-row-id="${row.wishlist_id}">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+              </svg>
+              View Details
+            </a></li>
+            ${row.is_visible === false ? 
+              `<li><a class="dropdown-item" href="#" data-action="unhide" data-row-id="${row.wishlist_id}">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                </svg>
+                Unhide
+              </a></li>` :
+              `<li><a class="dropdown-item" href="#" data-action="hide" data-row-id="${row.wishlist_id}">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                </svg>
+                Hide
+              </a></li>`
+            }
+            ${row.is_flagged ? 
+              `<li><a class="dropdown-item" href="#" data-action="unflag" data-row-id="${row.wishlist_id}">
+                <svg class="w-3 h-3 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Unflag
+              </a></li>` :
+              `<li><a class="dropdown-item" href="#" data-action="flag" data-row-id="${row.wishlist_id}">
+                <svg class="w-3 h-3 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4a4 4 0 014-4h.582l.707-.707A4 4 0 0114.414 12H17a4 4 0 014 4v4M3 7l9-4 9 4M3 7v10M21 7v10M12 3v18"></path>
+                </svg>
+                Flag
+              </a></li>`
+            }
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-danger" href="#" data-action="delete" data-row-id="${row.wishlist_id}">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+              Delete
+            </a></li>
+          </ul>
+        </div>
+      `,
+    },
+  ];
+
+  // Handle DataTable actions
+  const handleDataTableAction = (action: string, row: Wishlist) => {
+    switch (action) {
+      case 'view':
+        handleViewWishlist(row);
+        break;
+      case 'hide':
+        setSelectedWishlist(row);
+        setModerationAction('hide');
+        setIsModerateDialogOpen(true);
+        break;
+      case 'unhide':
+        setSelectedWishlist(row);
+        setModerationAction('unhide');
+        setIsModerateDialogOpen(true);
+        break;
+      case 'flag':
+        setSelectedWishlist(row);
+        setModerationAction('flag');
+        setIsModerateDialogOpen(true);
+        break;
+      case 'unflag':
+        setSelectedWishlist(row);
+        setModerationAction('unflag');
+        setIsModerateDialogOpen(true);
+        break;
+      case 'delete':
+        setSelectedWishlist(row);
+        setIsDeleteDialogOpen(true);
+        break;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -517,16 +658,6 @@ export function WishlistManagement() {
             <FileDown className="w-4 h-4 mr-2" />
             Export to CSV
           </Button>
-
-          {selectedWishlists.length > 0 && (
-            <Button
-              variant="destructive"
-              onClick={() => setIsBulkDeleteDialogOpen(true)}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete ({selectedWishlists.length})
-            </Button>
-          )}
         </div>
       </div>
 
@@ -645,251 +776,20 @@ export function WishlistManagement() {
       {/* Wishlist Table */}
       <Card>
         <CardContent className="p-0">
-          <div className="relative overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[40px]">
-                    <Checkbox 
-                      checked={selectAll}
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer"
-                    onClick={() => handleSort('item_name')}
-                  >
-                    <div className="flex items-center gap-1">
-                      Item Name
-                      {sortBy === 'item_name' && (
-                        sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
-                      )}
-                    </div>
-                  </TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead className="text-center">Images</TableHead>
-                  <TableHead 
-                    className="cursor-pointer"
-                    onClick={() => handleSort('created_at')}
-                  >
-                    <div className="flex items-center gap-1">
-                      Created
-                      {sortBy === 'created_at' && (
-                        sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
-                      )}
-                    </div>
-                  </TableHead>
-                  <TableHead>Username</TableHead>
-                  <TableHead 
-                    className="cursor-pointer text-right"
-                    onClick={() => handleSort('upvotes')}
-                  >
-                    <div className="flex items-center gap-1 justify-end">
-                      Votes
-                      {sortBy === 'upvotes' && (
-                        sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
-                      )}
-                    </div>
-                  </TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
-                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
-                      <p className="mt-2 text-sm text-muted-foreground">Loading wishlists...</p>
-                    </TableCell>
-                  </TableRow>
-                ) : error ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
-                      <AlertCircle className="w-6 h-6 mx-auto text-destructive" />
-                      <p className="mt-2 text-sm text-destructive">{error}</p>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={loadWishlists} 
-                        className="mt-4"
-                      >
-                        Try Again
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ) : wishlists.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
-                      <Heart className="w-6 h-6 mx-auto text-muted-foreground" />
-                      <p className="mt-2 text-sm text-muted-foreground">No wishlists found</p>
-                      <p className="text-xs text-muted-foreground mt-1">Try changing your filters or search term</p>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  wishlists.map((wishlist) => (
-                    <TableRow key={wishlist.wishlist_id}>
-                      <TableCell>
-                        <Checkbox 
-                          checked={selectedWishlists.includes(wishlist.wishlist_id)}
-                          onCheckedChange={() => handleSelectWishlist(wishlist.wishlist_id)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div 
-                          className="font-medium truncate max-w-[200px] cursor-pointer hover:underline"
-                          onClick={() => handleViewWishlist(wishlist)}
-                        >
-                          {wishlist.item_name}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {getCategoryLabel(wishlist.category)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getPriorityColor(wishlist.priority)}>
-                          {wishlist.priority}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center">
-                          <ImageIcon className="w-4 h-4 mr-1 text-muted-foreground" />
-                          <span>{wishlist.image_count}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm text-muted-foreground">
-                          {formatDate(wishlist.created_at)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="font-medium">{wishlist.username}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Badge variant="outline" className="text-green-600">
-                            <ArrowUp className="w-3 h-3 mr-1" />
-                            {wishlist.upvotes}
-                          </Badge>
-                          <Badge variant="outline" className="text-red-600">
-                            <ArrowDown className="w-3 h-3 mr-1" />
-                            {wishlist.downvotes}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {wishlist.is_flagged && (
-                            <Badge variant="outline" className="text-amber-600 border-amber-600">
-                              <Flag className="w-3 h-3 mr-1" />
-                              Flagged
-                            </Badge>
-                          )}
-                          {wishlist.is_visible === false && (
-                            <Badge variant="outline" className="text-gray-600 border-gray-600">
-                              <EyeOff className="w-3 h-3 mr-1" />
-                              Hidden
-                            </Badge>
-                          )}
-                          {!wishlist.is_flagged && wishlist.is_visible !== false && (
-                            <Badge variant="outline" className="text-green-600 border-green-600">
-                              <Check className="w-3 h-3 mr-1" />
-                              Active
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleViewWishlist(wishlist)}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            
-                            <DropdownMenuSeparator />
-                            
-                            <DropdownMenuLabel>Moderation</DropdownMenuLabel>
-                            {wishlist.is_visible === false ? (
-                              <DropdownMenuItem 
-                                onClick={() => {
-                                  setSelectedWishlist(wishlist);
-                                  setModerationAction('unhide');
-                                  setIsModerateDialogOpen(true);
-                                }}
-                              >
-                                <Eye className="w-4 h-4 mr-2" />
-                                Unhide
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem 
-                                onClick={() => {
-                                  setSelectedWishlist(wishlist);
-                                  setModerationAction('hide');
-                                  setIsModerateDialogOpen(true);
-                                }}
-                              >
-                                <EyeOff className="w-4 h-4 mr-2" />
-                                Hide
-                              </DropdownMenuItem>
-                            )}
-                            
-                            {wishlist.is_flagged ? (
-                              <DropdownMenuItem 
-                                onClick={() => {
-                                  setSelectedWishlist(wishlist);
-                                  setModerationAction('unflag');
-                                  setIsModerateDialogOpen(true);
-                                }}
-                              >
-                                <Check className="w-4 h-4 mr-2" />
-                                Unflag
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem 
-                                onClick={() => {
-                                  setSelectedWishlist(wishlist);
-                                  setModerationAction('flag');
-                                  setIsModerateDialogOpen(true);
-                                }}
-                              >
-                                <Flag className="w-4 h-4 mr-2" />
-                                Flag
-                              </DropdownMenuItem>
-                            )}
-                            
-                            <DropdownMenuSeparator />
-                            
-                            <DropdownMenuItem 
-                              onClick={() => {
-                                setSelectedWishlist(wishlist);
-                                setIsDeleteDialogOpen(true);
-                              }}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            data={wishlists}
+            columns={columns}
+            options={{
+              pageLength: pagination.limit,
+              searching: false, // We handle search separately
+              paging: false, // We handle pagination separately
+              info: false,
+              order: [[4, 'desc']], // Default sort by created_at desc
+            }}
+            onAction={handleDataTableAction}
+            loading={loading}
+            emptyMessage="No wishlists found. Try changing your filters or search term."
+          />
         </CardContent>
       </Card>
 
@@ -1194,48 +1094,6 @@ export function WishlistManagement() {
                 <>
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Bulk Delete Dialog */}
-      <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-red-600 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5" />
-              Bulk Delete Wishlist Items
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete {selectedWishlists.length} wishlist item(s)? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsBulkDeleteDialogOpen(false)}
-              disabled={actionLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleBulkDelete}
-              disabled={actionLoading}
-            >
-              {actionLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete {selectedWishlists.length} Items
                 </>
               )}
             </Button>

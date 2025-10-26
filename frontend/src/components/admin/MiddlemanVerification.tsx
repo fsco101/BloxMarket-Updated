@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
+import { Alert, AlertDescription } from '../ui/alert';
+import { Label } from '../ui/label';
 import { apiService } from '../../services/api';
 import { toast } from 'sonner';
 import { 
@@ -12,12 +14,22 @@ import {
   CheckCircle, 
   XCircle, 
   Eye, 
-  Calendar,
-  TrendingUp,
   FileText,
   Loader2,
-  Shield
+  Shield,
+  RefreshCw,
+  AlertTriangle,
+  Download
 } from 'lucide-react';
+
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    $: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    jQuery: any;
+  }
+}
 
 interface Document {
   _id: string;
@@ -58,6 +70,12 @@ interface VerificationRequest {
   requestType: 'Middleman' | 'Verified Trader';
   rejection_reason?: string;
   averageRating?: number;
+  documentCount: number;
+  username: string;
+  email: string;
+  roblox_username: string;
+  avatar_url: string;
+  credibility_score: number;
 }
 
 export function MiddlemanVerification() {
@@ -66,7 +84,411 @@ export function MiddlemanVerification() {
   const [selectedRequest, setSelectedRequest] = useState<VerificationRequest | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [jQueryReady, setJQueryReady] = useState(false);
+  
+  // Action dialogs
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [actionRequest, setActionRequest] = useState<VerificationRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+
+  const tableRef = useRef<HTMLTableElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dataTableRef = useRef<any>(null);
+  const isInitialized = useRef(false);
+
+  // Check if jQuery and DataTables are loaded
+  const checkJQueryReady = () => {
+    return new Promise<boolean>((resolve) => {
+      let attempts = 0;
+      const maxAttempts = 50; // 5 seconds total
+      
+      const checkInterval = setInterval(() => {
+        attempts++;
+        
+        if (window.$ && window.$.fn && window.$.fn.DataTable) {
+          console.log('jQuery and DataTables are ready');
+          clearInterval(checkInterval);
+          resolve(true);
+        } else if (attempts >= maxAttempts) {
+          console.error('jQuery/DataTables failed to load after 5 seconds');
+          clearInterval(checkInterval);
+          resolve(false);
+        }
+      }, 100);
+    });
+  };
+
+  useEffect(() => {
+    // Initialize jQuery check
+    const initJQuery = async () => {
+      const ready = await checkJQueryReady();
+      setJQueryReady(ready);
+      
+      if (!ready) {
+        setError('Required libraries (jQuery/DataTables) failed to load. Please refresh the page.');
+        setLoading(false);
+      }
+    };
+    
+    initJQuery();
+  }, []);
+
+  const loadVerificationRequests = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      console.log('Loading verification requests...');
+      
+      const response = await apiService.getMiddlemanVerificationDataTable({
+        page: 1,
+        limit: 1000,
+        search: '',
+        status: '',
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      });
+      
+      console.log('API Response:', response);
+      
+      if (!response || !response.data) {
+        throw new Error('Invalid response format');
+      }
+      
+      // Normalize the request data
+      const normalizedRequests = response.data
+        .filter((request: unknown) => {
+          const req = request as VerificationRequest;
+          return req && req._id;
+        }) // Filter out null/undefined requests
+        .map((request: unknown) => {
+          const req = request as VerificationRequest;
+          return {
+            ...req,
+            documentCount: req.documents?.length || 0,
+            // Flatten user data for DataTables
+            username: req.user_id?.username || req.username || '',
+            email: req.user_id?.email || req.email || '',
+            roblox_username: req.user_id?.roblox_username || req.roblox_username || '',
+            avatar_url: req.user_id?.avatar_url || req.avatar_url || '',
+            credibility_score: req.user_id?.credibility_score || req.credibility_score || 0
+          };
+        });
+      
+      console.log('Normalized requests:', normalizedRequests.length);
+      setRequests(normalizedRequests);
+      
+      // Wait for jQuery to be ready before initializing DataTable
+      if (!jQueryReady) {
+        console.log('Waiting for jQuery to be ready...');
+        const ready = await checkJQueryReady();
+        if (!ready) {
+          setError('DataTables library not available');
+          return;
+        }
+      }
+      
+      // Wait for DOM to update and table to be rendered
+      setTimeout(() => {
+        if (dataTableRef.current) {
+          console.log('Updating existing DataTable...');
+          try {
+            dataTableRef.current.clear();
+            dataTableRef.current.rows.add(normalizedRequests);
+            dataTableRef.current.draw();
+          } catch {
+            console.error('Error updating DataTable');
+            // Reinitialize if update fails
+            dataTableRef.current.destroy();
+            dataTableRef.current = null;
+            isInitialized.current = false;
+            initializeDataTable(normalizedRequests);
+          }
+        } else if (!isInitialized.current) {
+          console.log('Initializing new DataTable...');
+          initializeDataTable(normalizedRequests);
+        }
+      }, 200);
+      
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Error loading verification requests:', err);
+      
+      let errorMessage = 'Failed to load verification requests';
+      
+      if (err.message?.includes('403')) {
+        errorMessage = 'Access denied. Admin privileges required.';
+      } else if (err.message?.includes('401')) {
+        errorMessage = 'Authentication required. Please log in again.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [jQueryReady]);
+
+  const initializeDataTable = (requestData: VerificationRequest[]) => {
+    if (!window.$ || !window.$.fn || !window.$.fn.DataTable) {
+      console.error('jQuery or DataTables not available');
+      setError('DataTables library not loaded. Please refresh the page.');
+      return;
+    }
+
+    if (!tableRef.current) {
+      console.error('Table ref not available');
+      return;
+    }
+
+    const $ = window.$;
+    
+    console.log('Initializing DataTable with', requestData.length, 'requests');
+    
+    try {
+      // Destroy existing instance if exists
+      if (dataTableRef.current) {
+        try {
+          dataTableRef.current.destroy();
+        } catch {
+          console.log('No existing DataTable to destroy');
+        }
+      }
+
+      dataTableRef.current = $(tableRef.current).DataTable({
+        data: requestData,
+        destroy: true,
+        responsive: true,
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+        order: [[4, 'desc']],
+        columns: [
+          {
+            title: 'Applicant',
+            data: null,
+            orderable: false,
+            render: (data: VerificationRequest) => {
+              // Add null checks
+              if (!data || !data.username) {
+                return '<div class="text-gray-500">Invalid request data</div>';
+              }
+              
+              const avatarHtml = data.avatar_url 
+                ? `<img src="${data.avatar_url}" alt="${data.username}" class="w-10 h-10 rounded-full object-cover" />`
+                : `<div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center"><span class="font-medium text-sm">${data.username[0]?.toUpperCase()}</span></div>`;
+              
+              return `
+                <div class="flex items-center gap-3">
+                  ${avatarHtml}
+                  <div>
+                    <p class="font-medium">${data.username}</p>
+                    <p class="text-sm text-gray-500">${data.email || ''}</p>
+                    ${data.roblox_username ? `<p class="text-xs text-blue-600">@${data.roblox_username}</p>` : ''}
+                  </div>
+                </div>
+              `;
+            }
+          },
+          {
+            title: 'Application',
+            data: null,
+            orderable: false,
+            render: (data: VerificationRequest) => {
+              // Add null checks
+              if (!data) {
+                return '<div class="text-gray-500">-</div>';
+              }
+              
+              return `
+                <div class="text-sm">
+                  <p><strong>Experience:</strong> ${data.experience ? data.experience.substring(0, 20) + '...' : 'N/A'}</p>
+                  <p><strong>Availability:</strong> ${data.availability ? data.availability.substring(0, 20) + '...' : 'N/A'}</p>
+                  <p class="text-xs text-gray-500 mt-1">${data.why_middleman ? data.why_middleman.substring(0, 30) + '...' : 'No reason provided'}</p>
+                </div>
+              `;
+            }
+          },
+          {
+            title: 'Stats',
+            data: null,
+            orderable: false,
+            render: (data: VerificationRequest) => {
+              // Add null checks
+              if (!data) {
+                return '<div class="text-gray-500">-</div>';
+              }
+              
+              const credibility = data.credibility_score || 0;
+              return `
+                <div class="text-sm">
+                  <p><strong>${data.trades || 0}</strong> trades</p>
+                  <p><strong>${data.vouches || 0}</strong> vouches</p>
+                  <p><strong>${data.documentCount || 0}</strong> documents</p>
+                  <div class="flex items-center gap-1 mt-1">
+                    <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div class="h-full bg-blue-500" style="width: ${credibility}%"></div>
+                    </div>
+                    <span class="text-xs text-gray-500">${credibility}%</span>
+                  </div>
+                </div>
+              `;
+            }
+          },
+          {
+            title: 'Status',
+            data: 'status',
+            render: (data: string) => {
+              const statusColors: Record<string, string> = {
+                'approved': 'bg-green-100 text-green-800',
+                'rejected': 'bg-red-100 text-red-800',
+                'pending': 'bg-yellow-100 text-yellow-800'
+              };
+              
+              const colorClass = statusColors[data] || statusColors['pending'];
+              
+              return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}">
+                ${data.charAt(0).toUpperCase() + data.slice(1)}
+              </span>`;
+            }
+          },
+          {
+            title: 'Applied',
+            data: 'createdAt',
+            render: (data: string) => {
+              const applyDate = new Date(data).toLocaleDateString();
+              const applyTime = new Date(data).toLocaleTimeString();
+              
+              return `
+                <div class="text-sm">
+                  <p><strong>${applyDate}</strong></p>
+                  <p class="text-xs text-gray-500">${applyTime}</p>
+                </div>
+              `;
+            }
+          },
+          {
+            title: 'Actions',
+            data: null,
+            orderable: false,
+            width: '200px',
+            render: (data: VerificationRequest) => {
+              // Add null checks
+              if (!data || !data._id) {
+                return '<div class="text-gray-500">-</div>';
+              }
+              
+              const isPending = data.status === 'pending';
+              
+              return `
+                <div class="flex flex-wrap items-center gap-2">
+                  <button class="btn btn-sm btn-primary view-btn" data-request-id="${data._id}" title="View Details">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  
+                  ${isPending ? `
+                    <button class="btn btn-sm btn-success approve-btn" data-request-id="${data._id}" title="Approve Application">
+                      <i class="fas fa-check"></i>
+                    </button>
+                    
+                    <button class="btn btn-sm btn-danger reject-btn" data-request-id="${data._id}" title="Reject Application">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  ` : ''}
+                </div>
+              `;
+            }
+          }
+        ],
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
+        language: {
+          search: "_INPUT_",
+          searchPlaceholder: "Search applications...",
+          lengthMenu: "Show _MENU_ applications",
+          info: "Showing _START_ to _END_ of _TOTAL_ applications",
+          infoEmpty: "No applications found",
+          infoFiltered: "(filtered from _MAX_ total applications)",
+          zeroRecords: "No matching applications found",
+          emptyTable: "No applications available"
+        }
+      });
+
+      isInitialized.current = true;
+      console.log('DataTable initialized successfully');
+
+      // Event handlers using arrow functions to preserve context
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const handleViewEvent = function(this: any, e: any) {
+        e.preventDefault();
+        const requestId = $(this).data('request-id');
+        const request = requestData.find((r: VerificationRequest) => r && r._id === requestId);
+        if (request) {
+          setSelectedRequest(request);
+          setIsViewDialogOpen(true);
+        }
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const handleApproveEvent = async function(this: any, e: any) {
+        e.preventDefault();
+        const requestId = $(this).data('request-id');
+        await handleApprove(requestId);
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const handleRejectEvent = function(this: any, e: any) {
+        e.preventDefault();
+        const requestId = $(this).data('request-id');
+        const request = requestData.find((r: VerificationRequest) => r && r._id === requestId);
+        if (request) openRejectDialog(request);
+      };
+
+      // Attach event handlers
+      $(tableRef.current).off(); // Remove old handlers
+      $(tableRef.current).on('click', '.view-btn', handleViewEvent);
+      $(tableRef.current).on('click', '.approve-btn', handleApproveEvent);
+      $(tableRef.current).on('click', '.reject-btn', handleRejectEvent);
+      
+    } catch (error) {
+      console.error('Error initializing DataTable:', error);
+      toast.error('Failed to initialize table');
+      setError('Failed to initialize data table. Please refresh the page.');
+    }
+  };
+
+  useEffect(() => {
+    // Check authentication
+    if (!apiService.isAuthenticated()) {
+      setError('You must be logged in to access this page');
+      setLoading(false);
+      return;
+    }
+    
+    // Only load requests if jQuery is ready
+    if (jQueryReady) {
+      loadVerificationRequests();
+    }
+    
+    // Cleanup
+    return () => {
+      if (dataTableRef.current) {
+        try {
+          const $ = window.$;
+          const currentTable = tableRef.current;
+          if ($ && currentTable) {
+            $(currentTable).off(); // Remove event handlers
+          }
+          dataTableRef.current.destroy();
+          dataTableRef.current = null;
+          isInitialized.current = false;
+        } catch {
+          console.error('Error destroying DataTable');
+        }
+      }
+    };
+  }, [jQueryReady, loadVerificationRequests]);
 
   const handleViewDocument = async (documentId: string) => {
     try {
@@ -97,32 +519,15 @@ export function MiddlemanVerification() {
     }
   };
 
-  const loadVerificationRequests = async () => {
-    try {
-      setLoading(true);
-      const response = await apiService.getVerificationRequests();
-      setRequests(response.requests || []);
-    } catch (error) {
-      console.error('Error loading verification requests:', error);
-      toast.error('Failed to load verification requests');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadVerificationRequests();
-  }, []);
-
   const handleApprove = async (applicationId: string) => {
     try {
       setActionLoading(applicationId);
-      await apiService.approveVerification(applicationId, 'middleman');
-      toast.success('Verification approved successfully');
+      await apiService.approveMiddlemanApplication(applicationId);
+      toast.success('Application approved successfully');
       loadVerificationRequests();
     } catch (error) {
-      console.error('Error approving verification:', error);
-      toast.error('Failed to approve verification');
+      console.error('Error approving application:', error);
+      toast.error('Failed to approve application');
     } finally {
       setActionLoading(null);
     }
@@ -131,20 +536,26 @@ export function MiddlemanVerification() {
   const handleReject = async (applicationId: string, reason: string) => {
     try {
       setActionLoading(applicationId);
-      await apiService.rejectVerification(applicationId, reason);
-      toast.success('Verification rejected');
+      await apiService.rejectMiddlemanApplication(applicationId, reason);
+      toast.success('Application rejected');
       loadVerificationRequests();
+      setRejectDialogOpen(false);
       setRejectionReason('');
     } catch (error) {
-      console.error('Error rejecting verification:', error);
-      toast.error('Failed to reject verification');
+      console.error('Error rejecting application:', error);
+      toast.error('Failed to reject application');
     } finally {
       setActionLoading(null);
     }
   };
 
-  // Helper function for status color coding
+  const openRejectDialog = (request: VerificationRequest) => {
+    setActionRequest(request);
+    setRejectDialogOpen(true);
+    setRejectionReason('');
+  };
 
+  // Helper function for status color coding
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
@@ -153,6 +564,39 @@ export function MiddlemanVerification() {
     }
   };
 
+  // Show error state
+  if (error && !loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Middleman Verification</h2>
+            <p className="text-muted-foreground">Review and approve middleman applications</p>
+          </div>
+        </div>
+        
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="ml-2">{error}</AlertDescription>
+        </Alert>
+        
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Shield className="w-16 h-16 mx-auto mb-4 text-red-500" />
+            <h3 className="text-xl font-semibold mb-2">Access Error</h3>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={() => window.location.reload()} variant="outline">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh Page
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -160,10 +604,16 @@ export function MiddlemanVerification() {
           <h2 className="text-2xl font-bold">Middleman Verification</h2>
           <p className="text-muted-foreground">Review and approve middleman applications</p>
         </div>
-        <Button onClick={loadVerificationRequests} variant="outline">
-          <Shield className="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => apiService.exportMiddlemanVerificationCSV()} variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button onClick={loadVerificationRequests} disabled={loading} variant="outline">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -211,133 +661,92 @@ export function MiddlemanVerification() {
         </Card>
       </div>
 
-      {/* Verification Requests */}
+      {/* DataTable */}
       <Card>
         <CardHeader>
-          <CardTitle>Verification Requests</CardTitle>
+          <CardTitle>Verification Requests ({requests.length})</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent>
           {loading ? (
             <div className="text-center py-12">
               <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
               <p className="text-muted-foreground">Loading verification requests...</p>
             </div>
-          ) : requests.length > 0 ? (
-            <div className="divide-y">
-              {requests.map((request) => (
-                <div key={request._id} className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-4">
-                      <Avatar className="w-12 h-12">
-                        <AvatarFallback>{request.user_id.username[0]?.toUpperCase()}</AvatarFallback>
-                        {request.user_id.avatar_url && (
-                          <AvatarImage src={request.user_id.avatar_url} alt={request.user_id.username} />
-                        )}
-                      </Avatar>
-                      
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold">{request.user_id.username}</h3>
-                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                            Middleman Application
-                          </Badge>
-                          <Badge className={getStatusColor(request.status)}>
-                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                          </Badge>
-                        </div>
-                        
-                        <p className="text-sm text-muted-foreground mb-3">@{request.user_id.roblox_username}</p>
-                        
-                        <div className="grid grid-cols-4 gap-4 text-sm mb-3">
-                          <div>
-                            <span className="text-muted-foreground">Applied:</span>
-                            <p className="font-medium">{new Date(request.createdAt).toLocaleDateString()}</p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Experience:</span>
-                            <p className="font-medium">{request.experience ? request.experience.substring(0, 15) + '...' : 'N/A'}</p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Availability:</span>
-                            <p className="font-medium">{request.availability ? request.availability.substring(0, 15) + '...' : 'N/A'}</p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Credibility:</span>
-                            <p className="font-medium">{request.user_id.credibility_score || 0}%</p>
-                          </div>
-                        </div>
-                        
-                        {request.documents && request.documents.length > 0 && (
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm text-muted-foreground">Documents:</span>
-                            {request.documents.map((doc, i) => (
-                              <Badge key={i} variant="outline" className="text-xs">
-                                <FileText className="w-3 h-3 mr-1" />
-                                {doc.document_type || doc.original_filename || 'Document ' + (i+1)}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedRequest(request);
-                          setIsViewDialogOpen(true);
-                        }}
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        Review
-                      </Button>
-                      
-                      {request.status === 'pending' && (
-                        <>
-                          <Button
-                            size="sm"
-                            className="bg-green-500 hover:bg-green-600 text-white"
-                            onClick={() => handleApprove(request._id)}
-                            disabled={actionLoading === request._id}
-                          >
-                            {actionLoading === request._id ? (
-                              <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                            ) : (
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                            )}
-                            Approve
-                          </Button>
-                          
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleReject(request._id, 'Application does not meet requirements')}
-                            disabled={actionLoading === request._id}
-                          >
-                            {actionLoading === request._id ? (
-                              <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                            ) : (
-                              <XCircle className="w-4 h-4 mr-1" />
-                            )}
-                            Reject
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+          ) : requests.length === 0 ? (
+            <div className="text-center py-12">
+              <UserCheck className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">No verification requests found</p>
             </div>
           ) : (
-            <div className="text-center py-12">
-              <UserCheck className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No verification requests found</p>
+            <div className="overflow-x-auto">
+              <table 
+                ref={tableRef}
+                className="display table table-striped table-hover w-full"
+                style={{ width: '100%' }}
+              >
+                <thead>
+                  <tr>
+                    <th>Applicant</th>
+                    <th>Application</th>
+                    <th>Stats</th>
+                    <th>Status</th>
+                    <th>Applied</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Data populated by DataTables */}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Reject Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-red-500" />
+              Reject Application
+            </DialogTitle>
+            <DialogDescription>
+              Reject {actionRequest?.username}'s middleman application. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="reject-reason">Rejection Reason *</Label>
+              <Textarea
+                id="reject-reason"
+                placeholder="Enter detailed reason for rejecting this application..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={4}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => actionRequest && handleReject(actionRequest._id, rejectionReason)}
+              disabled={!rejectionReason.trim() || actionLoading === actionRequest?._id}
+            >
+              {actionLoading === actionRequest?._id ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <XCircle className="w-4 h-4 mr-2" />
+              )}
+              Reject Application
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Review Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
@@ -354,16 +763,16 @@ export function MiddlemanVerification() {
               <div className="flex items-center gap-4">
                 <Avatar className="w-16 h-16">
                   <AvatarFallback className="text-xl">
-                    {selectedRequest.user_id.username[0]?.toUpperCase()}
+                    {selectedRequest.username[0]?.toUpperCase()}
                   </AvatarFallback>
-                  {selectedRequest.user_id.avatar_url && (
-                    <AvatarImage src={selectedRequest.user_id.avatar_url} alt={selectedRequest.user_id.username} />
+                  {selectedRequest.avatar_url && (
+                    <AvatarImage src={selectedRequest.avatar_url} alt={selectedRequest.username} />
                   )}
                 </Avatar>
                 <div>
-                  <h3 className="text-xl font-semibold">{selectedRequest.user_id.username}</h3>
-                  <p className="text-muted-foreground">{selectedRequest.user_id.email || "Email not available"}</p>
-                  <p className="text-blue-600">@{selectedRequest.user_id.roblox_username}</p>
+                  <h3 className="text-xl font-semibold">{selectedRequest.username}</h3>
+                  <p className="text-muted-foreground">{selectedRequest.email || "Email not available"}</p>
+                  <p className="text-blue-600">@{selectedRequest.roblox_username}</p>
                 </div>
               </div>
               
@@ -437,12 +846,22 @@ export function MiddlemanVerification() {
                     
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Credibility Score</span>
-                      <span className="font-medium">{selectedRequest.user_id.credibility_score || 0}%</span>
+                      <span className="font-medium">{selectedRequest.credibility_score || 0}%</span>
                     </div>
                     
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Documents Submitted</span>
-                      <span className="font-medium">{selectedRequest.documents?.length || 0}</span>
+                      <span className="font-medium">{selectedRequest.documentCount || 0}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Trades</span>
+                      <span className="font-medium">{selectedRequest.trades || 0}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Vouches</span>
+                      <span className="font-medium">{selectedRequest.vouches || 0}</span>
                     </div>
                   </div>
                 </div>

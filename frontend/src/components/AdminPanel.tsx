@@ -1,16 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Alert, AlertDescription } from './ui/alert';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../App';
 import { apiService } from '../services/api';
 import { toast } from 'sonner';
-import { 
-  Shield, 
-  Users, 
-  Flag, 
+import {
+  Shield,
+  Users,
+  Flag,
   Settings,
   Ban,
   CheckCircle,
@@ -25,8 +20,27 @@ import {
   BarChart3,
   Activity,
   UserCheck,
-  Loader2
+  Loader2,
+  RefreshCw,
+  Download,
+  Eye,
+  Clock
 } from 'lucide-react';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 
 // Import admin components
 import { UserManagement } from './admin/UserManagement';
@@ -52,29 +66,50 @@ interface AdminStats {
   middlemanApplications: number;
 }
 
+interface ChartData {
+  name: string;
+  users: number;
+  trades: number;
+  posts: number;
+  reports: number;
+}
+
+interface AnalyticsData {
+  userActivity: Array<{ date: string; users: number }>;
+  tradeActivity: Array<{ date: string; trades: number }>;
+  forumActivity: Array<{ date: string; posts: number }>;
+  reportActivity: Array<{ date: string; reports: number }>;
+}
+
 export function AdminPanel() {
-  const { user, logout, isLoading: authLoading, isLoggedIn } = useAuth();
+  const { user, isLoading: authLoading, isLoggedIn } = useAuth();
   const [activeSection, setActiveSection] = useState('dashboard');
   const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const isAdminOrModerator = user?.role === 'admin' || user?.role === 'moderator';
 
-  const loadAdminStats = async () => {
+  const loadAdminStats = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
 
-      if (authLoading || !isLoggedIn || !apiService.isAuthenticated()) {
+      if (authLoading || !isLoggedIn) {
         setError('Authentication not ready.');
         return;
       }
 
-      const stats = await apiService.getAdminStats();
+      const [stats, analytics] = await Promise.all([
+        apiService.getAdminStats(),
+        apiService.getAdminAnalytics(7)
+      ]);
+      
       setAdminStats(stats);
+      setAnalyticsData(analytics);
     } catch (err: unknown) {
-      console.error('Error loading admin stats:', err);
+      console.error('Error loading admin data:', err);
       if (err instanceof Error) {
         // Do not call logout(); apiService will dispatch 'auth-expired' if needed
         if (err.message.includes('Session expired') || err.message.includes('Invalid token')) {
@@ -88,34 +123,34 @@ export function AdminPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authLoading, isLoggedIn]);
 
   useEffect(() => {
-    if (isAdminOrModerator && !authLoading && apiService.isAuthenticated()) {
+    if (isAdminOrModerator && !authLoading) {
       loadAdminStats();
     }
     const handleSectionChange = (event: CustomEvent) => setActiveSection(event.detail);
     window.addEventListener('admin-section-change', handleSectionChange as EventListener);
     return () => window.removeEventListener('admin-section-change', handleSectionChange as EventListener);
-  }, [isAdminOrModerator, authLoading]);
+  }, [isAdminOrModerator, authLoading, loadAdminStats]);
 
   // If user is not admin or moderator, show access denied
   if (!isAdminOrModerator) {
     return (
       <div className="flex-1 overflow-hidden">
         <div className="min-h-full flex items-center justify-center bg-background">
-          <Card className="max-w-md mx-auto">
-            <CardContent className="p-8 text-center">
-              <Shield className="w-16 h-16 mx-auto mb-4 text-red-500" />
-              <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-              <p className="text-muted-foreground mb-4">
+          <div className="card max-w-md mx-auto">
+            <div className="card-body p-8 text-center">
+              <Shield className="text-danger mx-auto mb-4" style={{ width: '4rem', height: '4rem' }} />
+              <h2 className="h4 fw-bold mb-2">Access Denied</h2>
+              <p className="text-muted mb-4">
                 You need administrator or moderator privileges to access this page.
               </p>
-              <Button variant="outline" onClick={() => window.history.back()}>
+              <button className="btn btn-outline-secondary" onClick={() => window.history.back()}>
                 Go Back
-              </Button>
-            </CardContent>
-          </Card>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -136,7 +171,7 @@ export function AdminPanel() {
       case 'events':
         return <EventsManagement />;
       case 'reports':
-        return <UserReports />;
+        return <FlaggedPosts />;
       case 'flagged':
         return <FlaggedPosts />;
       default:
@@ -147,19 +182,24 @@ export function AdminPanel() {
   const renderDashboard = () => {
     if (loading) {
       return (
-        <div className="text-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading admin statistics...</p>
+        <div className="text-center py-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading admin statistics...</span>
+          </div>
+          <p className="text-muted mt-3">Loading admin statistics...</p>
         </div>
       );
     }
 
     if (error) {
       return (
-        <div className="text-center py-12">
-          <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-4" />
-          <p className="text-red-500 mb-4">{error}</p>
-          <Button onClick={loadAdminStats}>Try Again</Button>
+        <div className="text-center py-5">
+          <AlertTriangle className="text-danger" style={{ width: '2rem', height: '2rem' }} />
+          <p className="text-danger mt-3 mb-4">{error}</p>
+          <button className="btn btn-primary" onClick={loadAdminStats}>
+            <RefreshCw className="me-2" style={{ width: '1rem', height: '1rem' }} />
+            Try Again
+          </button>
         </div>
       );
     }
@@ -180,256 +220,404 @@ export function AdminPanel() {
       middlemanApplications: 0
     };
 
+    // Generate chart data from analytics
+    const chartData: ChartData[] = analyticsData ? 
+      analyticsData.userActivity.map((userItem, index) => ({
+        name: new Date(userItem.date).toLocaleDateString('en-US', { weekday: 'short' }),
+        users: userItem.users,
+        trades: analyticsData.tradeActivity[index]?.trades || 0,
+        posts: analyticsData.forumActivity[index]?.posts || 0,
+        reports: analyticsData.reportActivity[index]?.reports || 0,
+      })) : [];
+
+    const pieData = stats ? [
+      { name: 'Active Users', value: stats.activeUsers, color: '#0d6efd' },
+      { name: 'Banned Users', value: stats.bannedUsers, color: '#dc3545' },
+      { name: 'Inactive Users', value: Math.max(0, stats.totalUsers - stats.activeUsers - stats.bannedUsers), color: '#6c757d' },
+    ].filter(item => item.value > 0) : []; // Only show segments with data
+
     return (
-      <div className="space-y-6">
+      <div className="container-fluid">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <Shield className="w-8 h-8 text-red-500" />
-              Admin Dashboard
-            </h1>
-            <p className="text-muted-foreground">Platform management and statistics</p>
-          </div>
-          
-          {/* Section Navigation */}
-          <div className="flex gap-2">
-            <Button 
-              variant={activeSection === 'dashboard' ? 'default' : 'outline'} 
-              size="sm"
-              onClick={() => setActiveSection('dashboard')}
-            >
-              Dashboard
-            </Button>
-            <Button 
-              variant={activeSection === 'users' ? 'default' : 'outline'} 
-              size="sm"
-              onClick={() => setActiveSection('users')}
-            >
-              Users
-            </Button>
-            <Button 
-              variant={activeSection === 'reports' ? 'default' : 'outline'} 
-              size="sm"
-              onClick={() => setActiveSection('reports')}
-            >
-              Reports
-            </Button>
+        <div className="row mb-4">
+          <div className="col">
+            <div className="d-flex justify-content-between align-items-center">
+              <div>
+                <h1 className="h2 fw-bold d-flex align-items-center gap-3 mb-2">
+                  <Shield className="text-danger" style={{ width: '2rem', height: '2rem' }} />
+                  Admin Dashboard
+                </h1>
+                <p className="text-muted mb-0">Platform management and analytics</p>
+              </div>
+
+              {/* Section Navigation */}
+              <div className="d-flex gap-2">
+                <button
+                  className={`btn ${activeSection === 'dashboard' ? 'btn-primary' : 'btn-outline-primary'} btn-sm`}
+                  onClick={() => setActiveSection('dashboard')}
+                >
+                  Dashboard
+                </button>
+                <button
+                  className={`btn ${activeSection === 'users' ? 'btn-primary' : 'btn-outline-primary'} btn-sm`}
+                  onClick={() => setActiveSection('users')}
+                >
+                  Users
+                </button>
+                <button
+                  className={`btn ${activeSection === 'reports' ? 'btn-primary' : 'btn-outline-primary'} btn-sm`}
+                  onClick={() => setActiveSection('reports')}
+                >
+                  Reports
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Quick Actions Alert */}
         {(stats.pendingReports > 0 || stats.flaggedPosts > 0 || stats.verificationRequests > 0) && (
-          <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
-            <AlertTriangle className="h-4 w-4 text-orange-600" />
-            <AlertDescription className="text-orange-700 dark:text-orange-300">
-              Attention needed: {stats.pendingReports} pending reports, {stats.flaggedPosts} flagged posts, 
-              and {stats.verificationRequests} verification requests require review.
-            </AlertDescription>
-          </Alert>
+          <div className="alert alert-warning border-warning mb-4">
+            <AlertTriangle className="me-2" style={{ width: '1.25rem', height: '1.25rem' }} />
+            <strong>Attention needed:</strong> {stats.pendingReports} pending reports, {stats.flaggedPosts} flagged posts,
+            and {stats.verificationRequests} verification requests require review.
+          </div>
         )}
 
         {/* Main Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveSection('users')}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                  <Users className="w-5 h-5 text-blue-600 dark:text-blue-300" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Users</p>
-                  <p className="text-2xl font-bold">{stats.totalUsers?.toLocaleString() || '0'}</p>
-                  <p className="text-xs text-green-600">{stats.activeUsers || 0} active</p>
+        <div className="row g-3 mb-4">
+          <div className="col-xl-3 col-lg-4 col-md-6">
+            <div className="card h-100 shadow-sm" style={{ cursor: 'pointer' }} onClick={() => setActiveSection('users')}>
+              <div className="card-body">
+                <div className="d-flex align-items-center">
+                  <div className="p-3 bg-primary bg-opacity-10 rounded-3 me-3">
+                    <Users className="text-primary" style={{ width: '1.5rem', height: '1.5rem' }} />
+                  </div>
+                  <div className="flex-grow-1">
+                    <p className="text-muted small mb-1">Total Users</p>
+                    <h4 className="mb-1">{stats.totalUsers?.toLocaleString() || '0'}</h4>
+                    <small className="text-success">{stats.activeUsers || 0} active</small>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveSection('trades')}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                  <ShoppingCart className="w-5 h-5 text-green-600 dark:text-green-300" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Trades</p>
-                  <p className="text-2xl font-bold">{stats.totalTrades?.toLocaleString() || '0'}</p>
-                  <p className="text-xs text-blue-600">{stats.activeTrades || 0} active</p>
+          <div className="col-xl-3 col-lg-4 col-md-6">
+            <div className="card h-100 shadow-sm" style={{ cursor: 'pointer' }} onClick={() => setActiveSection('trades')}>
+              <div className="card-body">
+                <div className="d-flex align-items-center">
+                  <div className="p-3 bg-success bg-opacity-10 rounded-3 me-3">
+                    <ShoppingCart className="text-success" style={{ width: '1.5rem', height: '1.5rem' }} />
+                  </div>
+                  <div className="flex-grow-1">
+                    <p className="text-muted small mb-1">Total Trades</p>
+                    <h4 className="mb-1">{stats.totalTrades?.toLocaleString() || '0'}</h4>
+                    <small className="text-info">{stats.activeTrades || 0} active</small>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveSection('forum')}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                  <MessageSquare className="w-5 h-5 text-purple-600 dark:text-purple-300" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Forum Posts</p>
-                  <p className="text-2xl font-bold">{stats.totalForumPosts?.toLocaleString() || '0'}</p>
+          <div className="col-xl-3 col-lg-4 col-md-6">
+            <div className="card h-100 shadow-sm" style={{ cursor: 'pointer' }} onClick={() => setActiveSection('forum')}>
+              <div className="card-body">
+                <div className="d-flex align-items-center">
+                  <div className="p-3 bg-purple bg-opacity-10 rounded-3 me-3">
+                    <MessageSquare className="text-purple" style={{ width: '1.5rem', height: '1.5rem' }} />
+                  </div>
+                  <div className="flex-grow-1">
+                    <p className="text-muted small mb-1">Forum Posts</p>
+                    <h4 className="mb-1">{stats.totalForumPosts?.toLocaleString() || '0'}</h4>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveSection('events')}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
-                  <Calendar className="w-5 h-5 text-orange-600 dark:text-orange-300" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Events</p>
-                  <p className="text-2xl font-bold">{stats.totalEvents?.toLocaleString() || '0'}</p>
+          <div className="col-xl-3 col-lg-4 col-md-6">
+            <div className="card h-100 shadow-sm" style={{ cursor: 'pointer' }} onClick={() => setActiveSection('events')}>
+              <div className="card-body">
+                <div className="d-flex align-items-center">
+                  <div className="p-3 bg-warning bg-opacity-10 rounded-3 me-3">
+                    <Calendar className="text-warning" style={{ width: '1.5rem', height: '1.5rem' }} />
+                  </div>
+                  <div className="flex-grow-1">
+                    <p className="text-muted small mb-1">Events</p>
+                    <h4 className="mb-1">{stats.totalEvents?.toLocaleString() || '0'}</h4>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveSection('reports')}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
-                  <Flag className="w-5 h-5 text-red-600 dark:text-red-300" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Reports</p>
-                  <p className="text-2xl font-bold text-red-600">{stats.pendingReports || 0}</p>
+          <div className="col-xl-3 col-lg-4 col-md-6">
+            <div className="card h-100 shadow-sm" style={{ cursor: 'pointer' }} onClick={() => setActiveSection('reports')}>
+              <div className="card-body">
+                <div className="d-flex align-items-center">
+                  <div className="p-3 bg-danger bg-opacity-10 rounded-3 me-3">
+                    <Flag className="text-danger" style={{ width: '1.5rem', height: '1.5rem' }} />
+                  </div>
+                  <div className="flex-grow-1">
+                    <p className="text-muted small mb-1">Pending Reports</p>
+                    <h4 className="mb-1 text-danger">{stats.pendingReports || 0}</h4>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveSection('flagged')}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
-                  <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-300" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Flagged Posts</p>
-                  <p className="text-2xl font-bold text-yellow-600">{stats.flaggedPosts || 0}</p>
+          <div className="col-xl-3 col-lg-4 col-md-6">
+            <div className="card h-100 shadow-sm" style={{ cursor: 'pointer' }} onClick={() => setActiveSection('flagged')}>
+              <div className="card-body">
+                <div className="d-flex align-items-center">
+                  <div className="p-3 bg-warning bg-opacity-10 rounded-3 me-3">
+                    <AlertTriangle className="text-warning" style={{ width: '1.5rem', height: '1.5rem' }} />
+                  </div>
+                  <div className="flex-grow-1">
+                    <p className="text-muted small mb-1">Flagged Posts</p>
+                    <h4 className="mb-1 text-warning">{stats.flaggedPosts || 0}</h4>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveSection('middleman')}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
-                  <UserCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-300" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">MM Applications</p>
-                  <p className="text-2xl font-bold text-indigo-600">{stats.middlemanApplications || 0}</p>
+          <div className="col-xl-3 col-lg-4 col-md-6">
+            <div className="card h-100 shadow-sm" style={{ cursor: 'pointer' }} onClick={() => setActiveSection('middleman')}>
+              <div className="card-body">
+                <div className="d-flex align-items-center">
+                  <div className="p-3 bg-info bg-opacity-10 rounded-3 me-3">
+                    <UserCheck className="text-info" style={{ width: '1.5rem', height: '1.5rem' }} />
+                  </div>
+                  <div className="flex-grow-1">
+                    <p className="text-muted small mb-1">MM Applications</p>
+                    <h4 className="mb-1 text-info">{stats.middlemanApplications || 0}</h4>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveSection('users')}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                  <Ban className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Banned Users</p>
-                  <p className="text-2xl font-bold text-gray-600">{stats.bannedUsers || 0}</p>
+          <div className="col-xl-3 col-lg-4 col-md-6">
+            <div className="card h-100 shadow-sm" style={{ cursor: 'pointer' }} onClick={() => setActiveSection('users')}>
+              <div className="card-body">
+                <div className="d-flex align-items-center">
+                  <div className="p-3 bg-secondary bg-opacity-10 rounded-3 me-3">
+                    <Ban className="text-secondary" style={{ width: '1.5rem', height: '1.5rem' }} />
+                  </div>
+                  <div className="flex-grow-1">
+                    <p className="text-muted small mb-1">Banned Users</p>
+                    <h4 className="mb-1 text-secondary">{stats.bannedUsers || 0}</h4>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="w-5 h-5" />
-                Platform Activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">User Registrations Today</span>
-                  <Badge variant="outline">+{Math.floor(Math.random() * 50) + 10}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">New Trades Created</span>
-                  <Badge variant="outline">+{Math.floor(Math.random() * 30) + 5}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Forum Posts Created</span>
-                  <Badge variant="outline">+{Math.floor(Math.random() * 20) + 3}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Reports Resolved</span>
-                  <Badge variant="outline" className="text-green-600">+{Math.floor(Math.random() * 10) + 2}</Badge>
-                </div>
+        {/* Analytics Charts */}
+        <div className="row g-4 mb-4">
+          <div className="col-lg-8">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <h5 className="card-title mb-0 d-flex align-items-center">
+                  <BarChart3 className="me-2" style={{ width: '1.25rem', height: '1.25rem' }} />
+                  Platform Activity Trends
+                </h5>
               </div>
-            </CardContent>
-          </Card>
+              <div className="card-body">
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Area type="monotone" dataKey="users" stackId="1" stroke="#0d6efd" fill="#0d6efd" fillOpacity={0.6} />
+                    <Area type="monotone" dataKey="trades" stackId="1" stroke="#198754" fill="#198754" fillOpacity={0.6} />
+                    <Area type="monotone" dataKey="posts" stackId="1" stroke="#6f42c1" fill="#6f42c1" fillOpacity={0.6} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-3">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setActiveSection('middleman')}
-                  className="flex items-center gap-2"
-                >
-                  <UserCheck className="w-4 h-4" />
-                  MM Verification
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setActiveSection('flagged')}
-                  className="flex items-center gap-2"
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                  Flagged Content
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setActiveSection('users')}
-                  className="flex items-center gap-2"
-                >
-                  <Users className="w-4 h-4" />
-                  Manage Users
-                </Button>
+          <div className="col-lg-4">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <h5 className="card-title mb-0 d-flex align-items-center">
+                  <PieChart className="me-2" style={{ width: '1.25rem', height: '1.25rem' }} />
+                  User Status Distribution
+                </h5>
               </div>
-            </CardContent>
-          </Card>
+              <div className="card-body">
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number, name: string) => [
+                        `${value} users (${((value / stats.totalUsers) * 100).toFixed(1)}%)`,
+                        name
+                      ]}
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36}
+                      formatter={(value, entry) => (
+                        <span style={{ color: entry.color }}>
+                          {value}: {entry.payload?.value || 0}
+                        </span>
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Additional Analytics */}
+        <div className="row g-4 mb-4">
+          <div className="col-lg-6">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <h5 className="card-title mb-0 d-flex align-items-center">
+                  <TrendingUp className="me-2" style={{ width: '1.25rem', height: '1.25rem' }} />
+                  Reports & Issues
+                </h5>
+              </div>
+              <div className="card-body">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="reports" fill="#dc3545" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-lg-6">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <h5 className="card-title mb-0 d-flex align-items-center">
+                  <Activity className="me-2" style={{ width: '1.25rem', height: '1.25rem' }} />
+                  Recent Activity
+                </h5>
+              </div>
+              <div className="card-body">
+                <div className="list-group list-group-flush">
+                  <div className="list-group-item px-0 d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>User Registrations Today</strong>
+                      <br />
+                      <small className="text-muted">New user signups</small>
+                    </div>
+                    <span className="badge bg-primary rounded-pill">+{Math.floor(Math.random() * 50) + 10}</span>
+                  </div>
+                  <div className="list-group-item px-0 d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>New Trades Created</strong>
+                      <br />
+                      <small className="text-muted">Trading activity</small>
+                    </div>
+                    <span className="badge bg-success rounded-pill">+{Math.floor(Math.random() * 30) + 5}</span>
+                  </div>
+                  <div className="list-group-item px-0 d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>Forum Posts Created</strong>
+                      <br />
+                      <small className="text-muted">Community engagement</small>
+                    </div>
+                    <span className="badge bg-purple rounded-pill">+{Math.floor(Math.random() * 20) + 3}</span>
+                  </div>
+                  <div className="list-group-item px-0 d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>Reports Resolved</strong>
+                      <br />
+                      <small className="text-muted">Moderation actions</small>
+                    </div>
+                    <span className="badge bg-info rounded-pill">+{Math.floor(Math.random() * 10) + 2}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="card shadow-sm">
+          <div className="card-header bg-light">
+            <h5 className="card-title mb-0 d-flex align-items-center">
+              <Settings className="me-2" style={{ width: '1.25rem', height: '1.25rem' }} />
+              Quick Actions
+            </h5>
+          </div>
+          <div className="card-body">
+            <div className="row g-2">
+              <div className="col-md-3">
+                <button
+                  className="btn btn-outline-info w-100 d-flex align-items-center justify-content-center gap-2"
+                  onClick={() => setActiveSection('middleman')}
+                >
+                  <UserCheck style={{ width: '1rem', height: '1rem' }} />
+                  MM Verification
+                </button>
+              </div>
+              <div className="col-md-3">
+                <button
+                  className="btn btn-outline-warning w-100 d-flex align-items-center justify-content-center gap-2"
+                  onClick={() => setActiveSection('flagged')}
+                >
+                  <AlertTriangle style={{ width: '1rem', height: '1rem' }} />
+                  Flagged Content
+                </button>
+              </div>
+              <div className="col-md-3">
+                <button
+                  className="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2"
+                  onClick={() => setActiveSection('users')}
+                >
+                  <Users style={{ width: '1rem', height: '1rem' }} />
+                  Manage Users
+                </button>
+              </div>
+              <div className="col-md-3">
+                <button
+                  className="btn btn-outline-success w-100 d-flex align-items-center justify-content-center gap-2"
+                  onClick={() => setActiveSection('trades')}
+                >
+                  <Eye style={{ width: '1rem', height: '1rem' }} />
+                  View Trades
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="flex-1 p-6">
+    <div className="container-fluid p-4">
       {renderContent()}
     </div>
   );
-}
-
-// Export the section setter function to be used by Sidebar
-export const useAdminPanel = () => {
-  const [activeSection, setActiveSection] = useState('dashboard');
-  return { activeSection, setActiveSection };
 };

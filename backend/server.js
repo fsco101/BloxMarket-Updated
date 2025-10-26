@@ -40,6 +40,7 @@ import tradingPostDatatableRoutes from './routes/datatables/tradingPostDatatable
 import wishlistRoutes from './routes/wishlist.js';
 import wishlistDatatableRoutes from './routes/datatables/wishlistDatatableRoutes.js';
 import reportsDatatableRoutes from './routes/datatables/reportsDatatableRoutes.js';
+import middlemanVerificationDatatableRoutes from './routes/datatables/middlemanVerificationDatatableRoutes.js';
 import vouchRoutes from './routes/vouches.js';
 import notificationRoutes from './routes/notifications.js';
 
@@ -193,6 +194,7 @@ app.use('/api/admin/datatables/forum', datatableLimiter, forumDatatableRoutes);
 app.use('/api/admin/datatables/trading-posts', datatableLimiter, tradingPostDatatableRoutes);
 app.use('/api/admin/datatables/wishlists', datatableLimiter, wishlistDatatableRoutes);
 app.use('/api/admin/datatables/reports', datatableLimiter, reportsDatatableRoutes);
+app.use('/api/admin/datatables/verification', datatableLimiter, middlemanVerificationDatatableRoutes);
 
 // Health check endpoint with rate limit info
 app.get('/api/health', (req, res) => {

@@ -1,5 +1,5 @@
 import express from 'express';
-import { verificationController, upload } from '../controllers/verificationController.js';
+import { verificationController, upload, uploadFace } from '../controllers/verificationController.js';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import multer from 'multer';
 
@@ -24,6 +24,23 @@ router.post('/apply', (req, res, next) => {
     next();
   });
 }, verificationController.submitApplication);
+
+// Upload face images for verification
+router.post('/upload-face', (req, res, next) => {
+  uploadFace(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        // Multer error (file too large, etc.)
+        return res.status(400).json({ error: err.message });
+      } else {
+        // Unknown error
+        return res.status(500).json({ error: err.message });
+      }
+    }
+    // No error, proceed to controller
+    next();
+  });
+}, verificationController.uploadFaceImages);
 
 // Get current user's application status
 router.get('/my-application', verificationController.getUserApplicationStatus);

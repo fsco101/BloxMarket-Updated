@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -8,20 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { apiService } from '../../services/api';
 import { toast } from 'sonner';
+import { DataTable } from '../ui/datatable';
+import type { DataTableColumn } from '../ui/datatable';
 import { 
   ShoppingCart, 
   Search, 
-  Eye, 
-  Trash2, 
   Flag, 
   DollarSign,
-  Package,
-  Clock,
   CheckCircle,
-  XCircle,
   Loader2,
-  TrendingUp,
-  Archive
+  TrendingUp
 } from 'lucide-react';
 
 interface TradingPost {
@@ -57,53 +53,13 @@ export function TradingPostManagement() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedPost, setSelectedPost] = useState<TradingPost | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const tableRef = useRef<HTMLTableElement>(null);
-  const dataTableRef = useRef<any>(null);
-  const isInitialized = useRef(false);
-  const [jQueryReady, setJQueryReady] = useState(false);
-
-  const checkJQueryReady = () => {
-    return new Promise<boolean>((resolve) => {
-      let attempts = 0;
-      const maxAttempts = 50;
-      
-      const checkInterval = setInterval(() => {
-        attempts++;
-        
-        if (window.$ && window.$.fn && window.$.fn.DataTable) {
-          console.log('jQuery and DataTables are ready');
-          clearInterval(checkInterval);
-          resolve(true);
-        } else if (attempts >= maxAttempts) {
-          console.error('jQuery/DataTables failed to load after 5 seconds');
-          clearInterval(checkInterval);
-          resolve(false);
-        }
-      }, 100);
-  });
-  };
-
-  // Add jQuery initialization
-  useEffect(() => {
-    const initJQuery = async () => {
-      const ready = await checkJQueryReady();
-      setJQueryReady(ready);
-      
-      if (!ready) {
-        console.warn('jQuery/DataTables not loaded, using basic table');
-      }
-    };
-    
-    initJQuery();
-  }, []);
-
-  const loadTradingPosts = async () => {
+  const loadTradingPosts = useCallback(async () => {
     try {
       setLoading(true);
+      
       console.log('Loading trading posts...');
       
       const response = await apiService.getTradingPostsDataTable({
@@ -122,31 +78,6 @@ export function TradingPostManagement() {
       
       setPosts(response.posts || []);
       setTotalPages(response.pagination?.totalPages || 1);
-      
-      // Initialize DataTable if jQuery is ready
-      if (jQueryReady) {
-        console.log('jQuery ready, initializing or updating DataTable');
-        
-        // Always initialize/reinitialize the DataTable to ensure proper rendering
-        setTimeout(() => {
-          if (tableRef.current) {
-            console.log('Table ref available, initializing DataTable');
-            initializeDataTable(response.posts);
-          } else {
-            console.warn('Table ref not available yet, delaying initialization');
-            // Try again after a longer delay if table ref isn't available yet
-            setTimeout(() => {
-              if (tableRef.current) {
-                initializeDataTable(response.posts);
-              } else {
-                console.error('Table ref still not available after delay');
-              }
-            }, 500);
-          }
-        }, 100);
-      } else {
-        console.warn('jQuery not ready, skipping DataTable initialization');
-      }
       
     } catch (error: unknown) {
       console.error('Error loading trading posts:', error);
@@ -169,168 +100,7 @@ export function TradingPostManagement() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Add DataTable initialization function
-  const initializeDataTable = (postData: TradingPost[]) => {
-    if (!window.$ || !window.$.fn || !window.$.fn.DataTable) {
-      console.warn('DataTables not available');
-      return;
-    }
-
-    // Use a slight delay to ensure DOM is ready
-    setTimeout(() => {
-      if (!tableRef.current) {
-        console.error('Table ref not available');
-        return;
-      }
-
-      const $ = window.$;
-      
-      try {
-        // Clean up existing DataTable and event handlers if they exist
-        if (dataTableRef.current) {
-          // Remove event listeners first
-          $(tableRef.current).off('click', '.view-btn');
-          $(tableRef.current).off('click', '.archive-btn');
-          $(tableRef.current).off('click', '.delete-btn');
-          
-          // Destroy the DataTable instance
-          dataTableRef.current.destroy();
-          $(tableRef.current).empty();
-        }
-
-        console.log('Initializing DataTable with', postData.length, 'rows');
-        
-        // Create headers and minimal structure if needed
-        if ($(tableRef.current).find('thead').length === 0) {
-          $(tableRef.current).html(`
-            <thead>
-              <tr>
-                <th>Post</th>
-                <th>Author</th>
-                <th>Type</th>
-                <th>Price</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          `);
-        }
-
-        // Initialize DataTable
-        dataTableRef.current = $(tableRef.current).DataTable({
-          data: postData,
-          destroy: true,
-          responsive: true,
-          pageLength: 25,
-          order: [[5, 'desc']], // Order by created date desc
-          columns: [
-            { 
-              title: 'Post', 
-              data: 'title',
-              render: function(data: string, _type: string, row: TradingPost) {
-                return `<div class="fw-bold">${data}</div><div class="text-muted small">${row.item_name}</div>`;
-              }
-            },
-            { 
-              title: 'Author', 
-              data: 'author.username',
-              render: function(data: string) {
-                return data;
-              }
-            },
-            { 
-              title: 'Type', 
-              data: 'type',
-              render: function(data: string) {
-                return data.toUpperCase();
-              }
-            },
-            { 
-              title: 'Price', 
-              data: 'price',
-              render: function(data: number | undefined) {
-                return data ? '$' + data.toLocaleString() : '-';
-              }
-            },
-            { 
-              title: 'Status', 
-              data: 'status',
-              render: function(data: string) {
-                return data.charAt(0).toUpperCase() + data.slice(1);
-              }
-            },
-            { 
-              title: 'Created', 
-              data: 'createdAt',
-              render: function(data: string) {
-                return new Date(data).toLocaleDateString();
-              }
-            },
-            { 
-              title: 'Actions', 
-              data: null, 
-              orderable: false,
-              render: function(_data: null, _type: string, row: TradingPost) {
-                return `
-                  <div class="flex items-center gap-2">
-                    <button class="view-btn px-2 py-1 bg-blue-100 text-blue-800 rounded" data-id="${row._id}">
-                      <span class="sr-only">View</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                    </button>
-                    <button class="archive-btn px-2 py-1 bg-gray-100 text-gray-800 rounded" data-id="${row._id}">
-                      <span class="sr-only">Archive</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect width="20" height="5" x="2" y="3" rx="1"></rect><rect width="20" height="5" x="2" y="16" rx="1"></rect><path d="M12 9v7"></path><path d="m9 13 3 3 3-3"></path></svg>
-                    </button>
-                    <button class="delete-btn px-2 py-1 bg-red-100 text-red-800 rounded" data-id="${row._id}">
-                      <span class="sr-only">Delete</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>
-                    </button>
-                  </div>
-                `;
-              }
-            }
-          ]
-        });
-
-        // Add event listeners for action buttons
-        $(tableRef.current).on('click', '.view-btn', function(this: HTMLElement) {
-          const id = $(this).data('id') as string;
-          const post = postData.find(p => p._id === id);
-          if (post) {
-            setSelectedPost(post);
-            setIsViewDialogOpen(true);
-          }
-        });
-
-        $(tableRef.current).on('click', '.archive-btn', function(this: HTMLElement) {
-          const id = $(this).data('id') as string;
-          handlePostAction(id, 'archive');
-        });
-
-        $(tableRef.current).on('click', '.delete-btn', function(this: HTMLElement) {
-          const id = $(this).data('id') as string;
-          handlePostAction(id, 'delete');
-        });
-
-        isInitialized.current = true;
-        console.log('DataTable initialized successfully');
-      } catch (error: unknown) {
-        console.error('Error initializing DataTable:', error);
-        
-        let errorMessage = 'Failed to initialize DataTable';
-        
-        if (error instanceof Error) {
-          errorMessage = error.message;
-        }
-        
-        toast.error(errorMessage);
-      }
-    }, 100); // Short delay to ensure DOM is ready
-  };
+  }, [page, searchTerm, typeFilter, statusFilter]);
 
   // Load posts when component mounts and when filters change
   useEffect(() => {
@@ -340,71 +110,19 @@ export function TradingPostManagement() {
       return;
     }
 
-    if (jQueryReady) {
-      loadTradingPosts();
-    }
-
-    return () => {
-      if (dataTableRef.current) {
-        try {
-          dataTableRef.current.destroy();
-          dataTableRef.current = null;
-          isInitialized.current = false;
-        } catch (err) {
-          console.error('Error destroying DataTable:', err);
-        }
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jQueryReady, page, typeFilter, statusFilter]);
+    loadTradingPosts();
+  }, [loadTradingPosts]);
 
   // Debounced search
   useEffect(() => {
     const delayedLoad = setTimeout(() => {
-      if (jQueryReady && searchTerm !== undefined) {
+      if (searchTerm !== undefined) {
         loadTradingPosts();
       }
     }, 300);
 
     return () => clearTimeout(delayedLoad);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm]);
-
-  interface ModerateActionData {
-    reason?: string;
-  }
-  
-  const handlePostAction = async (postId: string, action: string, data?: ModerateActionData) => {
-    try {
-      setActionLoading(postId);
-      
-      if (action === 'delete') {
-        await apiService.deleteTradingPostAdmin(postId);
-      } else {
-        await apiService.moderateTradingPost(postId, action, data?.reason);
-      }
-      
-      toast.success(`Trading post ${action}ed successfully`);
-      loadTradingPosts();
-    } catch (error: unknown) {
-      console.error(`Error ${action}ing trading post:`, error);
-      
-      let errorMessage = `Failed to ${action} trading post`;
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'object' && error !== null) {
-        const apiError = error as { response?: { status?: number, data?: { error?: string } } };
-        if (apiError.response?.data?.error) {
-          errorMessage = apiError.response.data.error;
-        }
-      }
-      
-      toast.error(errorMessage);
-    } finally {
-      setActionLoading(null);
-    }
-  };
+  }, [searchTerm, loadTradingPosts]);
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -436,6 +154,98 @@ export function TradingPostManagement() {
     
     return matchesSearch && matchesType && matchesStatus;
   });
+
+  // DataTable columns configuration
+  const columns: DataTableColumn<TradingPost>[] = [
+    {
+      title: 'Post',
+      data: 'title',
+      render: (data: unknown, _type: string, row: TradingPost) => `<div class="font-bold">${String(data)}</div><div class="text-muted-foreground text-sm">${row.item_name}</div>`
+    },
+    {
+      title: 'Author',
+      data: 'author.username',
+      render: (data: unknown) => String(data)
+    },
+    {
+      title: 'Type',
+      data: 'type',
+      render: (data: unknown) => `<span class="badge ${getTypeColor(String(data))}">${String(data).toUpperCase()}</span>`
+    },
+    {
+      title: 'Price',
+      data: 'price',
+      render: (data: unknown) => data ? `$${Number(data).toLocaleString()}` : '-'
+    },
+    {
+      title: 'Status',
+      data: 'status',
+      render: (data: unknown) => `<span class="badge ${getStatusColor(String(data))}">${String(data).charAt(0).toUpperCase() + String(data).slice(1)}</span>`
+    },
+    {
+      title: 'Created',
+      data: 'createdAt',
+      render: (data: unknown) => new Date(String(data)).toLocaleDateString()
+    },
+    {
+      title: 'Actions',
+      data: null,
+      orderable: false,
+      render: (_data: unknown, _type: string, row: TradingPost) => `
+        <div class="flex items-center gap-2">
+          <button class="view-btn px-2 py-1 bg-blue-100 text-blue-800 rounded" data-action="view" data-id="${row._id}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
+          <button class="archive-btn px-2 py-1 bg-gray-100 text-gray-800 rounded" data-action="archive" data-id="${row._id}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect width="20" height="5" x="2" y="3" rx="1"></rect><rect width="20" height="5" x="2" y="16" rx="1"></rect><path d="M12 9v7"></path><path d="m9 13 3 3 3-3"></path></svg>
+          </button>
+          <button class="delete-btn px-2 py-1 bg-red-100 text-red-800 rounded" data-action="delete" data-id="${row._id}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>
+          </button>
+        </div>
+      `
+    }
+  ];
+
+  const handleDataTableAction = useCallback((action: string, row: TradingPost) => {
+    switch (action) {
+      case 'view':
+        setSelectedPost(row);
+        setIsViewDialogOpen(true);
+        break;
+        
+      case 'archive':
+        if (window.confirm('Are you sure you want to archive this trading post?')) {
+          apiService.moderateTradingPost(row._id, 'archive')
+            .then(() => {
+              toast.success('Trading post archived successfully');
+              loadTradingPosts();
+            })
+            .catch((error) => {
+              console.error('Error archiving post:', error);
+              toast.error('Failed to archive trading post');
+            });
+        }
+        break;
+        
+      case 'delete':
+        if (window.confirm('Are you sure you want to permanently delete this trading post? This action cannot be undone.')) {
+          apiService.deleteTradingPostAdmin(row._id)
+            .then(() => {
+              toast.success('Trading post deleted successfully');
+              loadTradingPosts();
+            })
+            .catch((error) => {
+              console.error('Error deleting post:', error);
+              toast.error('Failed to delete trading post');
+            });
+        }
+        break;
+        
+      default:
+        console.warn('Unknown action:', action);
+    }
+  }, [loadTradingPosts]);
 
   return (
     <div className="space-y-6">
@@ -569,145 +379,18 @@ export function TradingPostManagement() {
               <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
               <p className="text-muted-foreground">Loading trading posts...</p>
             </div>
-          ) : filteredPosts.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table ref={tableRef} className="w-full">
-                <thead className="border-b">
-                  <tr className="text-left">
-                    <th className="p-4 font-medium">Post</th>
-                    <th className="p-4 font-medium">Author</th>
-                    <th className="p-4 font-medium">Type</th>
-                    <th className="p-4 font-medium">Price</th>
-                    <th className="p-4 font-medium">Stats</th>
-                    <th className="p-4 font-medium">Status</th>
-                    <th className="p-4 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPosts.map((post) => (
-                    <tr key={post._id} className="border-b hover:bg-muted/50">
-                      <td className="p-4">
-                        <div className="flex items-start gap-3">
-                          {post.isFlagged && <Flag className="w-4 h-4 text-red-500 mt-1" />}
-                          <div className="flex-1">
-                            <h3 className="font-medium line-clamp-1">{post.title}</h3>
-                            <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
-                              {post.item_name}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {new Date(post.createdAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src={post.author.avatar_url} />
-                            <AvatarFallback>{post.author.username[0]?.toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium text-sm">{post.author.username}</p>
-                            <p className="text-xs text-muted-foreground">{post.author.role}</p>
-                          </div>
-                        </div>
-                      </td>
-                      
-                      <td className="p-4">
-                        <Badge className={getTypeColor(post.type)}>
-                          {post.type.toUpperCase()}
-                        </Badge>
-                      </td>
-                      
-                      <td className="p-4">
-                        {post.price ? (
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="w-4 h-4" />
-                            <span className="font-medium">{post.price.toLocaleString()}</span>
-                            {post.currency && <span className="text-xs text-muted-foreground">{post.currency}</span>}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      
-                      <td className="p-4">
-                        <div className="text-sm space-y-1">
-                          <div className="flex items-center gap-1">
-                            <Eye className="w-3 h-3" />
-                            <span>{post.views}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Package className="w-3 h-3" />
-                            <span>{post.interested_users}</span>
-                          </div>
-                        </div>
-                      </td>
-                      
-                      <td className="p-4">
-                        <div className="space-y-1">
-                          <Badge className={getStatusColor(post.status)}>
-                            {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
-                          </Badge>
-                          {post.isFlagged && (
-                            <Badge variant="destructive" className="text-xs">
-                              {post.flagCount} flags
-                            </Badge>
-                          )}
-                        </div>
-                      </td>
-                      
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedPost(post);
-                              setIsViewDialogOpen(true);
-                            }}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handlePostAction(post._id, 'archive')}
-                            disabled={actionLoading === post._id}
-                          >
-                            {actionLoading === post._id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Archive className="w-4 h-4" />
-                            )}
-                          </Button>
-                          
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handlePostAction(post._id, 'delete')}
-                            disabled={actionLoading === post._id}
-                          >
-                            {actionLoading === post._id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           ) : (
-            <div className="text-center py-12">
-              <ShoppingCart className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No trading posts found matching your criteria</p>
-            </div>
+            <DataTable
+              data={filteredPosts}
+              columns={columns}
+              options={{
+                pageLength: 25,
+                responsive: true,
+                order: [[5, 'desc']]
+              }}
+              onAction={handleDataTableAction}
+              emptyMessage="No trading posts found matching your criteria"
+            />
           )}
         </CardContent>
       </Card>

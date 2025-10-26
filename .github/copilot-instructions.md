@@ -91,11 +91,23 @@ const data = await apiService.getTrades({ page: 1, limit: 10 });
 const { isLoggedIn, currentUser } = useAuth();
 ```
 
-3. **UI Components**: Use Shadcn/UI component library
+3. **UI Components**: Use Shadcn/UI component library for consistent design
 ```typescript
 import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
 ```
+
+**Available UI Components** (`/frontend/src/components/ui/`):
+- **Layout**: `accordion`, `aspect-ratio`, `resizable`, `scroll-area`, `separator`, `sidebar`, `universal-layout`
+- **Forms**: `button`, `checkbox`, `form`, `input`, `input-otp`, `label`, `radio-group`, `select`, `slider`, `switch`, `textarea`, `toggle`, `toggle-group`
+- **Data Display**: `avatar`, `badge`, `calendar`, `card`, `chart`, `table`, `progress`
+- **Feedback**: `alert`, `alert-dialog`, `skeleton`, `sonner`, `toast`
+- **Overlay**: `dialog`, `drawer`, `hover-card`, `popover`, `sheet`, `tooltip`
+- **Navigation**: `breadcrumb`, `menubar`, `navigation-menu`, `pagination`, `tabs`
+- **Utilities**: `command`, `context-menu`, `dropdown-menu`, `collapsible`, `carousel`
+- **Hooks**: `use-mobile`, `use-toast`, `utils`
+
+**Design Consistency**: Always import from `./ui/` folder for standardized components with consistent styling, accessibility, and behavior.
 
 4. **State Management**: React hooks with proper loading/error states
 ```typescript

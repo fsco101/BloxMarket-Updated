@@ -132,10 +132,12 @@ export function UserManagement() {
       }
       
       // Normalize the user data
-      const normalizedUsers = response.users.map((user: any) => ({
-        ...user,
-        isActive: user.isActive !== undefined ? user.isActive : user.is_active !== undefined ? user.is_active : true
-      }));
+      const normalizedUsers = response.users
+        .filter((user: any) => user && user._id) // Filter out null/undefined users
+        .map((user: any) => ({
+          ...user,
+          isActive: user.isActive !== undefined ? user.isActive : user.is_active !== undefined ? user.is_active : true
+        }));
       
       console.log('Normalized users:', normalizedUsers.length);
       setUsers(normalizedUsers);
@@ -231,6 +233,11 @@ export function UserManagement() {
             data: null,
             orderable: false,
             render: (data: User) => {
+              // Add null checks
+              if (!data || !data.username) {
+                return '<div class="text-gray-500">Invalid user data</div>';
+              }
+              
               const avatarHtml = data.avatar_url 
                 ? `<img src="${data.avatar_url}" alt="${data.username}" class="w-10 h-10 rounded-full object-cover" />`
                 : `<div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center"><span class="font-medium text-sm">${data.username[0]?.toUpperCase()}</span></div>`;
@@ -240,7 +247,7 @@ export function UserManagement() {
                   ${avatarHtml}
                   <div>
                     <p class="font-medium">${data.username}</p>
-                    <p class="text-sm text-gray-500">${data.email}</p>
+                    <p class="text-sm text-gray-500">${data.email || ''}</p>
                     ${data.roblox_username ? `<p class="text-xs text-blue-600">@${data.roblox_username}</p>` : ''}
                   </div>
                 </div>
@@ -272,6 +279,11 @@ export function UserManagement() {
             data: null,
             orderable: false,
             render: (data: User) => {
+              // Add null checks
+              if (!data) {
+                return '<div class="text-gray-500">-</div>';
+              }
+              
               const credibility = data.credibility_score || 0;
               return `
                 <div class="text-sm">
@@ -291,6 +303,11 @@ export function UserManagement() {
             title: 'Status',
             data: null,
             render: (data: User) => {
+              // Add null checks
+              if (!data) {
+                return '<span class="text-gray-500">Unknown</span>';
+              }
+              
               const isActive = data.isActive !== undefined ? data.isActive : data.is_active;
               const isBanned = data.role === 'banned';
               
@@ -334,6 +351,11 @@ export function UserManagement() {
             orderable: false,
             width: '250px',
             render: (data: User) => {
+              // Add null checks
+              if (!data || !data._id) {
+                return '<div class="text-gray-500">-</div>';
+              }
+              
               const isBanned = data.role === 'banned';
               const isActive = data.isActive !== undefined ? data.isActive : data.is_active;
               
@@ -395,7 +417,7 @@ export function UserManagement() {
       const handleRoleChangeEvent = async function(this: any) {
         const userId = $(this).data('user-id');
         const newRole = $(this).val();
-        const user = userData.find(u => u._id === userId);
+        const user = userData.find((u: User) => u && u._id === userId);
         if (user && user.role !== newRole) {
           await handleRoleChange(userId, newRole);
         }
@@ -404,7 +426,7 @@ export function UserManagement() {
       const handleBanEvent = function(this: any, e: any) {
         e.preventDefault();
         const userId = $(this).data('user-id');
-        const user = userData.find(u => u._id === userId);
+        const user = userData.find((u: User) => u && u._id === userId);
         if (user) openBanDialog(user);
       };
 
@@ -417,7 +439,7 @@ export function UserManagement() {
       const handleDeactivateEvent = function(this: any, e: any) {
         e.preventDefault();
         const userId = $(this).data('user-id');
-        const user = userData.find(u => u._id === userId);
+        const user = userData.find((u: User) => u && u._id === userId);
         if (user) openDeactivateDialog(user);
       };
 
@@ -430,7 +452,7 @@ export function UserManagement() {
       const handleViewEvent = function(this: any, e: any) {
         e.preventDefault();
         const userId = $(this).data('user-id');
-        const user = userData.find(u => u._id === userId);
+        const user = userData.find((u: User) => u && u._id === userId);
         if (user) {
           setSelectedUser(user);
           setIsEditDialogOpen(true);

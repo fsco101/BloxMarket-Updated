@@ -27,6 +27,20 @@ const storage = multer.diskStorage({
   }
 });
 
+// Configure storage for face image uploads
+const faceStorage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    const uploadDir = path.join(__dirname, '../uploads/middlemanface');
+    cb(null, uploadDir);
+  },
+  filename: function(req, file, cb) {
+    // Create a unique filename with original extension
+    const fileExt = file.originalname.split('.').pop();
+    const filename = `face_${uuidv4()}.${fileExt}`;
+    cb(null, filename);
+  }
+});
+
 // Configure upload options
 export const upload = multer({
   storage: storage,
@@ -41,6 +55,21 @@ export const upload = multer({
     cb(null, true);
   }
 }).array('documents', 5); // Allow up to 5 files
+
+// Configure face upload options
+export const uploadFace = multer({
+  storage: faceStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max file size for face images
+  },
+  fileFilter: function(req, file, cb) {
+    // Accept images only
+    if (!file.originalname.match(/\.(jpg|jpeg|png)$/i)) {
+      return cb(new Error('Only image files (JPG, PNG) are allowed for face verification!'), false);
+    }
+    cb(null, true);
+  }
+}).array('faceImages', 3); // Allow up to 3 face images
 
 export const verificationController = {
   // Get all middleman applications (admin only)
@@ -239,6 +268,54 @@ export const verificationController = {
     } catch (error) {
       console.error('Error submitting middleman application:', error);
       res.status(500).json({ error: 'Failed to submit application: ' + error.message });
+    }
+  },
+
+  // Upload face images for verification
+  uploadFaceImages: async (req, res) => {
+    try {
+      console.log('Received face image upload request');
+      console.log('Face images received:', req.files ? req.files.length : 'none');
+
+      const userId = req.user.userId;
+
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: 'No face images provided' });
+      }
+
+      // Create face image documents
+      const faceImageIds = [];
+      for (const file of req.files) {
+        console.log('Processing face image:', file.originalname);
+
+        const faceImage = new VerificationDocument({
+          user_id: userId,
+          document_type: 'face_verification',
+          filename: file.filename,
+          original_filename: file.originalname,
+          file_path: file.path,
+          mime_type: file.mimetype,
+          file_size: file.size,
+          description: 'Face verification image'
+        });
+
+        try {
+          await faceImage.save();
+          console.log('Face image saved:', faceImage._id);
+          faceImageIds.push(faceImage._id);
+        } catch (faceError) {
+          console.error('Error saving face image:', faceError);
+        }
+      }
+
+      res.status(201).json({
+        message: 'Face images uploaded successfully',
+        faceImageIds,
+        uploadedCount: faceImageIds.length
+      });
+    } catch (error) {
+      console.error('Error uploading face images:', error);
+      res.status(500).json({ error: 'Failed to upload face images: ' + error.message });
     }
   },
   

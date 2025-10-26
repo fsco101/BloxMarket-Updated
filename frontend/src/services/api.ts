@@ -880,6 +880,9 @@ class ApiService {
   async getAdminStats() {
     return this.request('/admin/stats');
   }
+    async getAdminAnalytics(days: number = 7) {
+    return this.request(`/admin/analytics?days=${days}`);
+  }
 
   async getUsers(params: {
     page?: number;
@@ -1019,6 +1022,58 @@ class ApiService {
       return await response.json();
     } catch (error) {
       console.error('Error in applyForMiddleman:', error);
+      throw error;
+    }
+  }
+  
+  async uploadFaceImages(faceImages: File[]) {
+    try {
+      console.log('Uploading face images:', faceImages.length);
+      
+      const formData = new FormData();
+      
+      // Add face images
+      faceImages.forEach((image, index) => {
+        console.log(`Adding face image ${index + 1}: ${image.name} (${image.size} bytes)`);
+        formData.append('faceImages', image);
+      });
+      
+      // Direct fetch implementation for face uploads
+      const url = `${API_BASE_URL}/verification/upload-face`;
+      const token = this.token || localStorage.getItem('bloxmarket-token');
+      
+      console.log('Uploading face images to:', url);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Face upload failed:', response.status, errorText);
+        let errorMessage = 'Failed to upload face images';
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          if (errorText) {
+            errorMessage = errorText;
+          }
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error in uploadFaceImages:', error);
       throw error;
     }
   }
@@ -2005,6 +2060,85 @@ class ApiService {
     return this.request(`/notifications/${notificationId}`, {
       method: 'DELETE'
     });
+  }
+
+  // Middleman Verification DataTable methods
+  async getMiddlemanVerificationDataTable(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+
+    const response = await this.request(`/admin/datatables/verification?${queryParams.toString()}`);
+    return response;
+  }
+
+  async approveMiddlemanApplication(applicationId: string) {
+    return await this.request(`/admin/datatables/verification/${applicationId}/approve`, {
+      method: 'PUT'
+    });
+  }
+
+  async rejectMiddlemanApplication(applicationId: string, reason: string) {
+    return await this.request(`/admin/datatables/verification/${applicationId}/reject`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason })
+    });
+  }
+
+  async getMiddlemanApplicationDetails(applicationId: string) {
+    const response = await this.request(`/admin/datatables/verification/${applicationId}`);
+    return response.application;
+  }
+
+  async bulkUpdateMiddlemanApplications(applicationIds: string[], action: 'approve' | 'reject', reason?: string) {
+    return await this.request('/admin/datatables/verification/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ applicationIds, action, reason })
+    });
+  }
+
+  async exportMiddlemanVerificationCSV(status?: string) {
+    const queryParams = new URLSearchParams();
+    if (status) queryParams.append('status', status);
+
+    const queryString = queryParams.toString();
+    const token = localStorage.getItem('bloxmarket-token');
+
+    const response = await fetch(
+      `${API_BASE_URL}/admin/datatables/verification/export${queryString ? '?' + queryString : ''}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to export middleman verification data');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `middleman-verification-${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   }
 }
 

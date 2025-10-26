@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { apiService } from '../../services/api';
 import { toast } from 'sonner';
 import { useAuth } from '../../App';
+import { MiddlemanFaceScanner } from './MiddlemanFaceScanner';
 
 interface MiddlemanApplicationFormProps {
   isOpen: boolean;
@@ -31,6 +32,8 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
     reviewedAt?: string;
     rejectionReason?: string;
   }>(null);
+  const [showFaceScanner, setShowFaceScanner] = useState(false);
+  const [faceImagesUploaded, setFaceImagesUploaded] = useState(false);
   
   React.useEffect(() => {
     // Only check status when dialog is open
@@ -98,6 +101,11 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
       return;
     }
     
+    if (!faceImagesUploaded) {
+      toast.error('Please complete face verification first');
+      return;
+    }
+    
     try {
       setIsSubmitting(true);
       
@@ -110,14 +118,7 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
       }
       
       // Create a loading toast to show progress
-      const toastId = toast.loading('Uploading documents and submitting application...');
-      
-      // Log document details for debugging
-      console.log('Submitting documents:', documents.map(doc => ({
-        name: doc.name,
-        type: doc.type,
-        size: doc.size
-      })));
+      const toastId = toast.loading('Submitting application...');
       
       try {
         await apiService.applyForMiddleman({
@@ -128,19 +129,19 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
           external_links: externalLinks,
           preferred_trade_types: preferredTradeTypes
         }, documents);
+        
         toast.dismiss(toastId);
+        toast.success('Application submitted successfully!');
+        
+        // Check updated status
+        const response = await apiService.getApplicationStatus();
+        setApplicationStatus(response);
+        
+        setIsSubmitting(false);
       } catch (err) {
         toast.dismiss(toastId);
         throw err; // Re-throw to be caught by outer catch block
       }
-      
-      toast.dismiss();
-      toast.success('Application submitted successfully!');
-      
-      // Check updated status
-      const response = await apiService.getApplicationStatus();
-      setApplicationStatus(response);
-      setIsSubmitting(false);
     } catch (error) {
       toast.dismiss();
       console.error('Error submitting application:', error);
@@ -238,6 +239,7 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
                 <AlertDescription>
                   <ul className="list-disc pl-4 mt-2 space-y-1 text-sm">
                     <li>Valid ID documents for verification (passport, driver's license, ID card)</li>
+                    <li>Face verification images captured via camera</li>
                     <li>Minimum of 50 completed trades</li>
                     <li>Active account for at least 3 months</li>
                     <li>Clean record with no reported scams or fraud</li>
@@ -364,6 +366,40 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
                 )}
               </div>
               
+              {/* Face Verification Camera */}
+              <div className="space-y-2">
+                <Label>Face Verification <span className="text-red-500">*</span></Label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                  <div className="text-center">
+                    {faceImagesUploaded ? (
+                      <div className="space-y-3">
+                        <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
+                        <p className="text-green-700 font-medium">Face verification completed!</p>
+                        <p className="text-sm text-gray-600">Your face images have been uploaded successfully.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <Shield className="w-12 h-12 text-blue-500 mx-auto" />
+                        <p className="text-gray-600 font-medium">
+                          Face verification required
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Capture your face to verify your identity and prevent fraudulent applications.
+                        </p>
+                        <Button
+                          type="button"
+                          onClick={() => setShowFaceScanner(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <Shield className="w-4 h-4" />
+                          Start Face Verification
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
               <div className="flex justify-between pt-4">
                 <Button 
                   type="button" 
@@ -379,6 +415,20 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
               </div>
             </div>
           </form>
+        )}
+
+        {/* Face Scanner Modal */}
+        {showFaceScanner && (
+          <MiddlemanFaceScanner
+            onComplete={(faceImages) => {
+              setFaceImagesUploaded(true);
+              setShowFaceScanner(false);
+              toast.success('Face verification completed successfully!');
+            }}
+            onCancel={() => setShowFaceScanner(false)}
+            requiredImages={1}
+            maxImages={3}
+          />
         )}
       </DialogContent>
     </Dialog>

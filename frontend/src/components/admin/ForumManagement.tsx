@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Alert, AlertDescription } from '../ui/alert';
 import { apiService } from '../../services/api';
 import { toast } from 'sonner';
+import { DataTable } from '../ui/datatable';
+import type { DataTableColumn } from '../ui/datatable';
 import { 
   MessageSquare,
   Loader2,
@@ -13,13 +15,6 @@ import {
   Eye,
   Download
 } from 'lucide-react';
-
-declare global {
-  interface Window {
-    $: any;
-    jQuery: any;
-  }
-}
 
 interface ForumPost {
   post_id: string;
@@ -40,50 +35,9 @@ export function ForumManagement() {
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [jQueryReady, setJQueryReady] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const tableRef = useRef<HTMLTableElement>(null);
-  const dataTableRef = useRef<any>(null);
-  const isInitialized = useRef(false);
-
-  // Check if jQuery and DataTables are loaded
-  const checkJQueryReady = () => {
-    return new Promise<boolean>((resolve) => {
-      let attempts = 0;
-      const maxAttempts = 50;
-      
-      const checkInterval = setInterval(() => {
-        attempts++;
-        
-        if (window.$ && window.$.fn && window.$.fn.DataTable) {
-          console.log('jQuery and DataTables are ready');
-          clearInterval(checkInterval);
-          resolve(true);
-        } else if (attempts >= maxAttempts) {
-          console.error('jQuery/DataTables failed to load after 5 seconds');
-          clearInterval(checkInterval);
-          resolve(false);
-        }
-      }, 100);
-    });
-  };
-
-  useEffect(() => {
-    const initJQuery = async () => {
-      const ready = await checkJQueryReady();
-      setJQueryReady(ready);
-      
-      if (!ready) {
-        setError('Required libraries (jQuery/DataTables) failed to load. Please refresh the page.');
-        setLoading(false);
-      }
-    };
-    
-    initJQuery();
-  }, []);
-
-  const loadPosts = async () => {
+    const loadPosts = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -108,46 +62,18 @@ export function ForumManagement() {
       console.log('Normalized posts:', normalizedPosts.length);
       setPosts(normalizedPosts);
       
-      if (!jQueryReady) {
-        console.log('Waiting for jQuery to be ready...');
-        const ready = await checkJQueryReady();
-        if (!ready) {
-          setError('DataTables library not available');
-          return;
-        }
-      }
-      
-      setTimeout(() => {
-        if (dataTableRef.current) {
-          console.log('Updating existing DataTable...');
-          try {
-            dataTableRef.current.clear();
-            dataTableRef.current.rows.add(normalizedPosts);
-            dataTableRef.current.draw();
-          } catch (err) {
-            console.error('Error updating DataTable:', err);
-            dataTableRef.current.destroy();
-            dataTableRef.current = null;
-            isInitialized.current = false;
-            initializeDataTable(normalizedPosts);
-          }
-        } else if (!isInitialized.current) {
-          console.log('Initializing new DataTable...');
-          initializeDataTable(normalizedPosts);
-        }
-      }, 200);
-      
-    } catch (error: any) {
-      console.error('Error loading forum posts:', error);
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Error loading forum posts:', err);
       
       let errorMessage = 'Failed to load forum posts';
       
-      if (error.response?.status === 403) {
+      if (err.message?.includes('403')) {
         errorMessage = 'Access denied. Admin or moderator privileges required.';
-      } else if (error.response?.status === 401) {
+      } else if (err.message?.includes('401')) {
         errorMessage = 'Authentication required. Please log in again.';
-      } else if (error.message) {
-        errorMessage = error.message;
+      } else if (err.message) {
+        errorMessage = err.message;
       }
       
       setError(errorMessage);
@@ -155,178 +81,105 @@ export function ForumManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const initializeDataTable = (postData: ForumPost[]) => {
-    if (!window.$ || !window.$.fn || !window.$.fn.DataTable) {
-      console.error('jQuery or DataTables not available');
-      setError('DataTables library not loaded. Please refresh the page.');
-      return;
-    }
-
-    if (!tableRef.current) {
-      console.error('Table ref not available');
-      return;
-    }
-
-    const $ = window.$;
-    
-    console.log('Initializing DataTable with', postData.length, 'posts');
-    
-    try {
-      if (dataTableRef.current) {
-        try {
-          dataTableRef.current.destroy();
-        } catch (err) {
-          console.log('No existing DataTable to destroy');
-        }
+  const columns: DataTableColumn<ForumPost>[] = [
+    {
+      title: 'Title',
+      data: 'title',
+      render: (data: unknown, _type: string, row: ForumPost) => {
+        const title = data as string;
+        const excerpt = row.content.length > 100
+          ? row.content.substring(0, 100) + '...'
+          : row.content;
+        return `
+          <div>
+            <p class="font-medium">${title}</p>
+            <p class="text-sm text-gray-500">${excerpt}</p>
+          </div>
+        `;
       }
+    },
+    {
+      title: 'Category',
+      data: 'category',
+      render: (data: unknown, type: string, row: ForumPost) => {
+        const category = data as string;
+        const categoryColors: Record<string, string> = {
+          'general': 'bg-blue-100 text-blue-800',
+          'trading_tips': 'bg-green-100 text-green-800',
+          'scammer_reports': 'bg-red-100 text-red-800',
+          'game_updates': 'bg-purple-100 text-purple-800'
+        };
 
-      dataTableRef.current = $(tableRef.current).DataTable({
-        data: postData,
-        destroy: true,
-        responsive: true,
-        pageLength: 25,
-        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-        order: [[5, 'desc']],
-        columns: [
-          {
-            title: 'Title',
-            data: 'title',
-            render: (data: string, type: string, row: ForumPost) => {
-              const excerpt = row.content.length > 100 
-                ? row.content.substring(0, 100) + '...' 
-                : row.content;
-              return `
-                <div>
-                  <p class="font-medium">${data}</p>
-                  <p class="text-sm text-gray-500">${excerpt}</p>
-                </div>
-              `;
-            }
-          },
-          {
-            title: 'Category',
-            data: 'category',
-            render: (data: string) => {
-              const categoryColors: Record<string, string> = {
-                'general': 'bg-blue-100 text-blue-800',
-                'trading_tips': 'bg-green-100 text-green-800',
-                'scammer_reports': 'bg-red-100 text-red-800',
-                'game_updates': 'bg-purple-100 text-purple-800'
-              };
-              
-              const colorClass = categoryColors[data] || categoryColors['general'];
-              const label = data.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-              
-              return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}">
-                ${label}
-              </span>`;
-            }
-          },
-          {
-            title: 'Author',
-            data: 'username',
-            render: (data: string) => {
-              return `<div class="text-sm font-medium">${data}</div>`;
-            }
-          },
-          {
-            title: 'Votes',
-            data: null,
-            render: (data: ForumPost) => {
-              return `
-                <div class="flex items-center gap-2">
-                  <span class="text-green-600">↑ ${data.upvotes}</span>
-                  <span class="text-red-600">↓ ${data.downvotes}</span>
-                </div>
-              `;
-            }
-          },
-          {
-            title: 'Comments',
-            data: 'commentCount',
-            render: (data: number) => {
-              return `<div class="text-center">${data}</div>`;
-            }
-          },
-          {
-            title: 'Created',
-            data: 'createdAt',
-            render: (data: string) => {
-              if (!data) return '<span class="text-gray-400">Unknown</span>';
-              const created = new Date(data).toLocaleDateString();
-              return `<div class="text-sm">${created}</div>`;
-            }
-          },
-          {
-            title: 'Actions',
-            data: null,
-            orderable: false,
-            width: '150px',
-            render: (data: ForumPost) => {
-              const postId = data._id || data.post_id;
-              return `
-                <div class="flex items-center gap-2">
-                  <button class="btn btn-sm btn-primary view-btn" data-post-id="${postId}" title="View Details">
-                    <i class="fas fa-eye"></i>
-                  </button>
-                  <button class="btn btn-sm btn-danger delete-btn" data-post-id="${postId}" title="Delete Post">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              `;
-            }
-          }
-        ],
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
-        language: {
-          search: "_INPUT_",
-          searchPlaceholder: "Search posts...",
-          lengthMenu: "Show _MENU_ posts",
-          info: "Showing _START_ to _END_ of _TOTAL_ posts",
-          infoEmpty: "No posts found",
-          infoFiltered: "(filtered from _MAX_ total posts)",
-          zeroRecords: "No matching posts found",
-          emptyTable: "No forum posts available"
-        }
-      });
+        const colorClass = categoryColors[category] || categoryColors['general'];
+        const label = category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-      isInitialized.current = true;
-      console.log('DataTable initialized successfully');
-
-      const handleViewPost = function(this: any, e: any) {
-        e.preventDefault();
-        const postId = $(this).data('post-id');
-        const post = postData.find(p => p._id === postId || p.post_id === postId);
-        if (post) {
-          console.log('View post:', post);
-          toast.info(`Viewing post: ${post.title}`);
-        }
-      };
-
-      const handleDeletePost = async function(this: any, e: any) {
-        e.preventDefault();
-        const postId = $(this).data('post-id');
-        const post = postData.find(p => p._id === postId || p.post_id === postId);
-        
-        if (post && confirm(`Are you sure you want to delete "${post.title}"?`)) {
-          await deletePost(postId);
-        }
-      };
-
-      $(tableRef.current).off();
-      $(tableRef.current).on('click', '.view-btn', handleViewPost);
-      $(tableRef.current).on('click', '.delete-btn', handleDeletePost);
-      
-    } catch (error) {
-      console.error('Error initializing DataTable:', error);
-      toast.error('Failed to initialize table');
-      setError('Failed to initialize data table. Please refresh the page.');
+        return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}">
+          ${label}
+        </span>`;
+      }
+    },
+    {
+      title: 'Author',
+      data: 'username',
+      render: (data: unknown, _type: string, _row: ForumPost) => {
+        const username = data as string;
+        return `<div class="text-sm font-medium">${username}</div>`;
+      }
+    },
+    {
+      title: 'Votes',
+      data: null,
+      render: (_data: unknown, _type: string, row: ForumPost) => {
+        return `
+          <div class="flex items-center gap-2">
+            <span class="text-green-600">↑ ${row.upvotes}</span>
+            <span class="text-red-600">↓ ${row.downvotes}</span>
+          </div>
+        `;
+      }
+    },
+    {
+      title: 'Comments',
+      data: 'commentCount',
+      render: (data: unknown, _: string, __: ForumPost) => {
+        const count = data as number;
+        return `<div class="text-center">${count}</div>`;
+      }
+    },
+    {
+      title: 'Created',
+      data: 'createdAt',
+      render: (data: unknown, _: string, __: ForumPost) => {
+        const createdAt = data as string;
+        if (!createdAt) return '<span class="text-gray-400">Unknown</span>';
+        const created = new Date(createdAt).toLocaleDateString();
+        return `<div class="text-sm">${created}</div>`;
+      }
+    },
+    {
+      title: 'Actions',
+      data: null,
+      orderable: false,
+      width: '150px',
+      render: (_data: unknown, _type: string, row: ForumPost) => {
+        const postId = row._id || row.post_id;
+        return `
+          <div class="flex items-center gap-2">
+            <button class="btn btn-sm btn-primary" data-action="view" data-post-id="${postId}" title="View Details">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn btn-sm btn-danger" data-action="delete" data-post-id="${postId}" title="Delete Post">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        `;
+      }
     }
-  };
+  ];
 
-  const deletePost = async (postId: string) => {
+  const deletePost = useCallback(async (postId: string) => {
     try {
       setActionLoading(postId);
       await apiService.deleteForumPostAdmin(postId);
@@ -338,35 +191,22 @@ export function ForumManagement() {
     } finally {
       setActionLoading(null);
     }
-  };
+  }, [loadPosts]);
+
+  const handleAction = useCallback((action: string, row: ForumPost, _index: number) => {
+    if (action === 'view') {
+      console.log('View post:', row);
+      toast.info(`Viewing post: ${row.title}`);
+    } else if (action === 'delete') {
+      if (confirm(`Are you sure you want to delete "${row.title}"?`)) {
+        deletePost(row._id || row.post_id);
+      }
+    }
+  }, [deletePost]);
 
   useEffect(() => {
-    if (!apiService.isAuthenticated()) {
-      setError('You must be logged in to access this page');
-      setLoading(false);
-      return;
-    }
-    
-    if (jQueryReady) {
-      loadPosts();
-    }
-    
-    return () => {
-      if (dataTableRef.current) {
-        try {
-          const $ = window.$;
-          if ($ && tableRef.current) {
-            $(tableRef.current).off();
-          }
-          dataTableRef.current.destroy();
-          dataTableRef.current = null;
-          isInitialized.current = false;
-        } catch (err) {
-          console.error('Error destroying DataTable:', err);
-        }
-      }
-    };
-  }, [jQueryReady]);
+    loadPosts();
+  }, [loadPosts]);
 
   if (error && !loading) {
     return (
@@ -485,28 +325,28 @@ export function ForumManagement() {
               <p className="text-muted-foreground">No forum posts found</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table 
-                ref={tableRef}
-                className="display table table-striped table-hover w-full"
-                style={{ width: '100%' }}
-              >
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Category</th>
-                    <th>Author</th>
-                    <th>Votes</th>
-                    <th>Comments</th>
-                    <th>Created</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Data populated by DataTables */}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              data={posts}
+              columns={columns}
+              onAction={handleAction}
+              loading={loading}
+              options={{
+                pageLength: 25,
+                lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+                order: [[5, 'desc']],
+                responsive: true,
+                language: {
+                  search: "_INPUT_",
+                  searchPlaceholder: "Search posts...",
+                  lengthMenu: "Show _MENU_ posts",
+                  info: "Showing _START_ to _END_ of _TOTAL_ posts",
+                  infoEmpty: "No posts found",
+                  infoFiltered: "(filtered from _MAX_ total posts)",
+                  zeroRecords: "No matching posts found",
+                  emptyTable: "No forum posts available"
+                }
+              }}
+            />
           )}
         </CardContent>
       </Card>

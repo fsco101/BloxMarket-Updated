@@ -1,14 +1,19 @@
 import nodemailer from 'nodemailer';
 
 // Create transporter for sending emails
+// NOTE: For Gmail, if 2FA is enabled, use an App Password instead of your regular password
+// Generate an App Password at: https://myaccount.google.com/apppasswords
 const createTransporter = () => {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+    secure: false, // false for TLS
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS
+    },
+    tls: {
+      rejectUnauthorized: false // Allow self-signed certificates
     }
   });
 };
@@ -23,10 +28,8 @@ export const sendVerificationEmail = async (email, verificationCode, username = 
   try {
     console.log('📧 Attempting to send verification email...');
     console.log('Email:', email);
-    console.log('NODE_ENV:', process.env.NODE_ENV);
 
     const transporter = createTransporter();
-    console.log('Transporter created:', typeof transporter);
 
     const mailOptions = {
       from: `"BloxMarket" <${process.env.SMTP_USER || 'noreply@bloxmarket.com'}>`,
@@ -67,13 +70,16 @@ export const sendVerificationEmail = async (email, verificationCode, username = 
       `
     };
 
-    console.log('Mail options prepared, sending email...');
+    console.log('Sending email...');
     const info = await transporter.sendMail(mailOptions);
-    console.log('Verification email sent successfully:', info.messageId);
+    console.log('✅ Verification email sent successfully:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending verification email:', error);
-    throw new Error('Failed to send verification email');
+    console.error('❌ Error sending verification email:', error);
+    if (error.code === 'EAUTH' && error.response.includes('534')) {
+      throw new Error(`Failed to send verification email: Gmail authentication failed. If using Gmail with 2FA, please use an App Password instead of your regular password. Generate one at: https://myaccount.google.com/apppasswords`);
+    }
+    throw new Error(`Failed to send verification email: ${error.message}`);
   }
 };
 
