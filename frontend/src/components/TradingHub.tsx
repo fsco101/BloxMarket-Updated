@@ -7,6 +7,8 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogFooter, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogBody } from './ui/dialog';
+import { PostModal } from './ui/post-modal';
+import type { PostModalPost } from './ui/post-modal';
 import { apiService } from '../services/api';
 import { toast } from 'sonner';
 import { 
@@ -1049,6 +1051,9 @@ export function TradingHub() {
   // Modal states (for viewing images and trade details)
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [isTradeDetailsOpen, setIsTradeDetailsOpen] = useState(false);
+  // Post modal (Dashboard-style) state
+  const [selectedPostForModal, setSelectedPostForModal] = useState<PostModalPost | null>(null);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [modalSelectedImages, setModalSelectedImages] = useState<{ image_url: string; uploaded_at: string }[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -1367,6 +1372,34 @@ export function TradingHub() {
   const handleTradeClick = (trade: Trade) => {
     setSelectedTrade(trade);
     setIsTradeDetailsOpen(true);
+  };
+
+  // Map a Trade to the PostModalPost shape
+  const mapTradeToPost = (trade: Trade): PostModalPost => ({
+    id: trade.trade_id,
+    type: 'trade',
+    title: `Trading ${trade.item_offered}${trade.item_requested ? ` for ${trade.item_requested}` : ''}`,
+    description: trade.description || '',
+    user: {
+      id: trade.user_id || '',
+      username: trade.username,
+      robloxUsername: trade.roblox_username,
+      rating: Math.min(5, Math.max(1, Math.floor((trade.credibility_score || 0) / 20))),
+      vouchCount: trade.vouch_count || 0,
+      verified: false,
+      moderator: false,
+      avatar_url: trade.avatar_url || ''
+    },
+    timestamp: trade.created_at,
+    images: (trade.images || []).map(img => ({ url: `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${img.image_url.startsWith('/') ? img.image_url : `/uploads/trades/${img.image_url}`}`, type: 'trade' })),
+    comments: trade.comment_count || 0,
+    upvotes: trade.upvotes || 0,
+    downvotes: trade.downvotes || 0
+  });
+
+  const openPostModal = (trade: Trade) => {
+    setSelectedPostForModal(mapTradeToPost(trade));
+    setIsPostModalOpen(true);
   };
 
   const handleImageClick = (images: { image_url: string; uploaded_at: string }[], index: number) => {
@@ -2149,7 +2182,7 @@ export function TradingHub() {
                 <Card 
                   key={trade.trade_id} 
                   className="hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => handleTradeClick(trade)}
+                  onClick={() => openPostModal(trade)}
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">
@@ -2455,6 +2488,15 @@ export function TradingHub() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Dashboard-style Post Modal (reused from Dashboard) */}
+      <PostModal
+        post={selectedPostForModal}
+        isOpen={isPostModalOpen}
+        onClose={() => { setIsPostModalOpen(false); setSelectedPostForModal(null); }}
+        onUserClick={(userId: string) => setAppCurrentPage(`profile-${userId}`)}
+        onReportClick={() => setIsReportModalOpen(true)}
+      />
 
       <ReportModal
         post={selectedTrade}

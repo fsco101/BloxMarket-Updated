@@ -393,23 +393,26 @@ export function NewUserProfile() {
                         {profileData?.user?.username?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
-                    <label className="absolute bottom-1 right-1 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-1.5 cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 border-2 border-background z-10">
-                      <Camera className="w-3 h-3" />
+                    <label className="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-2 cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-110 border border-white d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', zIndex: 30 }}>
+                      <Camera className="w-5 h-5" />
                       <input
                         type="file"
                         accept="image/*"
                         onChange={handleAvatarSelect}
-                        className="hidden"
+                        className="d-none"
                       />
+                      <span className="visually-hidden">Change avatar</span>
                     </label>
                   </div>
                   {selectedAvatar && (
-                    <div className="absolute -top-3 -right-3 flex gap-2">
+                    <div className="position-absolute top-0 end-0 d-flex gap-2" style={{ zIndex: 40 }}>
                       <Button
                         size="sm"
                         onClick={handleAvatarUpload}
                         disabled={saving}
-                        className="h-8 w-8 p-0 bg-green-500 hover:bg-green-600 shadow-lg"
+                        className="btn btn-success rounded-circle p-2 d-flex align-items-center justify-content-center shadow-lg border border-white"
+                        style={{ width: '36px', height: '36px' }}
+                        title="Save avatar"
                       >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                       </Button>
@@ -420,7 +423,9 @@ export function NewUserProfile() {
                           setSelectedAvatar(null);
                           setAvatarPreview('');
                         }}
-                        className="h-8 w-8 p-0 shadow-lg"
+                        className="btn btn-danger rounded-circle p-2 d-flex align-items-center justify-content-center shadow-lg border border-white"
+                        style={{ width: '36px', height: '36px' }}
+                        title="Cancel upload"
                       >
                         <X className="w-4 h-4" />
                       </Button>

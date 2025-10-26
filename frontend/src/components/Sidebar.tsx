@@ -122,25 +122,25 @@ export function Sidebar() {
   }, [user, isAdminOrModerator, isLoading]);
 
   return (
-    <div className="w-64 sm:w-72 lg:w-80 h-screen bg-gradient-to-b from-sidebar via-sidebar to-sidebar/95 border-r border-sidebar-border/60 flex flex-col flex-shrink-0 shadow-2xl backdrop-blur-sm animate-fadeInUp transition-all duration-300 ease-in-out">
+    <div className="w-64 sm:w-72 lg:w-80 h-screen bg-light border-end border-secondary flex flex-col flex-shrink-0 shadow-lg animate-fadeInUp transition-all duration-300 ease-in-out position-sticky top-0">
       {/* Subtle background pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.05),transparent_50%)] pointer-events-none animate-pulse-glow"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(168,85,247,0.03),transparent_50%)] pointer-events-none"></div>
+      <div className="position-absolute inset-0 bg-gradient-to-b from-primary/5 to-secondary/5 pointer-events-none animate-pulse-glow"></div>
+      <div className="position-absolute inset-0 bg-gradient-to-r from-info/3 to-warning/3 pointer-events-none"></div>
       {/* Header */}
-      <div className="relative p-4 sm:p-5 lg:p-6 border-b border-sidebar-border/50 flex-shrink-0 bg-gradient-to-br from-blue-600/10 via-purple-600/5 to-indigo-600/10 dark:from-blue-500/20 dark:via-purple-500/10 dark:to-indigo-500/20">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-b-xl"></div>
+      <div className="relative p-4 sm:p-5 lg:p-6 border-bottom border-secondary flex-shrink-0 bg-gradient-to-br from-primary/10 via-info/5 to-secondary/10">
+        <div className="position-absolute inset-0 bg-gradient-to-r from-primary/5 to-info/5 rounded-bottom"></div>
         <div className="relative flex items-center gap-3 sm:gap-4">
           <div className="relative">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-white/20 dark:ring-gray-800/50">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 bg-gradient-to-br from-primary via-info to-secondary rounded-xl flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-gray-800">
               <span className="text-white font-black text-base sm:text-lg tracking-tight">BM</span>
             </div>
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-green-400 rounded-full border-2 border-white dark:border-gray-800 animate-pulse"></div>
+            <div className="position-absolute -bottom-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-success rounded-full border-2 border-white dark:border-gray-800 animate-pulse"></div>
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-lg sm:text-xl text-sidebar-foreground bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-purple-400">
+            <h2 className="font-bold text-lg sm:text-xl text-dark bg-gradient-to-r from-primary to-info bg-clip-text text-transparent dark:from-blue-400 dark:to-purple-400">
               BloxMarket
             </h2>
-            <p className="text-xs text-sidebar-foreground/60 font-medium tracking-wide uppercase">
+            <p className="text-xs text-muted font-medium tracking-wide uppercase">
               Trading Community
             </p>
           </div>
@@ -148,27 +148,27 @@ export function Sidebar() {
       </div>
 
       {/* User Info */}
-      <div className="p-3 sm:p-4 border-b border-sidebar-border/50 flex-shrink-0 bg-gradient-to-r from-sidebar-accent/30 to-transparent">
+      <div className="p-3 sm:p-4 border-bottom border-secondary flex-shrink-0 bg-gradient-to-r from-light/30 to-transparent">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             <div className="relative">
-              <Avatar className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 ring-2 ring-sidebar-border/50 shadow-md">
+              <Avatar className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 ring-2 ring-secondary shadow-md">
                 <AvatarImage src={getAvatarUrl(user?.avatar_url as string)} className="object-cover" />
-                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold text-sm">
+                <AvatarFallback className="bg-gradient-to-br from-primary to-info text-white font-semibold text-sm">
                   {user?.username?.[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               {user && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-4 sm:h-4 bg-green-400 rounded-full border-2 border-white dark:border-gray-800 shadow-sm"></div>
+                <div className="position-absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-4 sm:h-4 bg-success rounded-full border-2 border-white dark:border-gray-800 shadow-sm"></div>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-sidebar-foreground truncate">
+              <p className="font-semibold text-sm text-dark truncate">
                 {user?.username || 'Guest'}
               </p>
               <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-xs text-sidebar-foreground/70 font-medium">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-success rounded-full animate-pulse"></div>
+                <span className="text-xs text-muted font-medium">
                   {user ? 'Online' : 'Offline'}
                 </span>
               </div>
@@ -187,16 +187,23 @@ export function Sidebar() {
             <Button
               key={id}
               variant={currentPage === id ? "secondary" : "ghost"}
-              className={`w-full justify-start h-10 sm:h-11 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all duration-200 group animate-slideInRight`}
+              className={`w-full justify-start transition-all duration-300 group relative overflow-hidden ${
+                currentPage === id
+                  ? 'bg-gradient-to-r from-primary to-info text-white shadow-lg border-0 hover:shadow-xl hover:scale-[1.02]'
+                  : 'bg-white/80 hover:bg-white border border-secondary/30 hover:border-primary/50 hover:shadow-md text-dark'
+              }`}
               style={{ animationDelay: `${index * 50}ms` }}
               onClick={() => setCurrentPage(id)}
             >
-              <Icon className={`w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 transition-transform duration-200 ${
-                currentPage === id ? 'text-blue-600 dark:text-blue-400' : 'group-hover:scale-110'
+              <div className={`absolute inset-0 transition-opacity duration-300 ${
+                currentPage === id ? 'bg-gradient-to-r from-primary/20 to-info/20' : 'opacity-0 group-hover:opacity-100 bg-gradient-to-r from-primary/5 to-info/5'
+              }`}></div>
+              <Icon className={`w-4 h-4 sm:w-5 sm:h-5 mr-3 transition-all duration-300 relative z-10 ${
+                currentPage === id ? 'text-white scale-110' : 'text-primary group-hover:scale-110 group-hover:text-info'
               }`} />
-              <span className="font-medium text-sm sm:text-base">{label}</span>
+              <span className="font-semibold text-sm sm:text-base relative z-10">{label}</span>
               {currentPage === id && (
-                <div className="ml-auto w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse shadow-sm relative z-10"></div>
               )}
             </Button>
           ))}
@@ -206,37 +213,43 @@ export function Sidebar() {
             <DropdownMenuTrigger asChild>
               <Button
                 variant={isProfilePage ? "secondary" : "ghost"}
-                className={`w-full justify-start h-10 sm:h-11 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all duration-200 group ${
+                className={`w-full justify-start transition-all duration-300 group relative overflow-hidden ${
                   isProfilePage
-                    ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-sidebar-accent-foreground shadow-md border border-green-500/20 dark:border-green-400/30' 
-                    : 'text-sidebar-foreground hover:bg-gradient-to-r hover:from-sidebar-accent/60 hover:to-sidebar-accent/40 hover:text-sidebar-accent-foreground hover:shadow-sm hover:scale-[1.02] active:scale-[0.98]'
+                    ? 'bg-gradient-to-r from-success to-green-500 text-white shadow-lg border-0 hover:shadow-xl hover:scale-[1.02]'
+                    : 'bg-white/80 hover:bg-white border border-secondary/30 hover:border-success/50 hover:shadow-md text-dark'
                 }`}
               >
-                <User className={`w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 transition-transform duration-200 ${
-                  isProfilePage ? 'text-green-600 dark:text-green-400' : 'group-hover:scale-110'
+                <div className={`absolute inset-0 transition-opacity duration-300 ${
+                  isProfilePage ? 'bg-gradient-to-r from-success/20 to-green-500/20' : 'opacity-0 group-hover:opacity-100 bg-gradient-to-r from-success/5 to-green-500/5'
+                }`}></div>
+                <User className={`w-4 h-4 sm:w-5 sm:h-5 mr-3 transition-all duration-300 relative z-10 ${
+                  isProfilePage ? 'text-white scale-110' : 'text-success group-hover:scale-110 group-hover:text-green-600'
                 }`} />
-                <span className="font-medium text-sm sm:text-base">Profile</span>
-                <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 ml-auto transition-transform duration-200 ${
-                  isProfilePage ? 'text-green-600 dark:text-green-400' : ''
+                <span className="font-semibold text-sm sm:text-base relative z-10">Profile</span>
+                <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 ml-auto transition-all duration-300 relative z-10 ${
+                  isProfilePage ? 'text-white rotate-180' : 'group-hover:rotate-180'
                 }`} />
                 {isProfilePage && (
-                  <div className="ml-1 sm:ml-2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <div className="ml-2 w-2 h-2 bg-white rounded-full animate-pulse shadow-sm relative z-10"></div>
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 sm:w-64 p-2 bg-card/95 backdrop-blur-sm border border-border/50 shadow-xl rounded-xl">
+            <DropdownMenuContent align="end" className="w-56 sm:w-64 p-2 bg-white/95 backdrop-blur-sm border border-secondary/50 shadow-xl rounded-xl">
               {profileMenuItems.map(({ id, label, icon: Icon }) => (
                 <DropdownMenuItem
                   key={id}
                   onClick={() => handleProfileMenuClick(id)}
-                  className={`flex items-center gap-2 sm:gap-3 cursor-pointer p-2 sm:p-3 rounded-lg transition-all duration-150 ${
-                    currentPage === id 
-                      ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-foreground shadow-sm' 
-                      : 'hover:bg-accent/80 hover:shadow-sm active:scale-95'
+                  className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-all duration-200 hover:bg-success/10 hover:shadow-md ${
+                    currentPage === id ? 'bg-success/20 text-success shadow-md border border-success/30' : 'text-dark hover:scale-[1.02]'
                   }`}
                 >
-                  <Icon className={`w-3 h-3 sm:w-4 sm:h-4 ${currentPage === id ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
+                  <Icon className={`w-4 h-4 transition-all duration-200 ${
+                    currentPage === id ? 'text-success scale-110' : 'text-muted group-hover:scale-105'
+                  }`} />
                   <span className="font-medium text-sm sm:text-base">{label}</span>
+                  {currentPage === id && (
+                    <div className="ml-auto w-2 h-2 bg-success rounded-full animate-pulse"></div>
+                  )}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -248,33 +261,43 @@ export function Sidebar() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant={currentPage === 'admin' ? "secondary" : "ghost"}
-                  className={`w-full justify-start h-10 sm:h-11 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all duration-200 group ${
+                  className={`w-full justify-start transition-all duration-300 group relative overflow-hidden ${
                     currentPage === 'admin'
-                      ? 'bg-gradient-to-r from-orange-500/20 to-red-500/20 text-sidebar-accent-foreground shadow-md border border-orange-500/20 dark:border-orange-400/30' 
-                      : 'text-sidebar-foreground hover:bg-gradient-to-r hover:from-sidebar-accent/60 hover:to-sidebar-accent/40 hover:text-sidebar-accent-foreground hover:shadow-sm hover:scale-[1.02] active:scale-[0.98]'
+                      ? 'bg-gradient-to-r from-warning to-orange-500 text-white shadow-lg border-0 hover:shadow-xl hover:scale-[1.02]'
+                      : 'bg-white/80 hover:bg-white border border-secondary/30 hover:border-warning/50 hover:shadow-md text-dark'
                   }`}
                 >
-                  <Settings className={`w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 transition-transform duration-200 ${
-                    currentPage === 'admin' ? 'text-orange-600 dark:text-orange-400' : 'group-hover:scale-110'
+                  <div className={`absolute inset-0 transition-opacity duration-300 ${
+                    currentPage === 'admin' ? 'bg-gradient-to-r from-warning/20 to-orange-500/20' : 'opacity-0 group-hover:opacity-100 bg-gradient-to-r from-warning/5 to-orange-500/5'
+                  }`}></div>
+                  <Settings className={`w-4 h-4 sm:w-5 sm:h-5 mr-3 transition-all duration-300 relative z-10 ${
+                    currentPage === 'admin' ? 'text-white scale-110' : 'text-warning group-hover:scale-110 group-hover:text-orange-600'
                   }`} />
-                  <span className="font-medium text-sm sm:text-base">Admin Panel</span>
-                  <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 ml-auto transition-transform duration-200 ${
-                    currentPage === 'admin' ? 'text-orange-600 dark:text-orange-400' : ''
+                  <span className="font-semibold text-sm sm:text-base relative z-10">Admin Panel</span>
+                  <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 ml-auto transition-all duration-300 relative z-10 ${
+                    currentPage === 'admin' ? 'text-white rotate-180' : 'group-hover:rotate-180'
                   }`} />
                   {currentPage === 'admin' && (
-                    <div className="ml-1 sm:ml-2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                    <div className="ml-2 w-2 h-2 bg-white rounded-full animate-pulse shadow-sm relative z-10"></div>
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 sm:w-64 p-2 bg-card/95 backdrop-blur-sm border border-border/50 shadow-xl rounded-xl">
+              <DropdownMenuContent align="end" className="w-56 sm:w-64 p-2 bg-white/95 backdrop-blur-sm border border-secondary/50 shadow-xl rounded-xl">
                 {adminMenuItems.map(({ id, label, icon: Icon }) => (
                   <DropdownMenuItem
                     key={id}
                     onClick={() => handleAdminMenuClick(id)}
-                    className="flex items-center gap-2 sm:gap-3 cursor-pointer p-2 sm:p-3 rounded-lg transition-all duration-150 hover:bg-accent/80 hover:shadow-sm active:scale-95"
+                    className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-all duration-200 hover:bg-warning/10 hover:shadow-md ${
+                      id === 'admin' && currentPage === 'admin' ? 'bg-warning/20 text-warning shadow-md border border-warning/30' : 'text-dark hover:scale-[1.02]'
+                    }`}
                   >
-                    <Icon className={`w-3 h-3 sm:w-4 sm:h-4 ${id === 'admin' ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'}`} />
+                    <Icon className={`w-4 h-4 transition-all duration-200 ${
+                      id === 'admin' && currentPage === 'admin' ? 'text-warning scale-110' : 'text-muted group-hover:scale-105'
+                    }`} />
                     <span className="font-medium text-sm sm:text-base">{label}</span>
+                    {id === 'admin' && currentPage === 'admin' && (
+                      <div className="ml-auto w-2 h-2 bg-warning rounded-full animate-pulse"></div>
+                    )}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -285,35 +308,36 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 sm:p-4 border-t border-sidebar-border/50 space-y-3 sm:space-y-4 flex-shrink-0 bg-gradient-to-t from-sidebar-accent/20 to-transparent">
+      <div className="p-3 sm:p-4 border-top border-secondary space-y-3 sm:space-y-4 flex-shrink-0 bg-gradient-to-t from-light/20 to-transparent">
         {/* Theme Toggle */}
-        <div className="flex items-center justify-between p-2 sm:p-3 rounded-lg sm:rounded-xl bg-card/50 border border-border/30 backdrop-blur-sm">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-yellow-400/20 to-orange-400/20 dark:from-blue-400/20 dark:to-purple-400/20">
-              {isDark ? <Moon className="w-3 h-3 sm:w-4 sm:h-4 text-blue-400" /> : <Sun className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />}
+        <div className="flex items-center justify-between p-3 rounded-xl bg-white/80 backdrop-blur-sm border border-secondary/30 shadow-md hover:shadow-lg transition-all duration-300">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-warning/20 to-info/20 shadow-sm">
+              {isDark ? <Moon className="w-4 h-4 text-info" /> : <Sun className="w-4 h-4 text-warning" />}
             </div>
             <div>
-              <span className="text-xs sm:text-sm font-medium text-sidebar-foreground">Dark Mode</span>
-              <p className="text-xs text-sidebar-foreground/60 hidden sm:block">
+              <span className="text-sm font-semibold text-dark">Dark Mode</span>
+              <p className="text-xs text-muted hidden sm:block">
                 {isDark ? 'Switch to light' : 'Switch to dark'}
               </p>
             </div>
           </div>
-          <Switch 
-            checked={isDark} 
+          <Switch
+            checked={isDark}
             onCheckedChange={toggleTheme}
-            className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-blue-500 data-[state=checked]:to-purple-600"
+            className="form-check-input form-switch"
           />
         </div>
 
         {/* Logout */}
         <Button
           variant="ghost"
-          className="w-full justify-start h-9 sm:h-11 px-3 sm:px-4 rounded-lg sm:rounded-xl text-sidebar-foreground hover:bg-gradient-to-r hover:from-red-500/20 hover:to-pink-500/20 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 hover:shadow-md active:scale-95 group"
+          className="w-full justify-start transition-all duration-300 group relative overflow-hidden bg-white/80 hover:bg-white border border-secondary/30 hover:border-danger/50 hover:shadow-md text-dark"
           onClick={logout}
         >
-          <LogOut className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 transition-transform duration-200 group-hover:translate-x-1" />
-          <span className="font-medium text-sm sm:text-base">Logout</span>
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-danger/5 to-red-500/5 transition-opacity duration-300"></div>
+          <LogOut className="w-4 h-4 sm:w-5 sm:h-5 mr-3 transition-all duration-300 relative z-10 text-danger group-hover:scale-110 group-hover:translate-x-1" />
+          <span className="font-semibold text-sm sm:text-base relative z-10">Logout</span>
         </Button>
       </div>
     </div>

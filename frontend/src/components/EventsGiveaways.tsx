@@ -12,13 +12,14 @@ import { Textarea } from './ui/textarea';
 import { apiService } from '../services/api';
 import { useAuth, useApp } from '../App';
 import { toast } from 'sonner';
+import { PostModal } from './ui/post-modal';
+import type { PostModalPost } from './ui/post-modal';
 import { 
   Gift, 
   Calendar, 
   Search, 
   Clock,
   Trophy,
-  Heart,
   MessageSquare,
   Loader2,
   Plus,
@@ -27,7 +28,6 @@ import {
   Trash2,
   ArrowUp,
   ArrowDown,
-  Send,
   Eye,
   X,
   ChevronLeft,
@@ -35,6 +35,40 @@ import {
   Upload,
   ImageIcon
 } from 'lucide-react';
+
+// Helper function to transform Event to PostModalPost format
+const transformEventToPostModal = (event: Event): PostModalPost => {
+  return {
+    id: event._id,
+    type: 'event',
+    title: event.title,
+    description: event.description,
+    user: {
+      id: event.creator?.user_id || '',
+      username: event.creator?.username || 'Unknown',
+      avatar_url: event.creator?.avatar_url || '',
+      verified: event.creator?.verified || false,
+      credibility_score: 0 // Events don't have credibility scores
+    },
+    images: event.images?.map(img => ({
+      url: `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/uploads/event/${img.filename}`,
+      type: 'event' as const
+    })) || [],
+    upvotes: event.upvotes || 0,
+    downvotes: event.downvotes || 0,
+    comments: event.comment_count || 0,
+    timestamp: event.createdAt,
+    // Event-specific metadata
+    prizes: event.prizes,
+    requirements: event.requirements,
+    eventType: event.type,
+    eventStatus: event.status,
+    startDate: event.startDate,
+    endDate: event.endDate,
+    maxParticipants: event.maxParticipants,
+    participantCount: event.interestedCount || 0
+  };
+};
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarUrl?: string) => {
@@ -154,645 +188,6 @@ interface EventComment {
 }
 
 // Event Details Modal Component
-interface EventDetailsModalProps {
-  event: Event | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  canEdit: boolean;
-  canDelete: boolean;
-  deleteLoading: boolean;
-  onJoin: (eventId: string, eventType: string) => void;
-  joinLoading: string | null;
-  onUserClick: (userId: string) => void;
-  currentUser: {
-    id: string;
-    username: string;
-    avatar_url?: string;
-  } | null;
-}
-
-function EventDetailsModal({ 
-  event, 
-  isOpen, 
-  onClose, 
-  onEdit, 
-  onDelete, 
-  canEdit, 
-  canDelete, 
-  deleteLoading,
-  onJoin,
-  joinLoading,
-  onUserClick,
-  currentUser
-}: EventDetailsModalProps) {
-  const [comments, setComments] = useState<EventComment[]>([]);
-  const [newComment, setNewComment] = useState('');
-  const [submittingComment, setSubmittingComment] = useState(false);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [upvotes, setUpvotes] = useState(0);
-  const [downvotes, setDownvotes] = useState(0);
-  const [userVote, setUserVote] = useState<'up' | 'down' | null>(null);
-  const [votingLoading, setVotingLoading] = useState(false);
-
-  // Add image viewing state
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
-  const [showImageModal, setShowImageModal] = useState(false);
-
-  // Load event comments and votes when modal opens
-  useEffect(() => {
-    const loadEventData = async () => {
-      if (!event) return;
-  
-      try {
-        setLoadingComments(true);
-        console.log('Loading event data for:', event._id);
-        
-        // Load comments and vote data
-        const [commentsResponse, voteResponse] = await Promise.allSettled([
-          apiService.getEventComments(event._id),
-          apiService.getEventVotes(event._id)
-        ]);
-  
-        // Handle comments
-        if (commentsResponse.status === 'fulfilled') {
-          const commentsWithAvatars = (commentsResponse.value.comments || []).map((comment: {
-            comment_id: string;
-            event_id: string;
-            user_id: string;
-            content: string;
-            created_at: string;
-            username: string;
-            credibility_score?: number;
-            avatar_url?: string;
-          }) => ({
-            ...comment,
-            avatar_url: comment.avatar_url || ''
-          }));
-          setComments(commentsWithAvatars);
-        } else {
-          console.error('Failed to load comments:', commentsResponse.reason);
-          setComments([]);
-        }
-  
-        // Handle votes
-        if (voteResponse.status === 'fulfilled') {
-          setUpvotes(voteResponse.value.upvotes || 0);
-          setDownvotes(voteResponse.value.downvotes || 0);
-          setUserVote(voteResponse.value.userVote || null);
-        } else {
-          console.error('Failed to load votes:', voteResponse.reason);
-          setUpvotes(event.upvotes || 0);
-          setDownvotes(event.downvotes || 0);
-          setUserVote(null);
-        }
-  
-      } catch (error) {
-        console.error('Failed to load event data:', error);
-        toast.error('Failed to load event data');
-      } finally {
-        setLoadingComments(false);
-      }
-    };
-
-    if (isOpen && event) {
-      loadEventData();
-    }
-  }, [isOpen, event]);
-
-  const handleUpvote = async () => {
-    if (!event || votingLoading) return;
-
-    try {
-      setVotingLoading(true);
-      console.log('Upvoting event:', event._id);
-      
-      const response = await apiService.voteEvent(event._id, 'up');
-      
-      setUpvotes(response.upvotes);
-      setDownvotes(response.downvotes);
-      setUserVote(response.userVote);
-      
-      if (response.userVote === 'up') {
-        toast.success('Upvoted!');
-      } else if (response.userVote === null) {
-        toast.success('Vote removed!');
-      } else {
-        toast.success('Changed to upvote!');
-      }
-      
-      // Dispatch notification event
-      window.dispatchEvent(new CustomEvent('notification-created'));
-    } catch (error) {
-      console.error('Failed to upvote:', error);
-      toast.error('Failed to update vote');
-    } finally {
-      setVotingLoading(false);
-    }
-  };
-
-  const handleDownvote = async () => {
-    if (!event || votingLoading) return;
-
-    try {
-      setVotingLoading(true);
-      console.log('Downvoting event:', event._id);
-      
-      const response = await apiService.voteEvent(event._id, 'down');
-      
-      setUpvotes(response.upvotes);
-      setDownvotes(response.downvotes);
-      setUserVote(response.userVote);
-      
-      if (response.userVote === 'down') {
-        toast.success('Downvoted!');
-      } else if (response.userVote === null) {
-        toast.success('Vote removed!');
-      } else {
-        toast.success('Changed to downvote!');
-      }
-      
-      // Dispatch notification event
-      window.dispatchEvent(new CustomEvent('notification-created'));
-    } catch (error) {
-      console.error('Failed to downvote:', error);
-      toast.error('Failed to update vote');
-    } finally {
-      setVotingLoading(false);
-    }
-  };
-
-  const handleAddComment = async () => {
-    if (!newComment.trim() || !event || submittingComment) return;
-
-    try {
-      setSubmittingComment(true);
-      console.log('Adding comment to event:', event._id);
-      
-      const comment = await apiService.addEventComment(event._id, newComment);
-      
-      setComments(prev => [comment, ...prev]);
-      setNewComment('');
-      toast.success('Comment added!');
-      
-      // Dispatch notification event
-      window.dispatchEvent(new CustomEvent('notification-created'));
-    } catch (error) {
-      console.error('Failed to add comment:', error);
-      toast.error('Failed to add comment');
-    } finally {
-      setSubmittingComment(false);
-    }
-  };
-
-  const openImageModal = (index: number) => {
-    setSelectedImageIndex(index);
-    setShowImageModal(true);
-  };
-
-  const closeImageModal = () => {
-    setShowImageModal(false);
-    setSelectedImageIndex(null);
-  };
-
-  const nextImage = () => {
-    if (event?.images && selectedImageIndex !== null) {
-      setSelectedImageIndex((selectedImageIndex + 1) % event.images.length);
-    }
-  };
-
-  const prevImage = () => {
-    if (event?.images && selectedImageIndex !== null) {
-      setSelectedImageIndex(selectedImageIndex === 0 ? event.images.length - 1 : selectedImageIndex - 1);
-    }
-  };
-
-  if (!event) return null;
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
-      case 'ending-soon': return 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300';
-      case 'upcoming': return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
-      case 'ended': return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300';
-      default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300';
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'giveaway': return <Gift className="w-5 h-5" />;
-      case 'competition': return <Trophy className="w-5 h-5" />;
-      case 'event': return <Calendar className="w-5 h-5" />;
-      default: return <Gift className="w-5 h-5" />;
-    }
-  };
-
-  return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span>Event Details</span>
-              <Badge className={getStatusColor(event.status)}>
-                {event.status}
-              </Badge>
-            </DialogTitle>
-            <DialogDescription>
-              View event details, participate, and interact with the community
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Event Info */}
-            <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
-              <Avatar className="w-12 h-12">
-                <AvatarImage src={getAvatarUrl(event.creator?.avatar_url)} />
-                <AvatarFallback>{event.creator?.username?.[0] || 'U'}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span 
-                    className="font-medium cursor-pointer hover:text-blue-600 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUserClick(event.creator?.user_id || '');
-                    }}
-                  >
-                    {event.creator?.username || 'Unknown'}
-                  </span>
-                  {event.creator?.verified && (
-                    <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                      ✓
-                    </Badge>
-                  )}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Event Host
-                </div>
-              </div>
-              
-              {/* Vote Buttons */}
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleUpvote}
-                  disabled={votingLoading}
-                  className={`${userVote === 'up' ? 'text-green-600 bg-green-50 dark:bg-green-950' : 'text-muted-foreground hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950'} transition-colors`}
-                >
-                  <ArrowUp className={`w-5 h-5 mr-2 ${userVote === 'up' ? 'fill-current' : ''}`} />
-                  {upvotes}
-                  {votingLoading && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDownvote}
-                  disabled={votingLoading}
-                  className={`${userVote === 'down' ? 'text-red-600 bg-red-50 dark:bg-red-950' : 'text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950'} transition-colors`}
-                >
-                  <ArrowDown className={`w-5 h-5 mr-2 ${userVote === 'down' ? 'fill-current' : ''}`} />
-                  {downvotes}
-                  {votingLoading && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
-                </Button>
-              </div>
-            </div>
-
-            {/* Event Details */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="capitalize">
-                  {getTypeIcon(event.type)}
-                  <span className="ml-1">{event.type}</span>
-                </Badge>
-                <Badge className={getStatusColor(event.status)}>
-                  {event.status}
-                </Badge>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-xl mb-3">{event.title}</h3>
-                <p className="text-muted-foreground whitespace-pre-wrap">{event.description}</p>
-              </div>
-
-              {/* Event Images in Modal */}
-              {event.images && event.images.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-sm">Event Images ({event.images.length})</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {event.images.map((image, imageIndex) => (
-                      <div 
-                        key={imageIndex} 
-                        className="aspect-square overflow-hidden rounded-lg border cursor-pointer hover:shadow-md transition-shadow group relative"
-                        onClick={() => openImageModal(imageIndex)}
-                      >
-                        <ImageDisplay
-                          src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/uploads/event/${image.filename}`}
-                          alt={image.originalName || `Event image ${imageIndex + 1}`}
-                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                          <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Prizes */}
-              {event.prizes && event.prizes.length > 0 && (
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-semibold text-green-700 dark:text-green-300 mb-2">Prizes</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {event.prizes.map((prize, i) => (
-                      <Badge key={i} variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
-                        {prize}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Requirements */}
-              {event.requirements && event.requirements.length > 0 && (
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-2">Requirements</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {event.requirements.map((req, i) => (
-                      <Badge key={i} variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                        {req}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Progress */}
-              {event.maxParticipants && (
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-semibold mb-2">Interest</h4>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>{event.interestedCount || 0} interested</span>
-                    <span>{event.maxParticipants} max</span>
-                  </div>
-                  <Progress value={((event.interestedCount || 0) / event.maxParticipants) * 100} className="h-2" />
-                </div>
-              )}
-            </div>
-
-            {/* Vote Stats */}
-            <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-1 text-green-600">
-                  <ArrowUp className="w-4 h-4" />
-                  <span className="font-medium">{upvotes}</span>
-                </div>
-                <span className="text-muted-foreground">Upvotes</span>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-1 text-red-600">
-                  <ArrowDown className="w-4 h-4" />
-                  <span className="font-medium">{downvotes}</span>
-                </div>
-                <span className="text-muted-foreground">Downvotes</span>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-1 text-blue-600">
-                  <MessageSquare className="w-4 h-4" />
-                  <span className="font-medium">{comments.length}</span>
-                </div>
-                <span className="text-muted-foreground">Comments</span>
-              </div>
-            </div>
-
-            {/* Comments Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold">
-                  Comments ({comments.length})
-                  {loadingComments && <Loader2 className="w-4 h-4 animate-spin inline ml-2" />}
-                </h3>
-              </div>
-
-              {/* Add Comment */}
-              <div className="flex gap-3 p-4 border rounded-lg bg-muted/20">
-                <Avatar className="w-8 h-8">
-                  <AvatarImage src={getAvatarUrl(currentUser?.avatar_url)} />
-                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
-                    Y
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 flex gap-2">
-                  <Input
-                    placeholder="Add a comment..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
-                    disabled={submittingComment}
-                    className="flex-1"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleAddComment}
-                    disabled={!newComment.trim() || submittingComment}
-                  >
-                    {submittingComment ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Comments List */}
-              <div className="space-y-4 max-h-60 overflow-y-auto">
-                {loadingComments ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  </div>
-                ) : comments.length > 0 ? (
-                  comments.map((comment) => (
-                    <div key={comment.comment_id} className="flex gap-3 p-3 border rounded-lg">
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src={getAvatarUrl(comment.avatar_url)} />
-                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm">
-                          {comment.username[0]?.toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span 
-                            className={`font-medium text-sm ${comment.user_id ? 'cursor-pointer hover:text-blue-600 transition-colors' : 'text-muted-foreground'}`}
-                            onClick={(e) => {
-                              if (comment.user_id) {
-                                e.stopPropagation();
-                                onUserClick(comment.user_id);
-                              }
-                            }}
-                          >
-                            {comment.username}
-                          </span>
-                          {comment.credibility_score && (
-                            <Badge variant="secondary" className="text-xs">
-                              {comment.credibility_score}★
-                            </Badge>
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(comment.created_at).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{comment.content}</p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <MessageSquare className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No comments yet. Be the first to comment!</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Event Info */}
-            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
-              <div>
-                <span className="text-muted-foreground">Start Date:</span>
-                <div className="font-medium">{new Date(event.startDate).toLocaleDateString()}</div>
-              </div>
-              <div>
-                <span className="text-muted-foreground">End Date:</span>
-                <div className="font-medium">{new Date(event.endDate).toLocaleDateString()}</div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-3 pt-4 border-t">
-              <Button 
-                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-700 text-white"
-                onClick={() => onJoin(event._id, event.type)}
-                disabled={joinLoading === event._id || event.status === 'ended'}
-              >
-                {joinLoading === event._id ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Marking as interested...
-                  </>
-                ) : (
-                  <>
-                    {getTypeIcon(event.type)}
-                    <span className="ml-2">
-                      {event.type === 'giveaway' ? 'Interested in Giveaway' : 
-                       event.type === 'competition' ? 'Interested in Competition' : 'Interested'}
-                    </span>
-                  </>
-                )}
-              </Button>
-              
-              {canEdit && (
-                <Button variant="outline" onClick={onEdit}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
-              )}
-              
-              {canDelete && (
-                <Button 
-                  variant="outline" 
-                  onClick={onDelete}
-                  disabled={deleteLoading}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  {deleteLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4 mr-2" />
-                  )}
-                  {deleteLoading ? 'Deleting...' : 'Delete'}
-                </Button>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Image Lightbox Modal */}
-      {showImageModal && event?.images && selectedImageIndex !== null && (
-        <Dialog open={showImageModal} onOpenChange={closeImageModal}>
-          <DialogContent className="max-w-6xl max-h-[95vh] p-0 bg-black/90">
-            <DialogHeader className="sr-only">
-              <DialogTitle>Event Image Viewer</DialogTitle>
-            </DialogHeader>
-            <div className="relative w-full h-full flex items-center justify-center p-4">
-              {/* Close Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute top-4 right-4 z-10 text-white hover:bg-white/20"
-                onClick={closeImageModal}
-              >
-                <X className="w-5 h-5" />
-              </Button>
-
-              {/* Navigation Buttons */}
-              {event.images.length > 1 && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 text-white hover:bg-white/20"
-                    onClick={prevImage}
-                  >
-                    <ChevronLeft className="w-6 h-6" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 text-white hover:bg-white/20"
-                    onClick={nextImage}
-                  >
-                    <ChevronRight className="w-6 h-6" />
-                  </Button>
-                </>
-              )}
-
-              {/* Image */}
-              <div className="relative w-full h-full flex items-center justify-center">
-                <ImageDisplay
-                  src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/uploads/event/${event.images[selectedImageIndex].filename}`}
-                  alt={event.images[selectedImageIndex].originalName || `Event image ${selectedImageIndex + 1}`}
-                  className="max-w-full max-h-full object-contain"
-                />
-              </div>
-
-              {/* Image Info */}
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center">
-                <p className="text-sm mb-1">
-                  {event.images[selectedImageIndex].originalName || `Image ${selectedImageIndex + 1}`}
-                </p>
-                {event.images.length > 1 && (
-                  <p className="text-xs opacity-75">
-                    {selectedImageIndex + 1} of {event.images.length}
-                  </p>
-                )}
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-    </>
-  );
-}
 
 export function EventsGiveaways() {
   const { user } = useAuth();
@@ -2200,20 +1595,127 @@ export function EventsGiveaways() {
       </div>
 
       {/* Event Details Modal */}
-      <EventDetailsModal
-        event={selectedEvent}
-        isOpen={isDetailsModalOpen}
-        onClose={handleCloseDetailsModal}
-        onEdit={() => handleEditEvent(selectedEvent!)}
-        onDelete={() => handleDeleteEvent(selectedEvent!._id, selectedEvent!.title)}
-        canEdit={isAdminOrModerator}
-        canDelete={isAdminOrModerator}
-        deleteLoading={deleteLoading === selectedEvent?._id}
-        onJoin={handleJoinEvent}
-        joinLoading={joinLoading}
-        onUserClick={handleUserClick}
-        currentUser={user}
-      />
+      {selectedEvent && (
+        <PostModal
+          post={transformEventToPostModal(selectedEvent)}
+          isOpen={isDetailsModalOpen}
+          onClose={handleCloseDetailsModal}
+          onUserClick={handleUserClick}
+          currentUser={user}
+          overlay={
+            <div className="space-y-4">
+              {/* Event-specific content */}
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="capitalize">
+                  {getTypeIcon(selectedEvent.type)}
+                  <span className="ml-1">{selectedEvent.type}</span>
+                </Badge>
+                <Badge className={getStatusColor(selectedEvent.status)}>
+                  {selectedEvent.status}
+                </Badge>
+              </div>
+
+              {/* Prizes */}
+              {selectedEvent.prizes && selectedEvent.prizes.length > 0 && (
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-semibold text-green-700 dark:text-green-300 mb-2">Prizes</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedEvent.prizes.map((prize, i) => (
+                      <Badge key={i} variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
+                        {prize}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Requirements */}
+              {selectedEvent.requirements && selectedEvent.requirements.length > 0 && (
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-2">Requirements</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedEvent.requirements.map((req, i) => (
+                      <Badge key={i} variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                        {req}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Progress */}
+              {selectedEvent.maxParticipants && (
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-semibold mb-2">Interest</h4>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>{selectedEvent.interestedCount || 0} interested</span>
+                    <span>{selectedEvent.maxParticipants} max</span>
+                  </div>
+                  <Progress value={((selectedEvent.interestedCount || 0) / selectedEvent.maxParticipants) * 100} className="h-2" />
+                </div>
+              )}
+
+              {/* Event Info */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
+                <div>
+                  <span className="text-muted-foreground">Start Date:</span>
+                  <div className="font-medium">{new Date(selectedEvent.startDate).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">End Date:</span>
+                  <div className="font-medium">{new Date(selectedEvent.endDate).toLocaleDateString()}</div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4 border-t">
+                <Button
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-700 text-white"
+                  onClick={() => handleJoinEvent(selectedEvent._id, selectedEvent.type)}
+                  disabled={joinLoading === selectedEvent._id || selectedEvent.status === 'ended'}
+                >
+                  {joinLoading === selectedEvent._id ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Marking as interested...
+                    </>
+                  ) : (
+                    <>
+                      {getTypeIcon(selectedEvent.type)}
+                      <span className="ml-2">
+                        {selectedEvent.type === 'giveaway' ? 'Interested in Giveaway' :
+                         selectedEvent.type === 'competition' ? 'Interested in Competition' : 'Interested'}
+                      </span>
+                    </>
+                  )}
+                </Button>
+
+                {isAdminOrModerator && (
+                  <>
+                    <Button variant="outline" onClick={() => handleEditEvent(selectedEvent)}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleDeleteEvent(selectedEvent._id, selectedEvent.title)}
+                      disabled={deleteLoading === selectedEvent._id}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      {deleteLoading === selectedEvent._id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4 mr-2" />
+                      )}
+                      {deleteLoading === selectedEvent._id ? 'Deleting...' : 'Delete'}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          }
+        />
+      )}
 
       {/* Event Image Modal */}
       <EventImageModal

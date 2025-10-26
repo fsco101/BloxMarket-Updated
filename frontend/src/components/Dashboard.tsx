@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader } from './ui/card';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -11,14 +11,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { apiService } from '../services/api';
 import { toast } from 'sonner';
 import { ContentCard, UniversalCardHeader, UniversalCardContent } from './ui/universal-layout';
-import { useAuth, useApp } from '../App';
-import { ProfileView } from './ProfileView';
+import { useApp } from '../App';
+import { PostModal } from './ui/post-modal';
 import { 
   MessageSquare, 
   Flag, 
-  Star, 
   TrendingUp, 
-  Clock, 
   Search,
   Filter,
   Gift,
@@ -26,12 +24,6 @@ import {
   AlertCircle,
   Eye,
   ImageIcon,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Send,
-  MoreHorizontal,
-  User,
   ArrowUp,
   ArrowDown
 } from 'lucide-react';
@@ -83,26 +75,9 @@ interface ForumPost {
   commentCount: number;
 }
 
-interface Event {
-  _id: string;
-  title: string;
-  description: string;
-  type: 'giveaway' | 'competition' | 'event';
-  status: 'active' | 'ended' | 'upcoming' | 'ending-soon';
-  startDate?: string;
-  endDate?: string;
-  createdAt: string;
-  creator?: {
-    username: string;
-    avatar?: string;
-    verified?: boolean;
-    avatar_url?: string;
-  };
-}
-
 interface DashboardPost {
   id: string;
-  type: 'trade' | 'forum' | 'event' | string; // Added string to accommodate potential type mismatches
+  type: 'trade' | 'forum' | 'event' | 'wishlist';
   title: string;
   description: string;
   user: {
@@ -122,7 +97,7 @@ interface DashboardPost {
   items?: string[];
   wantedItems?: string[];
   offering?: string;
-  images?: Array<{ url: string; type: 'trade' | 'forum' }>;
+  images?: Array<{ url: string; type: 'trade' | 'forum' | 'event' }>;
   category?: string;
   status?: string;
   // Add event-specific fields
@@ -134,180 +109,6 @@ interface DashboardPost {
   endDate?: string;
   maxParticipants?: number;
   participantCount?: number;
-}
-
-// Add interfaces for modal components
-interface PostModalProps {
-  post: DashboardPost | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onUserClick: (userId: string) => void;
-  onReportClick: () => void;
-}
-
-interface ImageViewerProps {
-  images: Array<{ url: string; type: 'trade' | 'forum' }>;
-  currentIndex: number;
-  onNext: () => void;
-  onPrevious: () => void;
-  onSetIndex: (index: number) => void;
-}
-
-// Helper function to get avatar URL
-const getAvatarUrl = (avatarUrl?: string) => {
-  if (!avatarUrl) return '';
-
-  if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
-    return avatarUrl;
-  }
-
-  if (avatarUrl.startsWith('/uploads/') || avatarUrl.startsWith('/api/uploads/')) {
-    return `http://localhost:5000${avatarUrl}`;
-  }
-
-  console.log('getAvatarUrl: Processing filename:', avatarUrl);
-  const fullUrl = `http://localhost:5000/api/uploads/avatars/${avatarUrl}`;
-  console.log('getAvatarUrl: Generated URL:', fullUrl);
-  return fullUrl;
-};
-
-// ImageViewer Component
-function ImageViewer({ images, currentIndex, onNext, onPrevious, onSetIndex }: ImageViewerProps) {
-  const currentImage = images[currentIndex];
-  const hasMultipleImages = images.length > 1;
-
-  return (
-    <div className="relative h-full flex items-center justify-center">
-      {/* Main Image */}
-      <ImageDisplay
-        src={currentImage.url}
-        alt={`Post image ${currentIndex + 1}`}
-        className="max-w-full max-h-full object-contain"
-        fallback={
-          <div className="flex items-center justify-center h-full text-white/70">
-            <div className="text-center">
-              <ImageIcon className="w-16 h-16 mx-auto mb-4" />
-              <p>Image unavailable</p>
-            </div>
-          </div>
-        }
-      />
-
-      {/* Navigation Arrows - Only show if multiple images */}
-      {hasMultipleImages && (
-        <>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onPrevious();
-            }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-colors z-10"
-            disabled={images.length <= 1}
-          >
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onNext();
-            }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-colors z-10"
-            disabled={images.length <= 1}
-          >
-            <ChevronRight className="w-6 h-6" />
-          </button>
-        </>
-      )}
-
-      {/* Image Counter */}
-      {hasMultipleImages && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-          {currentIndex + 1} / {images.length}
-        </div>
-      )}
-
-      {/* Thumbnail Strip - Only show if multiple images */}
-      {hasMultipleImages && (
-        <div className="absolute bottom-6 left-6 right-6 flex justify-center gap-2">
-          <div className="flex gap-2 bg-black/50 rounded-lg p-2 max-w-full overflow-x-auto">
-            {images.map((image, index) => (
-              <button
-                key={index}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSetIndex(index);
-                }}
-                className={`flex-shrink-0 w-12 h-12 rounded border-2 overflow-hidden ${
-                  index === currentIndex ? 'border-white' : 'border-transparent'
-                }`}
-              >
-                <ImageDisplay
-                  src={image.url}
-                  alt={`Thumbnail ${index + 1}`}
-                  className="w-full h-full object-cover"
-                  fallback={<div className="w-full h-full bg-gray-600 flex items-center justify-center text-xs text-white">?</div>}
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Enhanced Image Display Component
-interface ImageDisplayProps {
-  src: string;
-  alt: string;
-  className?: string;
-  fallback?: React.ReactNode;
-}
-
-function ImageDisplay({ src, alt, className, fallback }: ImageDisplayProps) {
-  const [imageError, setImageError] = useState(false);
-  const [imageLoading, setImageLoading] = useState(true);
-
-  const handleImageLoad = () => {
-    setImageLoading(false);
-    setImageError(false);
-  };
-
-  const handleImageError = () => {
-    console.error('Image failed to load:', src);
-    setImageLoading(false);
-    setImageError(true);
-  };
-
-  if (imageError) {
-    return fallback || (
-      <div className={`bg-gray-100 dark:bg-gray-800 flex items-center justify-center ${className}`}>
-        <div className="text-center text-gray-400">
-          <ImageIcon className="w-8 h-8 mx-auto mb-1" />
-          <span className="text-xs">Image unavailable</span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`relative ${className}`}>
-      {imageLoading && (
-        <div className="absolute inset-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center rounded">
-          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-        </div>
-      )}
-      <img
-        src={src}
-        alt={alt}
-        className={`w-full h-full object-cover rounded ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
-        onLoad={handleImageLoad}
-        onError={handleImageError}
-        crossOrigin="anonymous"
-        referrerPolicy="no-referrer"
-      />
-    </div>
-  );
 }
 
 // New Report Modal Component
@@ -384,7 +185,7 @@ function ReportModal({ post, isOpen, onClose }: { post: DashboardPost | null; is
             <Label htmlFor="report-type" className="text-sm font-medium">
               Report Type
             </Label>
-            <Select value={reportType} onValueChange={(value: any) => setReportType(value)}>
+            <Select value={reportType} onValueChange={(value: typeof reportType) => setReportType(value)}>
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Select report type" />
               </SelectTrigger>
@@ -442,638 +243,75 @@ function ReportModal({ post, isOpen, onClose }: { post: DashboardPost | null; is
   );
 }
 
-// New Post Modal Component with unified voting system
-function PostModal({ post, isOpen, onClose, onUserClick, onReportClick }: PostModalProps) {
-  const { user } = useAuth();
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [comment, setComment] = useState('');
-  const [comments, setComments] = useState<any[]>([]);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [submittingComment, setSubmittingComment] = useState(false);
-  const [upvotes, setUpvotes] = useState(0);
-  const [downvotes, setDownvotes] = useState(0);
-  const [userVote, setUserVote] = useState<'up' | 'down' | null>(null);
-  const [votingLoading, setVotingLoading] = useState(false);
-  const [hasVoted, setHasVoted] = useState(false);
+// Helper function to get avatar URL
+const getAvatarUrl = (avatarUrl?: string) => {
+  if (!avatarUrl) return '';
 
-  console.log('PostModal user data:', user);
-  console.log('PostModal user avatar_url:', user?.avatar_url);
+  if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+    return avatarUrl;
+  }
 
-  // Load comments and votes when modal opens
-  useEffect(() => {
-    if (isOpen && post) {
-      loadPostData();
-    }
-  }, [isOpen, post]);
+  if (avatarUrl.startsWith('/uploads/') || avatarUrl.startsWith('/api/uploads/')) {
+    return `http://localhost:5000${avatarUrl}`;
+  }
 
-  const loadPostData = async () => {
-    if (!post) return;
+  console.log('getAvatarUrl: Processing filename:', avatarUrl);
+  const fullUrl = `http://localhost:5000/api/uploads/avatars/${avatarUrl}`;
+  console.log('getAvatarUrl: Generated URL:', fullUrl);
+  return fullUrl;
+};
 
-    try {
-      setLoadingComments(true);
-      console.log('Loading post data for:', post.id, post.type);
-      
-      // Load comments and votes based on post type
-      if (post.type === 'forum') {
-        try {
-          const response = await apiService.getForumPost(post.id);
-          console.log('Forum post response:', response);
-          
-          const commentsData = response.comments || [];
-          setComments(commentsData);
-          setUpvotes(response.upvotes || 0);
-          setDownvotes(response.downvotes || 0);
-          
-          if (response.userVote) {
-            setUserVote(response.userVote);
-            setHasVoted(true);
-          } else {
-            setUserVote(null);
-            setHasVoted(false);
-          }
-        } catch (apiError) {
-          console.error('Failed to load forum post:', apiError);
-          setComments([]);
-          setUpvotes(0);
-          setDownvotes(0);
-          setUserVote(null);
-          setHasVoted(false);
-        }
-      } else if (post.type === 'trade') {
-        try {
-          // Load trade comments and votes
-          const [commentsResponse, votesResponse] = await Promise.allSettled([
-            apiService.getTradeComments(post.id),
-            apiService.getTradeVotes(post.id)
-          ]);
+// Enhanced Image Display Component
+interface ImageDisplayProps {
+  src: string;
+  alt: string;
+  className?: string;
+  fallback?: React.ReactNode;
+}
 
-          // Handle comments
-          if (commentsResponse.status === 'fulfilled') {
-            setComments(commentsResponse.value.comments || []);
-          } else {
-            console.error('Failed to load trade comments:', commentsResponse.reason);
-            setComments([]);
-          }
+function ImageDisplay({ src, alt, className, fallback }: ImageDisplayProps) {
+  const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
 
-          // Handle votes
-          if (votesResponse.status === 'fulfilled') {
-            setUpvotes(votesResponse.value.upvotes || 0);
-            setDownvotes(votesResponse.value.downvotes || 0);
-            setUserVote(votesResponse.value.userVote || null);
-            setHasVoted(votesResponse.value.userVote !== null);
-          } else {
-            console.error('Failed to load trade votes:', votesResponse.reason);
-            setUpvotes(post.upvotes || 0);
-            setDownvotes(post.downvotes || 0);
-            setUserVote(null);
-            setHasVoted(false);
-          }
-        } catch (apiError) {
-          console.error('Failed to load trade data:', apiError);
-          setComments([]);
-          setUpvotes(post.upvotes || 0);
-          setDownvotes(post.downvotes || 0);
-          setUserVote(null);
-          setHasVoted(false);
-        }
-      } else if (post.type === 'event') {
-        // Updated: Load event comments and votes like trades
-        try {
-          // Load event comments and votes
-          const [commentsResponse, votesResponse] = await Promise.allSettled([
-            apiService.getEventComments(post.id),
-            apiService.getEventVotes(post.id)
-          ]);
-
-          // Handle comments
-          if (commentsResponse.status === 'fulfilled') {
-            setComments(commentsResponse.value.comments || []);
-          } else {
-            console.error('Failed to load event comments:', commentsResponse.reason);
-            setComments([]);
-          }
-
-          // Handle votes
-          if (votesResponse.status === 'fulfilled') {
-            setUpvotes(votesResponse.value.upvotes || 0);
-            setDownvotes(votesResponse.value.downvotes || 0);
-            setUserVote(votesResponse.value.userVote || null);
-            setHasVoted(votesResponse.value.userVote !== null);
-          } else {
-            console.error('Failed to load event votes:', votesResponse.reason);
-            setUpvotes(post.upvotes || 0);
-            setDownvotes(post.downvotes || 0);
-            setUserVote(null);
-            setHasVoted(false);
-          }
-        } catch (apiError) {
-          console.error('Failed to load event data:', apiError);
-          setComments([]);
-          setUpvotes(post.upvotes || 0);
-          setDownvotes(post.downvotes || 0);
-          setUserVote(null);
-          setHasVoted(false);
-        }
-      } else {
-        // For unknown post types, use default values
-        setComments([]);
-        setUpvotes(post.upvotes || 0);
-        setDownvotes(post.downvotes || 0);
-        setUserVote(null);
-        setHasVoted(false);
-      }
-      
-    } catch (error) {
-      console.error('Failed to load post data:', error);
-      toast.error('Failed to load post data');
-    } finally {
-      setLoadingComments(false);
-    }
+  const handleImageLoad = () => {
+    setImageLoading(false);
+    setImageError(false);
   };
 
-  const handleUpvote = async () => {
-    if (!post || votingLoading) return;
-
-    try {
-      setVotingLoading(true);
-      console.log('Attempting upvote for post:', post.id, post.type);
-      
-      let response;
-      if (post.type === 'forum') {
-        response = await apiService.voteForumPost(post.id, 'up');
-      } else if (post.type === 'trade') {
-        response = await apiService.voteTradePost(post.id, 'up');
-      } else if (post.type === 'event') {
-        response = await apiService.voteEvent(post.id, 'up');
-      } else {
-        toast.info('Voting not available for this post type');
-        return;
-      }
-      
-      console.log('Upvote response:', response);
-      
-      // Update local state based on server response
-      setUpvotes(response.upvotes);
-      setDownvotes(response.downvotes);
-      setUserVote(response.userVote);
-      setHasVoted(response.userVote !== null);
-      
-      if (response.userVote === 'up') {
-        toast.success('Upvoted!');
-      } else if (response.userVote === null) {
-        toast.success('Vote removed!');
-      } else {
-        toast.success('Changed to upvote!');
-      }
-      
-      // Dispatch event to update notifications
-      window.dispatchEvent(new CustomEvent('notification-created'));
-    } catch (error) {
-      console.error('Failed to upvote:', error);
-      if (error instanceof Error && error.message.includes('already voted')) {
-        toast.error('You have already voted on this post');
-      } else if (error instanceof Error && error.message.includes('404')) {
-        toast.error('Post not found');
-      } else {
-        toast.error('You can not vote on your own trade');
-      }
-    } finally {
-      setVotingLoading(false);
-    }
+  const handleImageError = () => {
+    console.error('Image failed to load:', src);
+    setImageLoading(false);
+    setImageError(true);
   };
 
-  const handleDownvote = async () => {
-    if (!post || votingLoading) return;
-
-    try {
-      setVotingLoading(true);
-      console.log('Attempting downvote for post:', post.id, post.type);
-      
-      let response;
-      if (post.type === 'forum') {
-        response = await apiService.voteForumPost(post.id, 'down');
-      } else if (post.type === 'trade') {
-        response = await apiService.voteTradePost(post.id, 'down');
-      } else if (post.type === 'event') {
-        response = await apiService.voteEvent(post.id, 'down');
-      } else {
-        toast.info('Voting not available for this post type');
-        return;
-      }
-      
-      console.log('Downvote response:', response);
-      
-      // Update local state based on server response
-      setUpvotes(response.upvotes);
-      setDownvotes(response.downvotes);
-      setUserVote(response.userVote);
-      setHasVoted(response.userVote !== null);
-      
-      if (response.userVote === 'down') {
-        toast.success('Downvoted!');
-      } else if (response.userVote === null) {
-        toast.success('Vote removed!');
-      } else {
-        toast.success('Changed to downvote!');
-      }
-      
-      // Dispatch event to update notifications
-      window.dispatchEvent(new CustomEvent('notification-created'));
-    } catch (error) {
-      console.error('Failed to downvote:', error);
-      if (error instanceof Error && error.message.includes('already voted')) {
-        toast.error('You have already voted on this post');
-      } else if (error instanceof Error && error.message.includes('404')) {
-        toast.error('Post not found');
-      } else {
-        toast.error('You can not vote on your own trade');
-      }
-    } finally {
-      setVotingLoading(false);
-    }
-  };
-
-  const handleComment = async () => {
-    if (!comment.trim() || !post || submittingComment) return;
-
-    try {
-      setSubmittingComment(true);
-      console.log('Attempting to add comment:', { postId: post.id, content: comment });
-      
-      let newComment;
-      if (post.type === 'forum') {
-        newComment = await apiService.addForumComment(post.id, comment);
-      } else if (post.type === 'trade') {
-        newComment = await apiService.addTradeComment(post.id, comment);
-      } else if (post.type === 'event') {
-        newComment = await apiService.addEventComment(post.id, comment);
-      } else {
-        // Fallback for unknown post types
-        newComment = {
-          comment_id: Date.now().toString(),
-          content: comment,
-          created_at: new Date().toISOString(),
-          username: 'You',
-          credibility_score: 100
-        };
-      }
-      
-      console.log('Comment added successfully:', newComment);
-      
-      if (newComment) {
-        setComments(prev => [newComment, ...prev]);
-        setComment('');
-        toast.success('Comment added!');
-        
-        // Dispatch event to update notifications
-        window.dispatchEvent(new CustomEvent('notification-created'));
-      }
-    } catch (error) {
-      console.error('Failed to add comment:', error);
-      if (error instanceof Error && error.message.includes('404')) {
-        toast.error('Post not found');
-      } else {
-        toast.error('Failed to add comment');
-      }
-      
-      // Dispatch event to update notifications even on error (in case notification was created)
-      window.dispatchEvent(new CustomEvent('notification-created'));
-    } finally {
-      setSubmittingComment(false);
-    }
-  };
-
-  // Helper functions for modal
-  const getPostTypeIcon = (type: string) => {
-    switch (type) {
-      case 'trade': return <TrendingUp className="w-4 h-4" />;
-      case 'event': return <Gift className="w-4 h-4" />;
-      case 'forum': return <MessageSquare className="w-4 h-4" />;
-      default: return <MessageSquare className="w-4 h-4" />;
-    }
-  };
-
-  const getPostTypeColor = (type: string) => {
-    switch (type) {
-      case 'trade': return 'bg-blue-500';
-      case 'event': return 'bg-green-500';
-      case 'forum': return 'bg-purple-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  if (!post) return null;
-
-  const handleNext = () => {
-    if (post.images && post.images.length > 1) {
-      setCurrentImageIndex((prev) => (prev + 1) % post.images!.length);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (post.images && post.images.length > 1) {
-      setCurrentImageIndex((prev) => (prev - 1 + post.images!.length) % post.images!.length);
-    }
-  };
-
-  const handleSetImageIndex = (index: number) => {
-    setCurrentImageIndex(index);
-  };
-
-  const handleUserClick = () => {
-    onUserClick(post.user.id || post.user.username);
-    onClose();
-  };
+  if (imageError) {
+    return fallback || (
+      <div className={`bg-gray-100 dark:bg-gray-800 flex items-center justify-center ${className}`}>
+        <div className="text-center text-gray-400">
+          <ImageIcon className="w-8 h-8 mx-auto mb-1" />
+          <span className="text-xs">Image unavailable</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[98vw] max-h-[98vh] w-full h-full p-0 overflow-hidden border-0 shadow-2xl">
-        <div className="flex h-[98vh]">
-          {/* Left side - Image Viewer */}
-          <div className="flex-1 bg-black relative">
-            <button
-              onClick={onClose}
-              className="absolute top-6 right-6 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            
-            {post.images && post.images.length > 0 ? (
-              <ImageViewer
-                images={post.images}
-                currentIndex={currentImageIndex}
-                onNext={handleNext}
-                onPrevious={handlePrevious}
-                onSetIndex={handleSetImageIndex}
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center text-white/70">
-                <div className="text-center">
-                  <ImageIcon className="w-20 h-20 mx-auto mb-6 opacity-50" />
-                  <p className="text-lg">No images available</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right side - Post Details and Comments */}
-          <div className="w-[600px] bg-background border-l flex flex-col shadow-2xl">
-            {/* Post Header */}
-            <div className="p-6 border-b">
-              <div className="flex items-center gap-4">
-                <button onClick={handleUserClick} className="flex items-center gap-4 hover:bg-muted/50 rounded-lg p-2 transition-colors">
-                  <Avatar className="w-12 h-12">
-                    <AvatarImage
-                      src={getAvatarUrl(post.user.avatar_url)}
-                      className="object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = '';
-                      }}
-                    />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-lg">
-                      {post.user.username[0]?.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-base">{post.user.username}</span>
-                      {post.user.verified && (
-                        <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                          ✓
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      <span>{post.timestamp}</span>
-                    </div>
-                  </div>
-                </button>
-                <div className="ml-auto">
-                  <Button variant="ghost" size="sm">
-                    <MoreHorizontal className="w-5 h-5" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Post Content */}
-            <div className="p-6 border-b">
-              <h3 className="font-semibold text-xl mb-3">{post.title}</h3>
-              <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{post.description}</p>
-              
-              {/* Post Type Badge */}
-              <Badge className={`${getPostTypeColor(post.type)} text-white text-sm px-3 py-1`}>
-                {getPostTypeIcon(post.type)}
-                <span className="ml-2 capitalize">{post.type}</span>
-              </Badge>
-
-              {/* Trade Details */}
-              {post.type === 'trade' && (
-                <div className="mt-4 space-y-3">
-                  <div>
-                    <span className="text-sm text-muted-foreground font-medium">Offering:</span>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {post.items?.map((item, i) => (
-                        <Badge key={i} variant="outline" className="text-sm bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300 px-3 py-1">
-                          {item}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  {post.wantedItems && (
-                    <div>
-                      <span className="text-sm text-muted-foreground font-medium">Looking for:</span>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {post.wantedItems.map((item, i) => (
-                          <Badge key={i} variant="outline" className="text-sm bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-3 py-1">
-                            {item}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Actions - Unified voting system for all post types */}
-            <div className="p-6 border-b">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <Button
-                    variant="ghost"
-                    size="lg"
-                    onClick={handleUpvote}
-                    disabled={votingLoading}
-                    className={`${userVote === 'up' ? 'text-green-600 bg-green-50 dark:bg-green-950' : 'text-muted-foreground'} hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950 text-base px-4 py-3 relative`}
-                    title={userVote === 'up' ? 'Click to remove upvote' : userVote === 'down' ? 'Change to upvote' : 'Upvote this post'}
-                  >
-                    <ArrowUp className={`w-6 h-6 mr-3 ${userVote === 'up' ? 'fill-current' : ''}`} />
-                    {upvotes}
-                    {votingLoading && (
-                      <Loader2 className="w-4 h-4 animate-spin absolute -top-1 -right-1" />
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="lg"
-                    onClick={handleDownvote}
-                    disabled={votingLoading}
-                    className={`${userVote === 'down' ? 'text-red-600 bg-red-50 dark:bg-red-950' : 'text-muted-foreground'} hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 text-base px-4 py-3 relative`}
-                    title={userVote === 'down' ? 'Click to remove downvote' : userVote === 'up' ? 'Change to downvote' : 'Downvote this post'}
-                  >
-                    <ArrowDown className={`w-6 h-6 mr-3 ${userVote === 'down' ? 'fill-current' : ''}`} />
-                    {downvotes}
-                    {votingLoading && (
-                      <Loader2 className="w-4 h-4 animate-spin absolute -top-1 -right-1" />
-                    )}
-                  </Button>
-                  
-                  {/* Vote status indicator */}
-                  {hasVoted && (
-                    <div className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">
-                      {userVote === 'up' ? '✓ Upvoted' : '✓ Downvoted'}
-                    </div>
-                  )}
-                  
-                  <Button variant="ghost" size="lg" className="text-muted-foreground text-base px-4 py-3">
-                    <MessageSquare className="w-6 h-6 mr-3" />
-                    {comments.length}
-                  </Button>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="lg" 
-                  className="text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 px-4 py-3 transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReportClick();
-                  }}
-                  title="Report this post for violating community guidelines"
-                  aria-label="Report post"
-                >
-                  <Flag className="w-5 h-5 mr-2" />
-                  <span className="hidden sm:inline">Report</span>
-                </Button>
-              </div>
-            </div>
-
-            {/* Comments Section */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-8 space-y-8">
-                <h4 className="font-semibold text-lg text-muted-foreground">
-                  Comments ({comments.length})
-                  {loadingComments && <Loader2 className="w-4 h-4 animate-spin inline ml-2" />}
-                </h4>
-                
-                {loadingComments ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  </div>
-                ) : comments.length > 0 ? (
-                  comments.map((comment) => (
-                    <div key={comment.comment_id || comment.id} className="flex gap-5">
-                      <Avatar className="w-12 h-12">
-                        <AvatarImage
-                          src={getAvatarUrl(comment.user?.avatar_url || comment.avatar_url)}
-                          className="object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = '';
-                          }}
-                        />
-                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-base font-semibold">
-                          {(comment.user?.username || comment.username || 'U')[0].toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="bg-muted/50 rounded-xl p-5">
-                          <div className="flex items-center gap-4 mb-3">
-                            <span 
-                              className="font-semibold text-base cursor-pointer hover:text-primary transition-colors"
-                              onClick={() => onUserClick && onUserClick(comment.user?._id || comment.user_id)}
-                            >
-                              {comment.user?.username || comment.username}
-                            </span>
-                            {comment.user?.credibility_score && (
-                              <Badge variant="secondary" className="text-xs">
-                                {comment.user.credibility_score}★
-                              </Badge>
-                            )}
-                            {comment.credibility_score && !comment.user && (
-                              <Badge variant="secondary" className="text-xs">
-                                {comment.credibility_score}★
-                              </Badge>
-                            )}
-                            <span className="text-sm text-muted-foreground">
-                              {comment.created_at ? new Date(comment.created_at).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              }) : comment.time}
-                            </span>
-                          </div>
-                          <p className="text-base leading-relaxed">{comment.content}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>No comments yet. Be the first to comment!</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Comment Input */}
-            <div className="p-8 border-t bg-muted/20">
-              <div className="flex gap-5">
-                <Avatar className="w-12 h-12">
-                  <AvatarImage
-                    src={getAvatarUrl(user?.avatar_url as string)}
-                    className="object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = '';
-                    }}
-                  />
-                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-base font-semibold">
-                    Y
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 flex gap-4">
-                  <Input
-                    placeholder="Write a comment..."
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleComment()}
-                    className="text-base h-12 rounded-xl border-2 focus:border-primary"
-                    disabled={submittingComment}
-                  />
-                  <Button 
-                    size="lg" 
-                    onClick={handleComment} 
-                    disabled={!comment.trim() || submittingComment} 
-                    className="px-6 h-12 rounded-xl"
-                  >
-                    {submittingComment ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Send className="w-5 h-5" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className={`relative ${className}`}>
+      {imageLoading && (
+        <div className="absolute inset-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center rounded">
+          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+      <img
+        src={src}
+        alt={alt}
+        className={`w-full h-full object-cover rounded ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+        onLoad={handleImageLoad}
+        onError={handleImageError}
+        crossOrigin="anonymous"
+        referrerPolicy="no-referrer"
+      />
+    </div>
   );
 }
 

@@ -32,6 +32,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth, useApp } from '../App';
+import { PostModal } from './ui/post-modal';
+import type { PostModalPost } from './ui/post-modal';
 
 interface WishlistItem {
   wishlist_id: string;
@@ -129,6 +131,31 @@ const getAvatarUrl = (avatarUrl?: string) => {
   const fullUrl = `http://localhost:5000/api/uploads/avatars/${avatarUrl}`;
   console.log('getAvatarUrl: Generated URL:', fullUrl);
   return fullUrl;
+};
+
+// Helper function to transform WishlistItem to PostModalPost
+const transformWishlistToPostModal = (wishlist: WishlistItem): PostModalPost => {
+  return {
+    id: wishlist.wishlist_id,
+    type: 'wishlist',
+    title: wishlist.item_name,
+    description: wishlist.description || 'No description provided',
+    user: {
+      id: wishlist.user_id,
+      username: wishlist.username,
+      avatar_url: getAvatarUrl(wishlist.avatar_url),
+      verified: false, // You might want to add this field to WishlistItem
+      moderator: false, // You might want to add this field to WishlistItem
+    },
+    timestamp: formatDate(wishlist.created_at),
+    images: wishlist.images?.map(img => ({
+      url: `http://localhost:5000/uploads/wishlists/${img.filename}`,
+      type: 'wishlist' as const
+    })) || [],
+    comments: wishlist.comment_count || 0,
+    upvotes: wishlist.upvotes || 0,
+    downvotes: wishlist.downvotes || 0,
+  };
 };
 
   // Enhanced Wishlist Details Modal Component with upvote/downvote and comments
@@ -1806,19 +1833,84 @@ export function Wishlist() {
       </div>
 
       {/* Details Modal */}
-      <WishlistDetailsModal
-        wishlist={selectedWishlist}
-        isOpen={isDetailsDialogOpen}
-        onClose={() => setIsDetailsDialogOpen(false)}
-        onEdit={handleEditFromModal}
-        onDelete={handleDeleteFromModal}
-        canEdit={selectedWishlist ? canEditWishlist(selectedWishlist) : false}
-        canDelete={selectedWishlist ? canDeleteWishlist(selectedWishlist) : false}
-        deleteLoading={selectedWishlist ? deleteLoading === selectedWishlist.wishlist_id : false}
-        onReport={handleReportWishlist}
-        onUserClick={handleUserClick}
-        currentUser={currentUser}
-      />
+      {selectedWishlist && (
+        <PostModal
+          post={transformWishlistToPostModal(selectedWishlist)}
+          isOpen={isDetailsDialogOpen}
+          onClose={() => setIsDetailsDialogOpen(false)}
+          onUserClick={handleUserClick}
+          onReportClick={() => handleReportWishlist(selectedWishlist)}
+        />
+      )}
+
+      {/* Wishlist-specific actions overlay */}
+      {isDetailsDialogOpen && selectedWishlist && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-background border rounded-lg p-4 shadow-lg">
+          <div className="flex items-center gap-2">
+            {/* Max Price & Priority Info */}
+            <div className="flex items-center gap-4 text-sm mr-4">
+              <div className="flex items-center gap-1">
+                <DollarSign className="w-4 h-4 text-green-500" />
+                <span className="font-medium">{selectedWishlist.max_price}</span>
+              </div>
+              <Badge className={`text-xs ${getPriorityColor(selectedWishlist.priority)}`}>
+                {selectedWishlist.priority} priority
+              </Badge>
+              <Badge variant="outline" className="text-xs capitalize">
+                {selectedWishlist.category?.replace('-', ' ')}
+              </Badge>
+            </div>
+
+            {/* Action Buttons */}
+            {canEditWishlist(selectedWishlist) && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setIsDetailsDialogOpen(false);
+                  handleEditWishlist(selectedWishlist);
+                }}
+                className="text-blue-600 hover:text-blue-700"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </Button>
+            )}
+
+            {canDeleteWishlist(selectedWishlist) && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setIsDetailsDialogOpen(false);
+                  handleDeleteWishlist(selectedWishlist.wishlist_id, selectedWishlist.item_name);
+                }}
+                disabled={deleteLoading === selectedWishlist.wishlist_id}
+                className="text-red-600 hover:text-red-700"
+              >
+                {deleteLoading === selectedWishlist.wishlist_id ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-2" />
+                )}
+                {deleteLoading === selectedWishlist.wishlist_id ? 'Deleting...' : 'Delete'}
+              </Button>
+            )}
+
+            <Button
+              size="sm"
+              className="bg-blue-500 hover:bg-blue-600 text-white"
+              onClick={() => {
+                setIsDetailsDialogOpen(false);
+                handleUserClick(selectedWishlist.user_id);
+              }}
+            >
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Make Offer
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Report Modal */}
       <ReportModal

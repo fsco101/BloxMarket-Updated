@@ -2,7 +2,6 @@ import * as React from "react";
 import type { ReactNode } from "react";
 import { Input } from "./input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
-import { Card, CardContent, CardHeader } from "./card";
 import { Loader2, Search, AlertCircle } from "lucide-react";
 
 // Universal Page Layout Component
@@ -70,29 +69,32 @@ export function PageLayout({
   error,
   children,
   emptyState,
-  maxWidth = "max-w-6xl",
+  maxWidth = "container",
   gridCols = { default: 1, lg: 2, xl: 3 }
 }: PageLayoutProps) {
-  const gridClasses = `grid grid-cols-${gridCols.default} ${
-    gridCols.md ? `md:grid-cols-${gridCols.md}` : ''
-  } ${gridCols.lg ? `lg:grid-cols-${gridCols.lg}` : ''} ${
-    gridCols.xl ? `xl:grid-cols-${gridCols.xl}` : ''
-  } gap-6`;
+  const getGridClasses = () => {
+    const classes = ['row', 'g-3'];
+    if (gridCols.default > 1) classes.push(`row-cols-${gridCols.default}`);
+    if (gridCols.md) classes.push(`row-cols-md-${gridCols.md}`);
+    if (gridCols.lg) classes.push(`row-cols-lg-${gridCols.lg}`);
+    if (gridCols.xl) classes.push(`row-cols-xl-${gridCols.xl}`);
+    return classes.join(' ');
+  };
 
   return (
-    <div className="flex-1 overflow-hidden">
+    <div className="d-flex flex-column vh-100">
       {/* Header */}
-      <div className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-6">
-        <div className="flex items-center justify-between">
+      <div className="border-bottom bg-light p-3">
+        <div className="d-flex align-items-center justify-content-between">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="h4 mb-1 d-flex align-items-center gap-2 fw-bold">
               {icon}
               {title}
             </h1>
-            <p className="text-muted-foreground">{description}</p>
+            <p className="text-muted small mb-0">{description}</p>
           </div>
           {headerActions && (
-            <div className="flex items-center gap-3">
+            <div className="d-flex align-items-center gap-3">
               {headerActions}
             </div>
           )}
@@ -100,21 +102,22 @@ export function PageLayout({
       </div>
 
       {/* Filters */}
-      <div className="border-b border-border p-4 bg-muted/30">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 flex-1">
-            <Search className="w-4 h-4 text-muted-foreground" />
+      <div className="border-bottom p-3 bg-light">
+        <div className="d-flex align-items-center gap-3">
+          <div className="d-flex align-items-center gap-2 flex-fill">
+            <Search className="text-muted" style={{ width: '1rem', height: '1rem' }} />
             <Input
               placeholder={searchPlaceholder}
               value={searchValue}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value)}
-              className="max-w-sm"
+              className="form-control"
+              style={{ maxWidth: '300px' }}
             />
           </div>
 
           {filterOptions.length > 0 && (
             <Select value={filterValue} onValueChange={onFilterChange}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="form-select" style={{ width: '200px' }}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -129,7 +132,7 @@ export function PageLayout({
 
           {sortOptions.length > 0 && sortValue && onSortChange && (
             <Select value={sortValue} onValueChange={onSortChange}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="form-select" style={{ width: '130px' }}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -145,17 +148,17 @@ export function PageLayout({
       </div>
 
       {/* Stats Bar */}
-      <div className="bg-background p-4 border-b border-border">
-        <div className="flex items-center justify-center gap-8 text-sm">
+      <div className="bg-white p-3 border-bottom">
+        <div className="d-flex align-items-center justify-content-center gap-4 small">
           {stats.map((stat, index) => (
-            <div key={index} className="flex items-center gap-2">
+            <div key={index} className="d-flex align-items-center gap-2">
               {stat.icon}
               <span>{stat.value ? `${stat.value} ` : ''}{stat.label}</span>
             </div>
           ))}
           {loading && (
-            <div className="flex items-center gap-2">
-              <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+            <div className="d-flex align-items-center gap-2">
+              <Loader2 className="text-primary" style={{ width: '1rem', height: '1rem' }} />
               <span>Loading...</span>
             </div>
           )}
@@ -163,39 +166,45 @@ export function PageLayout({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className={`${maxWidth} mx-auto p-6`}>
+      <div className="flex-fill overflow-auto">
+        <div className={`${maxWidth} mx-auto p-3`}>
           {loading && (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin" />
-              <span className="ml-2">Loading...</span>
+            <div className="d-flex align-items-center justify-content-center py-5">
+              <Loader2 className="text-primary me-2" style={{ width: '2rem', height: '2rem' }} />
+              <span>Loading...</span>
             </div>
           )}
 
           {error && !loading && (
-            <div className="flex items-center justify-center py-12">
-              <AlertCircle className="w-8 h-8 text-red-500 mr-2" />
-              <span className="text-red-500">{error}</span>
+            <div className="d-flex align-items-center justify-content-center py-5">
+              <AlertCircle className="text-danger me-2" style={{ width: '2rem', height: '2rem' }} />
+              <span className="text-danger">{error}</span>
             </div>
           )}
 
           {!loading && !error && (
             <>
               {React.Children.count(children) > 0 ? (
-                <div className={gridClasses}>
-                  {children}
+                <div className={getGridClasses()}>
+                  {React.Children.map(children, (child, index) => (
+                    <div key={index} className="col">
+                      {child}
+                    </div>
+                  ))}
                 </div>
               ) : (
                 emptyState && (
-                  <Card className="text-center py-12">
-                    <CardContent>
-                      <div className="text-muted-foreground">
+                                  emptyState && (
+                  <div className="card text-center py-5">
+                    <div className="card-body">
+                      <div className="text-muted">
                         {emptyState.icon}
-                        <h3 className="text-lg font-medium mb-2">{emptyState.title}</h3>
-                        <p>{emptyState.description}</p>
+                        <h3 className="h5 mb-2">{emptyState.title}</h3>
+                        <p className="mb-0">{emptyState.description}</p>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
+                )
                 )
               )}
             </>
@@ -215,13 +224,36 @@ interface ContentCardProps {
 }
 
 export function ContentCard({ children, onClick, className = "", hover = true }: ContentCardProps) {
+  const cardClasses = [
+    'card',
+    'h-100',
+    hover ? 'shadow-sm' : '',
+    onClick ? 'cursor-pointer' : '',
+    className
+  ].filter(Boolean).join(' ');
+
   return (
-    <Card
-      className={`${hover ? 'hover:shadow-lg transition-all duration-200' : ''} ${onClick ? 'cursor-pointer' : ''} ${className}`}
+    <div
+      className={cardClasses}
       onClick={onClick}
+      style={hover ? {
+        transition: 'box-shadow 0.2s ease-in-out',
+      } : undefined}
+      onMouseEnter={(e) => {
+        if (hover) {
+          e.currentTarget.classList.remove('shadow-sm');
+          e.currentTarget.classList.add('shadow');
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (hover) {
+          e.currentTarget.classList.remove('shadow');
+          e.currentTarget.classList.add('shadow-sm');
+        }
+      }}
     >
       {children}
-    </Card>
+    </div>
   );
 }
 
@@ -246,28 +278,57 @@ export function UniversalCardHeader({
   onUserClick
 }: CardHeaderProps) {
   return (
-    <CardHeader className="pb-3">
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-3">
+    <div className="card-header pb-3">
+      <div className="d-flex align-items-start justify-content-between">
+        <div className="d-flex align-items-start gap-3">
           {avatar && (
-            <div onClick={onUserClick} className={onUserClick ? "cursor-pointer hover:bg-muted/50 rounded-lg p-1 transition-colors" : ""}>
+            <div
+              onClick={onUserClick}
+              className={onUserClick ? "cursor-pointer rounded p-1" : ""}
+              style={onUserClick ? {
+                transition: 'background-color 0.2s ease-in-out',
+              } : undefined}
+              onMouseEnter={(e) => {
+                if (onUserClick) {
+                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (onUserClick) {
+                  e.currentTarget.style.backgroundColor = '';
+                }
+              }}
+            >
               {avatar}
             </div>
           )}
 
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
+          <div className="flex-fill">
+            <div className="d-flex align-items-center gap-2 mb-1">
               <h3
-                className={`font-semibold text-lg ${onUserClick ? 'hover:text-blue-600 transition-colors cursor-pointer' : ''}`}
+                className={`card-title h5 mb-0 ${onUserClick ? 'cursor-pointer' : ''}`}
+                style={onUserClick ? {
+                  transition: 'color 0.2s ease-in-out',
+                } : undefined}
                 onClick={onUserClick}
+                onMouseEnter={(e) => {
+                  if (onUserClick) {
+                    e.currentTarget.style.color = '#0d6efd';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (onUserClick) {
+                    e.currentTarget.style.color = '';
+                  }
+                }}
               >
                 {title}
               </h3>
             </div>
 
             {subtitle && (
-              <div className="flex items-center gap-2 mb-2">
-                <span className="font-medium text-sm">{subtitle}</span>
+              <div className="d-flex align-items-center gap-2 mb-2">
+                <span className="fw-medium small">{subtitle}</span>
                 {badges.map((badge, index) => (
                   <React.Fragment key={index}>{badge}</React.Fragment>
                 ))}
@@ -275,7 +336,7 @@ export function UniversalCardHeader({
             )}
 
             {timestamp && (
-              <div className="text-xs text-muted-foreground">
+              <div className="small text-muted">
                 {timestamp}
               </div>
             )}
@@ -283,12 +344,12 @@ export function UniversalCardHeader({
         </div>
 
         {actions && (
-          <div className="text-right">
+          <div className="text-end">
             {actions}
           </div>
         )}
       </div>
-    </CardHeader>
+    </div>
   );
 }
 
@@ -313,9 +374,14 @@ export function UniversalCardContent({
   actions
 }: CardContentProps) {
   return (
-    <CardContent>
+    <div className="card-body">
       {description && (
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+        <p className="card-text small text-muted mb-3" style={{
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden'
+        }}>
           {description}
         </p>
       )}
@@ -327,16 +393,16 @@ export function UniversalCardContent({
       )}
 
       {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-3">
+        <div className="d-flex flex-wrap gap-1 mb-3">
           {tags}
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="d-flex align-items-center justify-content-between">
         {metadata.length > 0 && (
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+          <div className="d-flex align-items-center gap-3 small text-muted">
             {metadata.map((item, index) => (
-              <div key={index} className="flex items-center gap-1">
+              <div key={index} className="d-flex align-items-center gap-1">
                 {item.icon}
                 <span>{item.value ? `${item.value} ` : ''}{item.label}</span>
               </div>
@@ -345,11 +411,11 @@ export function UniversalCardContent({
         )}
 
         {actions && (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="d-flex align-items-center gap-2" onClick={(e) => e.stopPropagation()}>
             {actions}
           </div>
         )}
       </div>
-    </CardContent>
+    </div>
   );
 }

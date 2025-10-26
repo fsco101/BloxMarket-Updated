@@ -31,11 +31,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
-  Send,
   Flag
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth, useApp } from '../App';
+import { PostModal } from './ui/post-modal';
+import type { PostModalPost } from './ui/post-modal';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarUrl?: string) => {
@@ -53,6 +54,31 @@ const getAvatarUrl = (avatarUrl?: string) => {
   const fullUrl = `http://localhost:5000/api/uploads/avatars/${avatarUrl}`;
   console.log('getAvatarUrl: Generated URL:', fullUrl);
   return fullUrl;
+};
+
+// Transform ForumPost to PostModalPost format
+const transformForumPostToPostModal = (forumPost: ForumPost): PostModalPost => {
+  return {
+    id: forumPost.post_id,
+    type: 'forum',
+    title: forumPost.title,
+    description: forumPost.content,
+    user: {
+      id: forumPost.user_id,
+      username: forumPost.username,
+      avatar_url: forumPost.avatar_url,
+      credibility_score: forumPost.credibility_score
+    },
+    timestamp: forumPost.created_at,
+    images: forumPost.images?.map(image => ({
+      url: `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/uploads/forum/${image.filename}`,
+      type: 'forum' as const
+    })),
+    comments: forumPost.commentCount || 0,
+    upvotes: forumPost.upvotes,
+    downvotes: forumPost.downvotes,
+    category: forumPost.category
+  };
 };
 
 interface User {
@@ -80,17 +106,6 @@ interface ForumPost {
   avatar_url?: string;
 }
 
-interface ForumComment {
-  comment_id: string;
-  post_id: string;
-  user_id: string;
-  content: string;
-  created_at: string;
-  username: string;
-  credibility_score?: number;
-  avatar_url?: string;
-}
-
 interface ForumImageModalProps {
   images: { filename: string; originalName?: string }[];
   currentIndex: number;
@@ -98,20 +113,6 @@ interface ForumImageModalProps {
   onClose: () => void;
   onNext: () => void;
   onPrevious: () => void;
-}
-
-interface PostDetailsModalProps {
-  post: ForumPost | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  canEdit: boolean;
-  canDelete: boolean;
-  deleteLoading: boolean;
-  onReport?: () => void;
-  onUserClick: (userId: string) => void;
-  currentUser: User | null;
 }
 
 interface ReportModalProps {
@@ -339,450 +340,6 @@ function ReportModal({ isOpen, onClose, onSubmit, loading }: ReportModalProps) {
   );
 }
 
-// Enhanced Post Details Modal Component with upvote/downvote and comments
-function PostDetailsModal({ post, isOpen, onClose, onEdit, onDelete, canEdit, canDelete, deleteLoading, onReport, onUserClick, currentUser }: PostDetailsModalProps) {
-  const [comments, setComments] = useState<ForumComment[]>([]);
-  const [newComment, setNewComment] = useState('');
-  const [submittingComment, setSubmittingComment] = useState(false);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [upvotes, setUpvotes] = useState(0);
-  const [downvotes, setDownvotes] = useState(0);
-  const [userVote, setUserVote] = useState<'up' | 'down' | null>(null);
-  const [votingLoading, setVotingLoading] = useState(false);
-
-  // Load post comments and votes when modal opens
-  useEffect(() => {
-    if (isOpen && post) {
-      loadPostData();
-    }
-  }, [isOpen, post]);
-
-  const loadPostData = async () => {
-    if (!post) return;
-
-    try {
-      setLoadingComments(true);
-      console.log('Loading forum post data for:', post.post_id);
-      
-      // Load comments and vote data
-      const [commentsResponse, voteResponse] = await Promise.allSettled([
-        apiService.getForumComments(post.post_id),
-        apiService.getForumVotes(post.post_id)
-      ]);
-
-      // Handle comments
-      if (commentsResponse.status === 'fulfilled') {
-        const commentsWithAvatars = (commentsResponse.value.comments || []).map((comment: any) => ({
-          ...comment,
-          avatar_url: comment.avatar_url || ''
-        }));
-        setComments(commentsWithAvatars);
-      } else {
-        console.error('Failed to load comments:', commentsResponse.reason);
-        setComments([]);
-      }
-
-      // Handle votes
-      if (voteResponse.status === 'fulfilled') {
-        setUpvotes(voteResponse.value.upvotes || 0);
-        setDownvotes(voteResponse.value.downvotes || 0);
-        setUserVote(voteResponse.value.userVote || null);
-      } else {
-        console.error('Failed to load votes:', voteResponse.reason);
-        setUpvotes(post.upvotes || 0);
-        setDownvotes(post.downvotes || 0);
-        setUserVote(null);
-      }
-
-    } catch (error) {
-      console.error('Failed to load post data:', error);
-      toast.error('Failed to load post data');
-    } finally {
-      setLoadingComments(false);
-    }
-  };
-
-  const handleUpvote = async () => {
-    if (!post || votingLoading) return;
-
-    try {
-      setVotingLoading(true);
-      console.log('Upvoting forum post:', post.post_id);
-      
-      const response = await apiService.voteForumPost(post.post_id, 'up');
-      
-      setUpvotes(response.upvotes);
-      setDownvotes(response.downvotes);
-      setUserVote(response.userVote);
-      
-      if (response.userVote === 'up') {
-        toast.success('Upvoted!');
-      } else if (response.userVote === null) {
-        toast.success('Vote removed!');
-      } else {
-        toast.success('Changed to upvote!');
-      }
-      
-      // Dispatch event to update notifications
-      window.dispatchEvent(new CustomEvent('notification-created'));
-    } catch (error) {
-      console.error('Failed to upvote:', error);
-      toast.error('Failed to update vote');
-    } finally {
-      setVotingLoading(false);
-    }
-  };
-
-  const handleDownvote = async () => {
-    if (!post || votingLoading) return;
-
-    try {
-      setVotingLoading(true);
-      console.log('Downvoting forum post:', post.post_id);
-      
-      const response = await apiService.voteForumPost(post.post_id, 'down');
-      
-      setUpvotes(response.upvotes);
-      setDownvotes(response.downvotes);
-      setUserVote(response.userVote);
-      
-      if (response.userVote === 'down') {
-        toast.success('Downvoted!');
-      } else if (response.userVote === null) {
-        toast.success('Vote removed!');
-      } else {
-        toast.success('Changed to downvote!');
-      }
-      
-      // Dispatch event to update notifications
-      window.dispatchEvent(new CustomEvent('notification-created'));
-    } catch (error) {
-      console.error('Failed to downvote:', error);
-      toast.error('Failed to update vote');
-    } finally {
-      setVotingLoading(false);
-    }
-  };
-
-  const handleAddComment = async () => {
-    if (!newComment.trim() || !post || submittingComment) return;
-
-    try {
-      setSubmittingComment(true);
-      console.log('Adding comment to forum post:', post.post_id);
-      
-      const comment = await apiService.addForumComment(post.post_id, newComment);
-      
-      setComments(prev => [comment, ...prev]);
-      setNewComment('');
-      toast.success('Comment added!');
-      
-      // Dispatch event to update notifications
-      window.dispatchEvent(new CustomEvent('notification-created'));
-    } catch (error) {
-      console.error('Failed to add comment:', error);
-      toast.error('Failed to add comment');
-    } finally {
-      setSubmittingComment(false);
-    }
-  };
-
-  if (!post) return null;
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-blue-500" />
-            <span>{post.title}</span>
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-6">
-          {/* Author Info */}
-          <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
-            <Avatar className="w-12 h-12">
-              <AvatarImage src={getAvatarUrl(post.avatar_url)} />
-              <AvatarFallback>{post.username?.[0] || 'U'}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span 
-                  className="font-medium cursor-pointer hover:text-blue-600 transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onUserClick(post.user_id);
-                  }}
-                >
-                  {post.username}
-                </span>
-                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                  {post.credibility_score || 0}★
-                </Badge>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Posted on {new Date(post.created_at).toLocaleDateString()} at {new Date(post.created_at).toLocaleTimeString()}
-              </div>
-            </div>
-            <Badge variant="outline" className="text-xs capitalize">
-              {post.category?.replace('_', ' ')}
-            </Badge>
-            
-            {/* Vote Buttons */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleUpvote}
-                disabled={votingLoading}
-                className={`${userVote === 'up' ? 'text-green-600 bg-green-50 dark:bg-green-950' : 'text-muted-foreground hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950'} transition-colors`}
-              >
-                <ArrowUp className={`w-5 h-5 mr-2 ${userVote === 'up' ? 'fill-current' : ''}`} />
-                {upvotes}
-                {votingLoading && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDownvote}
-                disabled={votingLoading}
-                className={`${userVote === 'down' ? 'text-red-600 bg-red-50 dark:bg-red-950' : 'text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950'} transition-colors`}
-              >
-                <ArrowDown className={`w-5 h-5 mr-2 ${userVote === 'down' ? 'fill-current' : ''}`} />
-                {downvotes}
-                {votingLoading && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
-              </Button>
-            </div>
-          </div>
-
-          {/* Post Content */}
-          <div className="p-4 border rounded-lg">
-            <h3 className="font-semibold mb-2">Content</h3>
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">
-              {post.content}
-            </div>
-          </div>
-
-          {/* Images Grid */}
-          {post.images && post.images.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="font-semibold">Images ({post.images.length})</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {post.images.map((image, index) => (
-                  <div key={index} className="aspect-square overflow-hidden rounded-lg border cursor-pointer hover:shadow-md transition-shadow">
-                    <ImageDisplay
-                      src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/uploads/forum/${image.filename}`}
-                      alt={image.originalName || `Image ${index + 1}`}
-                      className="w-full h-full"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Vote Stats */}
-          <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1 text-green-600">
-                <ArrowUp className="w-4 h-4" />
-                <span className="font-medium">{upvotes}</span>
-              </div>
-              <span className="text-muted-foreground">Upvotes</span>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1 text-red-600">
-                <ArrowDown className="w-4 h-4" />
-                <span className="font-medium">{downvotes}</span>
-              </div>
-              <span className="text-muted-foreground">Downvotes</span>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1 text-blue-600">
-                <MessageCircle className="w-4 h-4" />
-                <span className="font-medium">{comments.length}</span>
-              </div>
-              <span className="text-muted-foreground">Replies</span>
-            </div>
-          </div>
-
-          {/* Comments Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">
-                Comments ({comments.length})
-                {loadingComments && <Loader2 className="w-4 h-4 animate-spin inline ml-2" />}
-              </h3>
-            </div>
-
-            {/* Add Comment */}
-            <div className="flex gap-3 p-4 border rounded-lg bg-muted/20">
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={getAvatarUrl(currentUser?.avatar_url)} />
-                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
-                  Y
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 flex gap-2">
-                <Input
-                  placeholder="Add a comment..."
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
-                  disabled={submittingComment}
-                  className="flex-1"
-                />
-                <Button
-                  size="sm"
-                  onClick={handleAddComment}
-                  disabled={!newComment.trim() || submittingComment}
-                >
-                  {submittingComment ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            {/* Comments List */}
-            <div className="space-y-4 max-h-60 overflow-y-auto">
-              {loadingComments ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                </div>
-              ) : comments.length > 0 ? (
-                comments.map((comment) => (
-                  <div key={comment.comment_id} className="flex gap-3 p-3 border rounded-lg">
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={getAvatarUrl(comment.avatar_url)} />
-                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm">
-                        {comment.username[0]?.toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span 
-                          className="font-medium text-sm cursor-pointer hover:text-blue-600 transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onUserClick(comment.user_id);
-                          }}
-                        >
-                          {comment.username}
-                        </span>
-                        {comment.credibility_score && (
-                          <Badge variant="secondary" className="text-xs">
-                            {comment.credibility_score}★
-                          </Badge>
-                        )}
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(comment.created_at).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{comment.content}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <MessageSquare className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No comments yet. Be the first to comment!</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Post ID */}
-          <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
-            <div>
-              <span className="text-muted-foreground">Posted:</span>
-              <div className="font-medium">{new Date(post.created_at).toLocaleDateString()}</div>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Post ID:</span>
-              <div className="font-medium font-mono">{post.post_id.slice(-8)}</div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t">
-            {canEdit ? (
-              <>
-                <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white" onClick={() => onUserClick(post.user_id)}>
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Reply to Post
-                </Button>
-                {onReport && (
-                  <Button variant="outline" onClick={onReport} className="text-orange-600 hover:text-orange-700">
-                    <Flag className="w-4 h-4 mr-2" />
-                    Report
-                  </Button>
-                )}
-                <Button variant="outline" onClick={onEdit}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
-                
-                {canDelete && (
-                  <Button 
-                    variant="outline" 
-                    onClick={onDelete}
-                    disabled={deleteLoading}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    {deleteLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-4 h-4 mr-2" />
-                    )}
-                    {deleteLoading ? 'Deleting...' : 'Delete'}
-                  </Button>
-                )}
-              </>
-            ) : (
-              <>
-                <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white" onClick={() => onUserClick(post.user_id)}>
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Reply to Post
-                </Button>
-                {onReport && (
-                  <Button variant="outline" onClick={onReport} className="text-orange-600 hover:text-orange-700">
-                    <Flag className="w-4 h-4 mr-2" />
-                    Report
-                  </Button>
-                )}
-                {canDelete && (
-                  <Button 
-                    variant="outline" 
-                    onClick={onDelete}
-                    disabled={deleteLoading}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    {deleteLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-4 h-4 mr-2" />
-                    )}
-                    {deleteLoading ? 'Deleting...' : 'Delete'}
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export function Forums() {
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const { setCurrentPage: setAppCurrentPage } = useApp();
@@ -805,7 +362,6 @@ export function Forums() {
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const [newPost, setNewPost] = useState({
@@ -1896,19 +1452,45 @@ export function Forums() {
       </div>
 
       {/* Modals */}
-      <PostDetailsModal
-        post={selectedPost}
+      <PostModal
+        post={selectedPost ? transformForumPostToPostModal(selectedPost) : null}
         isOpen={isPostDetailsOpen}
         onClose={() => setIsPostDetailsOpen(false)}
-        onEdit={handleEditFromModal}
-        onDelete={handleDeleteFromModal}
-        canEdit={selectedPost ? canEditPost(selectedPost) : false}
-        canDelete={selectedPost ? canDeletePost(selectedPost) : false}
-        deleteLoading={selectedPost ? deleteLoading === selectedPost.post_id : false}
-        onReport={selectedPost && currentUser && currentUser.id !== selectedPost.user_id ? () => handleReportPost(selectedPost) : undefined}
         onUserClick={handleUserClick}
-        currentUser={currentUser}
+        onReportClick={selectedPost && currentUser && currentUser.id !== selectedPost.user_id ? () => handleReportPost(selectedPost) : undefined}
       />
+
+      {/* Forum-specific overlay for edit/delete actions */}
+      {selectedPost && isPostDetailsOpen && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-background border rounded-lg shadow-lg p-4 flex gap-2">
+          {canEditPost(selectedPost) && (
+            <>
+              <Button variant="outline" onClick={handleEditFromModal}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </Button>
+              <Button variant="outline" onClick={handleDeleteFromModal} disabled={deleteLoading === selectedPost.post_id}>
+                {deleteLoading === selectedPost.post_id ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-2" />
+                )}
+                {deleteLoading === selectedPost.post_id ? 'Deleting...' : 'Delete'}
+              </Button>
+            </>
+          )}
+          {!canEditPost(selectedPost) && canDeletePost(selectedPost) && (
+            <Button variant="outline" onClick={handleDeleteFromModal} disabled={deleteLoading === selectedPost.post_id}>
+              {deleteLoading === selectedPost.post_id ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-2" />
+              )}
+              {deleteLoading === selectedPost.post_id ? 'Deleting...' : 'Delete'}
+            </Button>
+          )}
+        </div>
+      )}
 
       <ForumImageModal
         images={modalSelectedImages}
