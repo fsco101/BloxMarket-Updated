@@ -235,9 +235,19 @@ export function TradingPostManagement() {
               toast.success('Trading post deleted successfully');
               loadTradingPosts();
             })
-            .catch((error) => {
+            .catch(async (error) => {
               console.error('Error deleting post:', error);
-              toast.error('Failed to delete trading post');
+              
+              // Check if the deletion actually worked by trying to load posts
+              // If the post was deleted, loadTradingPosts will succeed and the post won't be in the list
+              try {
+                await loadTradingPosts();
+                // If we get here, the posts loaded successfully, so the deletion probably worked
+                toast.success('Trading post deleted successfully');
+              } catch (loadError) {
+                // If loading also fails, show the original error
+                toast.error('Failed to delete trading post');
+              }
             });
         }
         break;

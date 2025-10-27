@@ -419,3 +419,78 @@ async exportEventsCSV(status?: string, type?: string) {
 - **Input Validation**: Server-side validation for all user inputs
 - **CORS Protection**: Configured cross-origin resource sharing
 - **Helmet**: Security headers for production deployment
+
+## Critical Implementation Details
+
+### Token Storage Strategy
+- **Persistent login**: Token stored in `localStorage` + user data in `localStorage`
+- **Session login**: Token stored in `sessionStorage` + user data in `sessionStorage`
+- **Conflict prevention**: Clean up opposite storage type when setting tokens
+- **Dual verification**: Check both storage types during initialization
+
+### Request Categories for Throttling
+```typescript
+private getRequestCategory(endpoint: string): 'auth' | 'standard' | 'heavy' {
+  if (endpoint.startsWith('/auth')) return 'auth';
+  if (endpoint.includes('/upload') || endpoint.includes('/images') ||
+      endpoint.includes('/admin/datatables') || endpoint.includes('/export/csv')) {
+    return 'heavy';
+  }
+  return 'standard';
+}
+```
+
+### FormData vs JSON Requests
+- **Use FormData**: When uploading files/images (trades, forums, events, profiles)
+- **Use JSON**: For all other data operations (text, numbers, booleans)
+- **Backend handling**: Multer middleware for FormData, direct req.body for JSON
+
+### Error Boundary Pattern
+```typescript
+// App.tsx includes comprehensive error boundary
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Catches React component errors and displays fallback UI
+}
+```
+
+### Global Loading Management
+```typescript
+// Centralized loading state across the application
+const globalLoadingManager = {
+  showLoader: (id: string, message?: string) => void;
+  hideLoader: (id: string) => void;
+};
+```
+
+### Database Query Patterns
+- **Population**: Always populate user data in read operations
+- **Aggregation**: Use MongoDB aggregation for complex queries (votes, comments counts)
+- **Indexing**: Ensure proper indexes on frequently queried fields
+- **Pagination**: Server-side pagination with skip/limit for performance
+
+### File Upload Security
+- **Validation**: File type, size, and content validation
+- **Storage**: Organized by feature (`uploads/trades/`, `uploads/forum/`, etc.)
+- **Cleanup**: Automatic deletion of uploaded files on validation failure
+- **Access**: Files served statically with proper CORS headers
+
+### Admin DataTables Pattern
+```javascript
+// Backend: Separate controllers for DataTables endpoints
+// Frontend: Specialized methods in apiService for admin operations
+async getTradingPostsDataTable(params) {
+  return this.request(`/admin/datatables/trading-posts?${queryString}`);
+}
+```
+
+### Notification System Architecture
+- **Types**: trade_comment, trade_upvote, forum_reply, event_join, etc.
+- **Triggers**: Automatic creation on user interactions
+- **Delivery**: Polling-based retrieval (30-second intervals)
+- **Storage**: Separate Notification model with read/unread status
+
+### Vouch System Implementation
+- **Trade Vouches**: User-to-user credibility endorsements
+- **Middleman Vouches**: Specialized vouching for verified middlemen
+- **Scoring**: Calculated credibility scores from vouch history
+- **Display**: Public vouch counts and credibility metrics on profiles

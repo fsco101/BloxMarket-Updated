@@ -903,21 +903,21 @@ class ApiService {
 
   async updateUserRole(userId: string, role: string) {
     return this.request(`/admin/users/${userId}/role`, {
-      method: 'PATCH',
+      method: 'PUT',
       body: JSON.stringify({ role })
     });
   }
 
   async banUser(userId: string, action: 'ban' | 'unban', reason?: string) {
     return this.request(`/admin/users/${userId}/ban`, {
-      method: 'PATCH',
+      method: 'POST',
       body: JSON.stringify({ action, reason })
     });
   }
 
   async updateUserStatus(userId: string, action: 'activate' | 'deactivate', reason?: string) {
     return this.request(`/admin/users/${userId}/status`, {
-      method: 'PATCH',
+      method: 'POST',
       body: JSON.stringify({ action, reason })
     });
   }

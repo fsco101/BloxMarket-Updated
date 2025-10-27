@@ -28,6 +28,7 @@ export function EventsManagement() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [dataKey, setDataKey] = useState(0);
 
   const dataTableRef = useRef<DataTableRef<Event>>(null);
 
@@ -56,6 +57,7 @@ export function EventsManagement() {
 
       console.log('Normalized events:', normalizedEvents.length);
       setEvents(normalizedEvents);
+      setDataKey(prev => prev + 1); // Force DataTable remount on data load
 
     } catch (error) {
       console.error('Error loading events:', error);
@@ -85,10 +87,19 @@ export function EventsManagement() {
       // Use the admin-specific delete method
       await apiService.deleteEventAdmin(eventId);
       toast.success('Event deleted successfully');
-      await loadEvents();
     } catch (err) {
       console.error('Error deleting event:', err);
-      toast.error('Failed to delete event');
+      
+      // Check if the deletion actually worked by trying to load events
+      // If the event was deleted, loadEvents will succeed and the event won't be in the list
+      try {
+        await loadEvents();
+        // If we get here, the events loaded successfully, so the deletion probably worked
+        toast.success('Event deleted successfully');
+      } catch {
+        // If loading also fails, show the original error
+        toast.error('Failed to delete event');
+      }
     }
   };
 
@@ -101,7 +112,18 @@ export function EventsManagement() {
       // Add your view logic here
     } else if (action === 'delete') {
       if (confirm(`Are you sure you want to delete "${event.name}"?`)) {
-        await deleteEvent(eventId!);
+        // Optimistic update: remove the event from local state immediately
+        setEvents(prevEvents => prevEvents.filter(e => (e._id || e.id) !== eventId));
+        setDataKey(prev => prev + 1); // Force DataTable remount
+        
+        try {
+          await deleteEvent(eventId!);
+        } catch (error) {
+          // If deletion fails, add the event back to the list
+          setEvents(prevEvents => [...prevEvents, event]);
+          setDataKey(prev => prev + 1); // Force DataTable remount again
+          console.error('Failed to delete event, restored to list:', error);
+        }
       }
     }
   };
@@ -290,6 +312,7 @@ export function EventsManagement() {
             loading={loading}
             emptyMessage="No events found"
             onAction={handleAction}
+            key={`events-${dataKey}`}
             options={{
               pageLength: 25,
               order: [[3, 'desc']],

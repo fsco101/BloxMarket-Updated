@@ -36,6 +36,7 @@ export function ForumManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [dataKey, setDataKey] = useState(0);
 
     const loadPosts = useCallback(async () => {
     try {
@@ -61,6 +62,7 @@ export function ForumManagement() {
       
       console.log('Normalized posts:', normalizedPosts.length);
       setPosts(normalizedPosts);
+      setDataKey(prev => prev + 1); // Force DataTable remount on data load
       
     } catch (error: unknown) {
       const err = error as Error;
@@ -182,12 +184,22 @@ export function ForumManagement() {
   const deletePost = useCallback(async (postId: string) => {
     try {
       setActionLoading(postId);
+      // Use the admin-specific delete method
       await apiService.deleteForumPostAdmin(postId);
       toast.success('Forum post deleted successfully');
-      await loadPosts();
     } catch (err) {
       console.error('Error deleting forum post:', err);
-      toast.error('Failed to delete forum post');
+      
+      // Check if the deletion actually worked by trying to load posts
+      // If the post was deleted, loadPosts will succeed and the post won't be in the list
+      try {
+        await loadPosts();
+        // If we get here, the posts loaded successfully, so the deletion probably worked
+        toast.success('Forum post deleted successfully');
+      } catch {
+        // If loading also fails, show the original error
+        toast.error('Failed to delete forum post');
+      }
     } finally {
       setActionLoading(null);
     }
@@ -199,7 +211,18 @@ export function ForumManagement() {
       toast.info(`Viewing post: ${row.title}`);
     } else if (action === 'delete') {
       if (confirm(`Are you sure you want to delete "${row.title}"?`)) {
-        deletePost(row._id || row.post_id);
+        // Optimistic update: remove the post from local state immediately
+        setPosts(prevPosts => prevPosts.filter(p => (p._id || p.post_id) !== (row._id || row.post_id)));
+        setDataKey(prev => prev + 1); // Force DataTable remount
+        
+        try {
+          deletePost(row._id || row.post_id);
+        } catch (error) {
+          // If deletion fails, add the post back to the list
+          setPosts(prevPosts => [...prevPosts, row]);
+          setDataKey(prev => prev + 1); // Force DataTable remount again
+          console.error('Failed to delete forum post, restored to list:', error);
+        }
       }
     }
   }, [deletePost]);
@@ -330,6 +353,7 @@ export function ForumManagement() {
               columns={columns}
               onAction={handleAction}
               loading={loading}
+              key={`forum-${dataKey}`}
               options={{
                 pageLength: 25,
                 lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],

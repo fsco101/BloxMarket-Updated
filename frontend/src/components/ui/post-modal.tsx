@@ -878,7 +878,7 @@ export function PostModal({
                       </div>
                     </div>
                   ) : comments.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
                       {comments.slice(0, commentsExpanded ? comments.length : visibleCommentsCount).map((comment, index) => (
                         <div key={comment.comment_id || comment.id || index} className="group">
                           <div className="flex gap-3">

@@ -142,37 +142,44 @@ export function UserManagement() {
       console.log('Normalized users:', normalizedUsers.length);
       setUsers(normalizedUsers);
       
-      // Wait for jQuery to be ready before initializing DataTable
-      if (!jQueryReady) {
-        console.log('Waiting for jQuery to be ready...');
-        const ready = await checkJQueryReady();
-        if (!ready) {
-          setError('DataTables library not available');
-          return;
-        }
-      }
-      
-      // Wait for DOM to update and table to be rendered
-      setTimeout(() => {
-        if (dataTableRef.current) {
-          console.log('Updating existing DataTable...');
-          try {
-            dataTableRef.current.clear();
-            dataTableRef.current.rows.add(normalizedUsers);
-            dataTableRef.current.draw();
-          } catch (err) {
-            console.error('Error updating DataTable:', err);
-            // Reinitialize if update fails
-            dataTableRef.current.destroy();
-            dataTableRef.current = null;
-            isInitialized.current = false;
-            initializeDataTable(normalizedUsers);
+      // Always destroy existing DataTable and reinitialize to avoid DOM conflicts
+      // Use requestAnimationFrame to ensure DOM stability
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          // First cleanup
+          if (dataTableRef.current) {
+            console.log('Destroying existing DataTable...');
+            try {
+              // Remove all event handlers first
+              if (window.$ && tableRef.current) {
+                window.$(tableRef.current).off();
+              }
+              dataTableRef.current.destroy();
+              dataTableRef.current = null;
+              isInitialized.current = false;
+            } catch (err) {
+              console.error('Error destroying DataTable:', err);
+              // Force cleanup
+              dataTableRef.current = null;
+              isInitialized.current = false;
+            }
           }
-        } else if (!isInitialized.current) {
-          console.log('Initializing new DataTable...');
-          initializeDataTable(normalizedUsers);
-        }
-      }, 200);
+          
+          // Clear table body to ensure clean slate
+          if (tableRef.current) {
+            const tbody = tableRef.current.querySelector('tbody');
+            if (tbody) {
+              tbody.innerHTML = '';
+            }
+          }
+          
+          // Wait for DOM to settle completely
+          setTimeout(() => {
+            console.log('Initializing new DataTable...');
+            initializeDataTable(normalizedUsers);
+          }, 100);
+        }, 50);
+      });
       
     } catch (error: any) {
       console.error('Error loading users:', error);
@@ -507,47 +514,91 @@ export function UserManagement() {
   }, [jQueryReady]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
+    // Prevent multiple simultaneous operations
+    if (actionLoading) return;
+    
     try {
       setActionLoading(userId);
       await apiService.updateUserRole(userId, newRole);
       toast.success('User role updated successfully');
-      await loadUsers();
+      
+      // Update local state instead of reloading all users
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === userId ? { ...user, role: newRole } : user
+        )
+      );
     } catch (error) {
       console.error('Error updating user role:', error);
       toast.error('Failed to update user role');
-      await loadUsers();
+      await loadUsers(); // Only reload on error
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleBanUser = async (userId: string, action: 'ban' | 'unban', reason?: string) => {
+    // Prevent multiple simultaneous operations
+    if (actionLoading) return;
+    
     try {
       setActionLoading(userId);
       await apiService.banUser(userId, action, reason);
       toast.success(`User ${action}ned successfully`);
-      await loadUsers();
+      
+      // Update local state instead of reloading all users
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === userId 
+            ? { 
+                ...user, 
+                role: action === 'ban' ? 'banned' : 'user',
+                is_active: action === 'ban' ? false : true,
+                ban_reason: action === 'ban' ? reason : undefined
+              } 
+            : user
+        )
+      );
+      
       setBanDialogOpen(false);
       setActionReason('');
     } catch (error) {
       console.error(`Error ${action}ning user:`, error);
       toast.error(`Failed to ${action} user`);
+      await loadUsers(); // Only reload on error
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleStatusChange = async (userId: string, action: 'activate' | 'deactivate', reason?: string) => {
+    // Prevent multiple simultaneous operations
+    if (actionLoading) return;
+    
     try {
       setActionLoading(userId);
       await apiService.updateUserStatus(userId, action, reason);
       toast.success(`User ${action}d successfully`);
-      await loadUsers();
+      
+      // Update local state instead of reloading all users
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === userId 
+            ? { 
+                ...user, 
+                is_active: action === 'activate',
+                deactivation_reason: action === 'deactivate' ? reason : undefined
+              } 
+            : user
+        )
+      );
+      
       setDeactivateDialogOpen(false);
       setActionReason('');
     } catch (error) {
       console.error(`Error ${action}ing user:`, error);
       toast.error(`Failed to ${action} user`);
+      await loadUsers(); // Only reload on error
     } finally {
       setActionLoading(null);
     }
