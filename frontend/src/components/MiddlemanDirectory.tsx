@@ -401,7 +401,7 @@ export function MiddlemanDirectory() {
               placeholder="Search middlemen by name or specialty..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
+              className="max-w-md"
             />
           </div>
           

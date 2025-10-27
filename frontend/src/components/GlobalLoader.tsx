@@ -11,7 +11,7 @@ const GlobalLoader: React.FC = () => {
   return (
     <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
          style={{ zIndex: 1050, backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)' }}>
-      <div className="bg-white rounded-4 shadow-lg p-5" style={{ maxWidth: '400px', width: '90%' }}>
+      <div className="bg-card rounded-4 shadow-lg p-5 border border-border" style={{ maxWidth: '400px', width: '90%' }}>
         <div className="d-flex flex-column align-items-center gap-4">
           {/* Enhanced Bootstrap spinner with gradient */}
           <div className="position-relative">
@@ -25,7 +25,7 @@ const GlobalLoader: React.FC = () => {
 
           {/* Loading message with Bootstrap typography */}
           <div className="text-center">
-            <h4 className="h5 fw-semibold text-dark mb-3">
+            <h4 className="h5 fw-semibold text-foreground mb-3">
               {loadingState.message || 'Loading...'}
             </h4>
             <div className="d-flex justify-content-center gap-1">

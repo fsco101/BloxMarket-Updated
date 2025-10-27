@@ -139,7 +139,7 @@ export function ProfileView() {
   };
 
   const formatLastActive = (dateString?: string) => {
-    if (!dateString) return 'Unknown';
+    if (!dateString) return '';
 
     const date = new Date(dateString);
     const now = new Date();

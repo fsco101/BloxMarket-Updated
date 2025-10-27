@@ -1,30 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../App';
 import { apiService } from '../services/api';
-import { toast } from 'sonner';
 import {
   Shield,
   Users,
   Flag,
   Settings,
   Ban,
-  CheckCircle,
   AlertTriangle,
   TrendingUp,
   MessageSquare,
-  User,
-  FileText,
   ShoppingCart,
-  Heart,
   Calendar,
   BarChart3,
   Activity,
   UserCheck,
-  Loader2,
   RefreshCw,
-  Download,
-  Eye,
-  Clock
+  Eye
 } from 'lucide-react';
 import {
   AreaChart,
@@ -88,8 +80,146 @@ export function AdminPanel() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [timePeriod, setTimePeriod] = useState<'weekly' | 'monthly' | 'quarterly' | 'yearly'>('weekly');
+  const [recentActivity, setRecentActivity] = useState<Array<{
+    type: string;
+    label: string;
+    description: string;
+    count: number;
+    color: string;
+  }>>([]);
 
   const isAdminOrModerator = user?.role === 'admin' || user?.role === 'moderator';
+
+  // Time period configuration
+  const timePeriodConfig = useMemo(() => ({
+    weekly: { days: 7, label: 'Weekly' },
+    monthly: { days: 30, label: 'Monthly' },
+    quarterly: { days: 90, label: 'Quarterly' },
+    yearly: { days: 365, label: 'Yearly' }
+  }), []);
+
+  const loadRecentActivity = useCallback(async () => {
+    try {
+      const activity = [];
+
+      // Get recent user registrations (last 24 hours)
+      try {
+        const usersResponse = await apiService.request('/admin/users?limit=1000');
+        const recentUsers = usersResponse.users?.filter((user: { createdAt?: string; created_at?: string }) => {
+          const userDate = new Date(user.createdAt || user.created_at || '');
+          const oneDayAgo = new Date();
+          oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+          return userDate >= oneDayAgo;
+        }) || [];
+        activity.push({
+          type: 'user_registrations',
+          label: 'User Registrations Today',
+          description: 'New user signups',
+          count: recentUsers.length,
+          color: 'primary'
+        });
+      } catch {
+        activity.push({
+          type: 'user_registrations',
+          label: 'User Registrations Today',
+          description: 'New user signups',
+          count: 0,
+          color: 'primary'
+        });
+      }
+
+      // Get recent trades (last 24 hours)
+      try {
+        const tradesResponse = await apiService.getTrades({ limit: 1000 });
+        const recentTrades = tradesResponse.filter((trade: { created_at?: string; createdAt?: string }) => {
+          const tradeDate = new Date(trade.created_at || trade.createdAt || '');
+          const oneDayAgo = new Date();
+          oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+          return tradeDate >= oneDayAgo;
+        });
+        activity.push({
+          type: 'new_trades',
+          label: 'New Trades Created',
+          description: 'Trading activity',
+          count: recentTrades.length,
+          color: 'success'
+        });
+      } catch {
+        activity.push({
+          type: 'new_trades',
+          label: 'New Trades Created',
+          description: 'Trading activity',
+          count: 0,
+          color: 'success'
+        });
+      }
+
+      // Get recent forum posts (last 24 hours)
+      try {
+        const forumResponse = await apiService.getForumPosts({ limit: 1000 });
+        const recentPosts = forumResponse.filter((post: { createdAt?: string; created_at?: string }) => {
+          const postDate = new Date(post.createdAt || post.created_at || '');
+          const oneDayAgo = new Date();
+          oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+          return postDate >= oneDayAgo;
+        });
+        activity.push({
+          type: 'forum_posts',
+          label: 'Forum Posts Created',
+          description: 'Community engagement',
+          count: recentPosts.length,
+          color: 'purple'
+        });
+      } catch {
+        activity.push({
+          type: 'forum_posts',
+          label: 'Forum Posts Created',
+          description: 'Community engagement',
+          count: 0,
+          color: 'purple'
+        });
+      }
+
+      // Get recent reports resolved (last 24 hours)
+      try {
+        const reportsResponse = await apiService.getReports({ limit: 1000 });
+        const recentResolved = reportsResponse.filter((report: { status?: string; updatedAt?: string; updated_at?: string }) => {
+          if (report.status !== 'resolved') return false;
+          const resolvedDate = new Date(report.updatedAt || report.updated_at || '');
+          const oneDayAgo = new Date();
+          oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+          return resolvedDate >= oneDayAgo;
+        });
+        activity.push({
+          type: 'reports_resolved',
+          label: 'Reports Resolved',
+          description: 'Moderation actions',
+          count: recentResolved.length,
+          color: 'info'
+        });
+      } catch {
+        activity.push({
+          type: 'reports_resolved',
+          label: 'Reports Resolved',
+          description: 'Moderation actions',
+          count: 0,
+          color: 'info'
+        });
+      }
+
+      setRecentActivity(activity);
+    } catch (err) {
+      console.error('Error loading recent activity:', err);
+      // Set default empty activity
+      setRecentActivity([
+        { type: 'user_registrations', label: 'User Registrations Today', description: 'New user signups', count: 0, color: 'primary' },
+        { type: 'new_trades', label: 'New Trades Created', description: 'Trading activity', count: 0, color: 'success' },
+        { type: 'forum_posts', label: 'Forum Posts Created', description: 'Community engagement', count: 0, color: 'purple' },
+        { type: 'reports_resolved', label: 'Reports Resolved', description: 'Moderation actions', count: 0, color: 'info' }
+      ]);
+    }
+  }, []);
 
   const loadAdminStats = useCallback(async () => {
     try {
@@ -101,13 +231,17 @@ export function AdminPanel() {
         return;
       }
 
+      const days = timePeriodConfig[timePeriod].days;
       const [stats, analytics] = await Promise.all([
         apiService.getAdminStats(),
-        apiService.getAdminAnalytics(7)
+        apiService.getAdminAnalytics(days)
       ]);
       
       setAdminStats(stats);
       setAnalyticsData(analytics);
+
+      // Load recent activity data
+      await loadRecentActivity();
     } catch (err: unknown) {
       console.error('Error loading admin data:', err);
       if (err instanceof Error) {
@@ -123,16 +257,20 @@ export function AdminPanel() {
     } finally {
       setLoading(false);
     }
-  }, [authLoading, isLoggedIn]);
+  }, [authLoading, isLoggedIn, timePeriod, timePeriodConfig, loadRecentActivity]);
 
   useEffect(() => {
     if (isAdminOrModerator && !authLoading) {
       loadAdminStats();
     }
+  }, [isAdminOrModerator, authLoading, loadAdminStats]);
+
+  // Separate useEffect for event listener to avoid dependency issues
+  useEffect(() => {
     const handleSectionChange = (event: CustomEvent) => setActiveSection(event.detail);
     window.addEventListener('admin-section-change', handleSectionChange as EventListener);
     return () => window.removeEventListener('admin-section-change', handleSectionChange as EventListener);
-  }, [isAdminOrModerator, authLoading, loadAdminStats]);
+  }, []); // Empty dependency array - only set up once
 
   // If user is not admin or moderator, show access denied
   if (!isAdminOrModerator) {
@@ -220,15 +358,36 @@ export function AdminPanel() {
       middlemanApplications: 0
     };
 
-    // Generate chart data from analytics
+    // Generate chart data from analytics based on time period
     const chartData: ChartData[] = analyticsData ? 
-      analyticsData.userActivity.map((userItem, index) => ({
-        name: new Date(userItem.date).toLocaleDateString('en-US', { weekday: 'short' }),
-        users: userItem.users,
-        trades: analyticsData.tradeActivity[index]?.trades || 0,
-        posts: analyticsData.forumActivity[index]?.posts || 0,
-        reports: analyticsData.reportActivity[index]?.reports || 0,
-      })) : [];
+      analyticsData.userActivity.map((userItem, index) => {
+        let displayName: string;
+        
+        if (timePeriod === 'weekly') {
+          // Show day names for weekly
+          displayName = new Date(userItem.date).toLocaleDateString('en-US', { weekday: 'short' });
+        } else if (timePeriod === 'monthly') {
+          // Show day numbers for monthly
+          displayName = new Date(userItem.date).getDate().toString();
+        } else if (timePeriod === 'quarterly') {
+          // Show week numbers for quarterly
+          const date = new Date(userItem.date);
+          const startOfQuarter = new Date(date.getFullYear(), Math.floor(date.getMonth() / 3) * 3, 1);
+          const weekNumber = Math.ceil((date.getTime() - startOfQuarter.getTime()) / (7 * 24 * 60 * 60 * 1000));
+          displayName = `W${weekNumber}`;
+        } else { // yearly
+          // Show month names for yearly
+          displayName = new Date(userItem.date).toLocaleDateString('en-US', { month: 'short' });
+        }
+        
+        return {
+          name: displayName,
+          users: userItem.users,
+          trades: analyticsData.tradeActivity[index]?.trades || 0,
+          posts: analyticsData.forumActivity[index]?.posts || 0,
+          reports: analyticsData.reportActivity[index]?.reports || 0,
+        };
+      }) : [];
 
     const pieData = stats ? [
       { name: 'Active Users', value: stats.activeUsers, color: '#0d6efd' },
@@ -421,11 +580,22 @@ export function AdminPanel() {
         <div className="row g-4 mb-4">
           <div className="col-lg-8">
             <div className="card shadow-sm">
-              <div className="card-header bg-light">
+              <div className="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 className="card-title mb-0 d-flex align-items-center">
                   <BarChart3 className="me-2" style={{ width: '1.25rem', height: '1.25rem' }} />
                   Platform Activity Trends
                 </h5>
+                <div className="d-flex gap-2">
+                  {Object.entries(timePeriodConfig).map(([key, config]) => (
+                    <button
+                      key={key}
+                      className={`btn btn-sm ${timePeriod === key ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => setTimePeriod(key as 'weekly' | 'monthly' | 'quarterly' | 'yearly')}
+                    >
+                      {(config as { days: number; label: string }).label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="card-body">
                 <ResponsiveContainer width="100%" height={300}>
@@ -494,11 +664,22 @@ export function AdminPanel() {
         <div className="row g-4 mb-4">
           <div className="col-lg-6">
             <div className="card shadow-sm">
-              <div className="card-header bg-light">
+              <div className="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 className="card-title mb-0 d-flex align-items-center">
                   <TrendingUp className="me-2" style={{ width: '1.25rem', height: '1.25rem' }} />
                   Reports & Issues
                 </h5>
+                <div className="d-flex gap-2">
+                  {Object.entries(timePeriodConfig).map(([key, config]) => (
+                    <button
+                      key={key}
+                      className={`btn btn-sm ${timePeriod === key ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => setTimePeriod(key as 'weekly' | 'monthly' | 'quarterly' | 'yearly')}
+                    >
+                      {(config as { days: number; label: string }).label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="card-body">
                 <ResponsiveContainer width="100%" height={250}>
@@ -524,38 +705,16 @@ export function AdminPanel() {
               </div>
               <div className="card-body">
                 <div className="list-group list-group-flush">
-                  <div className="list-group-item px-0 d-flex justify-content-between align-items-center">
-                    <div>
-                      <strong>User Registrations Today</strong>
-                      <br />
-                      <small className="text-muted">New user signups</small>
+                  {recentActivity.map((activity) => (
+                    <div key={activity.type} className="list-group-item px-0 d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>{activity.label}</strong>
+                        <br />
+                        <small className="text-muted">{activity.description}</small>
+                      </div>
+                      <span className={`badge bg-${activity.color} rounded-pill`}>+{activity.count}</span>
                     </div>
-                    <span className="badge bg-primary rounded-pill">+{Math.floor(Math.random() * 50) + 10}</span>
-                  </div>
-                  <div className="list-group-item px-0 d-flex justify-content-between align-items-center">
-                    <div>
-                      <strong>New Trades Created</strong>
-                      <br />
-                      <small className="text-muted">Trading activity</small>
-                    </div>
-                    <span className="badge bg-success rounded-pill">+{Math.floor(Math.random() * 30) + 5}</span>
-                  </div>
-                  <div className="list-group-item px-0 d-flex justify-content-between align-items-center">
-                    <div>
-                      <strong>Forum Posts Created</strong>
-                      <br />
-                      <small className="text-muted">Community engagement</small>
-                    </div>
-                    <span className="badge bg-purple rounded-pill">+{Math.floor(Math.random() * 20) + 3}</span>
-                  </div>
-                  <div className="list-group-item px-0 d-flex justify-content-between align-items-center">
-                    <div>
-                      <strong>Reports Resolved</strong>
-                      <br />
-                      <small className="text-muted">Moderation actions</small>
-                    </div>
-                    <span className="badge bg-info rounded-pill">+{Math.floor(Math.random() * 10) + 2}</span>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>

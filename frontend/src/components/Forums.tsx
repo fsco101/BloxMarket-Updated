@@ -1208,7 +1208,7 @@ export function Forums() {
               placeholder="Search posts, tags, or content..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
+              className="max-w-md"
             />
           </div>
           

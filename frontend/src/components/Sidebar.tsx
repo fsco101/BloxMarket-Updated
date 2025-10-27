@@ -73,16 +73,19 @@ export function Sidebar() {
     // Set current page to admin for all admin-related pages
     setCurrentPage('admin');
     
-    // Communicate with AdminPanel about which section should be active
-    if (itemId !== 'admin') {
-      // Extract the section name (remove 'admin-' prefix)
-      const section = itemId.replace('admin-', '');
-      // Dispatch custom event for AdminPanel to listen to
-      window.dispatchEvent(new CustomEvent('admin-section-change', { detail: section }));
-    } else {
-      // Reset to dashboard when clicking main admin item
-      window.dispatchEvent(new CustomEvent('admin-section-change', { detail: 'dashboard' }));
-    }
+    // Use setTimeout to ensure the AdminPanel component is mounted before dispatching the event
+    setTimeout(() => {
+      // Communicate with AdminPanel about which section should be active
+      if (itemId !== 'admin') {
+        // Extract the section name (remove 'admin-' prefix)
+        const section = itemId.replace('admin-', '');
+        // Dispatch custom event for AdminPanel to listen to
+        window.dispatchEvent(new CustomEvent('admin-section-change', { detail: section }));
+      } else {
+        // Reset to dashboard when clicking main admin item
+        window.dispatchEvent(new CustomEvent('admin-section-change', { detail: 'dashboard' }));
+      }
+    }, 0);
   };
 
   const handleProfileMenuClick = (itemId: string) => {
@@ -122,25 +125,21 @@ export function Sidebar() {
   }, [user, isAdminOrModerator, isLoading]);
 
   return (
-    <div className="w-64 sm:w-72 lg:w-80 h-screen bg-light border-end border-secondary flex flex-col flex-shrink-0 shadow-lg animate-fadeInUp transition-all duration-300 ease-in-out position-sticky top-0">
-      {/* Subtle background pattern */}
-      <div className="position-absolute inset-0 bg-gradient-to-b from-primary/5 to-secondary/5 pointer-events-none animate-pulse-glow"></div>
-      <div className="position-absolute inset-0 bg-gradient-to-r from-info/3 to-warning/3 pointer-events-none"></div>
+    <div className="w-64 sm:w-72 lg:w-80 h-screen bg-background border-r border-border flex flex-col flex-shrink-0 shadow-lg">
       {/* Header */}
-      <div className="relative p-4 sm:p-5 lg:p-6 border-bottom border-secondary flex-shrink-0 bg-gradient-to-br from-primary/10 via-info/5 to-secondary/10">
-        <div className="position-absolute inset-0 bg-gradient-to-r from-primary/5 to-info/5 rounded-bottom"></div>
-        <div className="relative flex items-center gap-3 sm:gap-4">
+      <div className="p-4 sm:p-5 lg:p-6 border-b border-border flex-shrink-0 bg-gradient-to-br from-primary/10 via-primary/5 to-secondary/10">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div className="relative">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 bg-gradient-to-br from-primary via-info to-secondary rounded-xl flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-gray-800">
-              <span className="text-white font-black text-base sm:text-lg tracking-tight">BM</span>
+            <div className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 bg-gradient-to-br from-primary via-primary to-secondary rounded-xl flex items-center justify-center shadow-lg ring-2 ring-background">
+              <span className="text-primary-foreground font-black text-base sm:text-lg tracking-tight">BM</span>
             </div>
-            <div className="position-absolute -bottom-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-success rounded-full border-2 border-white dark:border-gray-800 animate-pulse"></div>
+            <div className="absolute -bottom-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded-full border-2 border-background"></div>
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-lg sm:text-xl text-dark bg-gradient-to-r from-primary to-info bg-clip-text text-transparent dark:from-blue-400 dark:to-purple-400">
+            <h2 className="font-bold text-lg sm:text-xl text-foreground bg-gradient-to-r from-primary to-primary bg-clip-text text-transparent">
               BloxMarket
             </h2>
-            <p className="text-xs text-muted font-medium tracking-wide uppercase">
+            <p className="text-xs text-muted-foreground font-medium tracking-wide uppercase">
               Trading Community
             </p>
           </div>
@@ -148,27 +147,27 @@ export function Sidebar() {
       </div>
 
       {/* User Info */}
-      <div className="p-3 sm:p-4 border-bottom border-secondary flex-shrink-0 bg-gradient-to-r from-light/30 to-transparent">
+      <div className="p-3 sm:p-4 border-b border-border flex-shrink-0 bg-muted/30">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             <div className="relative">
-              <Avatar className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 ring-2 ring-secondary shadow-md">
+              <Avatar className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 ring-2 ring-border shadow-md">
                 <AvatarImage src={getAvatarUrl(user?.avatar_url as string)} className="object-cover" />
-                <AvatarFallback className="bg-gradient-to-br from-primary to-info text-white font-semibold text-sm">
+                <AvatarFallback className="bg-gradient-to-br from-primary to-primary text-primary-foreground font-semibold text-sm">
                   {user?.username?.[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               {user && (
-                <div className="position-absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-4 sm:h-4 bg-success rounded-full border-2 border-white dark:border-gray-800 shadow-sm"></div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded-full border-2 border-background shadow-sm"></div>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-dark truncate">
+              <p className="font-semibold text-sm text-foreground truncate">
                 {user?.username || 'Guest'}
               </p>
               <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-success rounded-full animate-pulse"></div>
-                <span className="text-xs text-muted font-medium">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full"></div>
+                <span className="text-xs text-muted-foreground font-medium">
                   {user ? 'Online' : 'Offline'}
                 </span>
               </div>
@@ -190,7 +189,7 @@ export function Sidebar() {
               className={`w-full justify-start transition-all duration-300 group relative overflow-hidden ${
                 currentPage === id
                   ? 'bg-gradient-to-r from-primary to-info text-white shadow-lg border-0 hover:shadow-xl hover:scale-[1.02]'
-                  : 'bg-white/80 hover:bg-white border border-secondary/30 hover:border-primary/50 hover:shadow-md text-dark'
+                  : 'bg-card hover:bg-accent border border-border hover:border-primary/50 hover:shadow-md text-foreground'
               }`}
               style={{ animationDelay: `${index * 50}ms` }}
               onClick={() => setCurrentPage(id)}
@@ -203,7 +202,7 @@ export function Sidebar() {
               }`} />
               <span className="font-semibold text-sm sm:text-base relative z-10">{label}</span>
               {currentPage === id && (
-                <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse shadow-sm relative z-10"></div>
+                <div className="ml-auto w-2 h-2 bg-primary rounded-full animate-pulse shadow-sm relative z-10"></div>
               )}
             </Button>
           ))}
@@ -216,7 +215,7 @@ export function Sidebar() {
                 className={`w-full justify-start transition-all duration-300 group relative overflow-hidden ${
                   isProfilePage
                     ? 'bg-gradient-to-r from-success to-green-500 text-white shadow-lg border-0 hover:shadow-xl hover:scale-[1.02]'
-                    : 'bg-white/80 hover:bg-white border border-secondary/30 hover:border-success/50 hover:shadow-md text-dark'
+                    : 'bg-card hover:bg-accent border border-border hover:border-success/50 hover:shadow-md text-foreground'
                 }`}
               >
                 <div className={`absolute inset-0 transition-opacity duration-300 ${
@@ -230,17 +229,17 @@ export function Sidebar() {
                   isProfilePage ? 'text-white rotate-180' : 'group-hover:rotate-180'
                 }`} />
                 {isProfilePage && (
-                  <div className="ml-2 w-2 h-2 bg-white rounded-full animate-pulse shadow-sm relative z-10"></div>
+                  <div className="ml-2 w-2 h-2 bg-success rounded-full animate-pulse shadow-sm relative z-10"></div>
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 sm:w-64 p-2 bg-white/95 backdrop-blur-sm border border-secondary/50 shadow-xl rounded-xl">
+            <DropdownMenuContent align="end" className="w-56 sm:w-64 p-2 bg-card/95 backdrop-blur-sm border border-border shadow-xl rounded-xl">
               {profileMenuItems.map(({ id, label, icon: Icon }) => (
                 <DropdownMenuItem
                   key={id}
                   onClick={() => handleProfileMenuClick(id)}
-                  className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-all duration-200 hover:bg-success/10 hover:shadow-md ${
-                    currentPage === id ? 'bg-success/20 text-success shadow-md border border-success/30' : 'text-dark hover:scale-[1.02]'
+                  className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-all duration-200 hover:bg-accent hover:shadow-md ${
+                    currentPage === id ? 'bg-accent text-accent-foreground shadow-md border border-border' : 'text-foreground hover:scale-[1.02]'
                   }`}
                 >
                   <Icon className={`w-4 h-4 transition-all duration-200 ${
@@ -264,7 +263,7 @@ export function Sidebar() {
                   className={`w-full justify-start transition-all duration-300 group relative overflow-hidden ${
                     currentPage === 'admin'
                       ? 'bg-gradient-to-r from-warning to-orange-500 text-white shadow-lg border-0 hover:shadow-xl hover:scale-[1.02]'
-                      : 'bg-white/80 hover:bg-white border border-secondary/30 hover:border-warning/50 hover:shadow-md text-dark'
+                      : 'bg-card hover:bg-accent border border-border hover:border-warning/50 hover:shadow-md text-foreground'
                   }`}
                 >
                   <div className={`absolute inset-0 transition-opacity duration-300 ${
@@ -278,17 +277,17 @@ export function Sidebar() {
                     currentPage === 'admin' ? 'text-white rotate-180' : 'group-hover:rotate-180'
                   }`} />
                   {currentPage === 'admin' && (
-                    <div className="ml-2 w-2 h-2 bg-white rounded-full animate-pulse shadow-sm relative z-10"></div>
+                    <div className="ml-2 w-2 h-2 bg-warning rounded-full animate-pulse shadow-sm relative z-10"></div>
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 sm:w-64 p-2 bg-white/95 backdrop-blur-sm border border-secondary/50 shadow-xl rounded-xl">
+              <DropdownMenuContent align="end" className="w-56 sm:w-64 p-2 bg-card/95 backdrop-blur-sm border border-border shadow-xl rounded-xl">
                 {adminMenuItems.map(({ id, label, icon: Icon }) => (
                   <DropdownMenuItem
                     key={id}
                     onClick={() => handleAdminMenuClick(id)}
-                    className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-all duration-200 hover:bg-warning/10 hover:shadow-md ${
-                      id === 'admin' && currentPage === 'admin' ? 'bg-warning/20 text-warning shadow-md border border-warning/30' : 'text-dark hover:scale-[1.02]'
+                    className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-all duration-200 hover:bg-accent hover:shadow-md ${
+                      id === 'admin' && currentPage === 'admin' ? 'bg-accent text-accent-foreground shadow-md border border-border' : 'text-foreground hover:scale-[1.02]'
                     }`}
                   >
                     <Icon className={`w-4 h-4 transition-all duration-200 ${
@@ -308,16 +307,16 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 sm:p-4 border-top border-secondary space-y-3 sm:space-y-4 flex-shrink-0 bg-gradient-to-t from-light/20 to-transparent">
+      <div className="p-3 sm:p-4 border-t border-border space-y-3 sm:space-y-4 flex-shrink-0 bg-muted/10">
         {/* Theme Toggle */}
-        <div className="flex items-center justify-between p-3 rounded-xl bg-white/80 backdrop-blur-sm border border-secondary/30 shadow-md hover:shadow-lg transition-all duration-300">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-card backdrop-blur-sm border border-border shadow-md hover:shadow-lg transition-all duration-300">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-warning/20 to-info/20 shadow-sm">
+            <div className="p-2 rounded-lg bg-accent shadow-sm">
               {isDark ? <Moon className="w-4 h-4 text-info" /> : <Sun className="w-4 h-4 text-warning" />}
             </div>
             <div>
-              <span className="text-sm font-semibold text-dark">Dark Mode</span>
-              <p className="text-xs text-muted hidden sm:block">
+              <span className="text-sm font-semibold text-foreground">Dark Mode</span>
+              <p className="text-xs text-muted-foreground hidden sm:block">
                 {isDark ? 'Switch to light' : 'Switch to dark'}
               </p>
             </div>
@@ -332,7 +331,7 @@ export function Sidebar() {
         {/* Logout */}
         <Button
           variant="ghost"
-          className="w-full justify-start transition-all duration-300 group relative overflow-hidden bg-white/80 hover:bg-white border border-secondary/30 hover:border-danger/50 hover:shadow-md text-dark"
+          className="w-full justify-start transition-all duration-300 group relative overflow-hidden bg-card hover:bg-accent border border-border hover:border-destructive/50 hover:shadow-md text-foreground"
           onClick={logout}
         >
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-danger/5 to-red-500/5 transition-opacity duration-300"></div>

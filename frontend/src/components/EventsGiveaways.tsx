@@ -1318,7 +1318,7 @@ export function EventsGiveaways() {
               placeholder="Search events and giveaways..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
+              className="max-w-md"
             />
           </div>
           

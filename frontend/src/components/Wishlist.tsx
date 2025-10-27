@@ -1642,7 +1642,7 @@ export function Wishlist() {
               placeholder="Search wishlist items..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
+              className="max-w-md"
             />
           </div>
           
