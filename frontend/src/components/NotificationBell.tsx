@@ -269,7 +269,7 @@ export function NotificationBell() {
           )}
         </div>
         <DropdownMenuSeparator />
-        <ScrollArea className="h-96 max-h-96 overflow-y-auto">
+                <ScrollArea className="h-96 max-h-96 overflow-y-auto">
           {loading ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               Loading...

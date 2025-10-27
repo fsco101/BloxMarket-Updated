@@ -394,7 +394,7 @@ function ReportModal({ post, isOpen, onClose }: { post: Trade | null; isOpen: bo
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Flag className="w-5 h-5 text-red-500" />
@@ -574,7 +574,7 @@ function TradeDetailsModal({ trade, isOpen, onClose, onEdit, onDelete, canEdit, 
       // Dispatch event to update notifications
       window.dispatchEvent(new CustomEvent('notification-created'));
     } catch (error) {
-      console.error('Failed to upvote:', error);
+      console.error('You cannot vote on your own trade:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       if (errorMessage.includes('cannot vote on your own trade')) {
         toast.error('You cannot vote on your own trade');
@@ -618,7 +618,7 @@ function TradeDetailsModal({ trade, isOpen, onClose, onEdit, onDelete, canEdit, 
       // Dispatch event to update notifications
       window.dispatchEvent(new CustomEvent('notification-created'));
     } catch (error) {
-      console.error('Failed to downvote:', error);
+      console.error('You cannot vote on your own trade:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       if (errorMessage.includes('cannot vote on your own trade')) {
         toast.error('You cannot vote on your own trade');
@@ -670,7 +670,7 @@ function TradeDetailsModal({ trade, isOpen, onClose, onEdit, onDelete, canEdit, 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span>Trade Details</span>

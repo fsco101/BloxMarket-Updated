@@ -740,7 +740,7 @@ function ReportModal({ isOpen, onClose, onSubmit, wishlistId }: ReportModalProps
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Flag className="w-5 h-5 text-red-500" />
@@ -1327,7 +1327,7 @@ export function Wishlist() {
                   Add to Wishlist
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg">
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Add Item to Wishlist</DialogTitle>
                   <DialogDescription>
@@ -1482,7 +1482,7 @@ export function Wishlist() {
 
       {/* Edit Post Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Wishlist Item</DialogTitle>
             <DialogDescription>

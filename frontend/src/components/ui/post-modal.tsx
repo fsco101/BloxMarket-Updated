@@ -30,6 +30,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "./avatar";
 import { Input } from "./input";
 import { apiService } from "../../services/api";
 import { toast } from "sonner";
+import { useAuth } from "../../App";
 
 // Types for the PostModal
 export interface PostModalPost {
@@ -273,6 +274,7 @@ export function PostModal({
   onReportClick,
   className
 }: PostModalProps) {
+  const { user: currentUser } = useAuth();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [comment, setComment] = useState('');
   const [comments, setComments] = useState<PostModalComment[]>([]);
@@ -963,7 +965,7 @@ export function PostModal({
               <div className="flex gap-3">
                 <Avatar className="w-10 h-10 flex-shrink-0">
                   <AvatarImage
-                    src={getAvatarUrl('')}
+                    src={getAvatarUrl(currentUser?.avatar_url as string)}
                     className="object-cover"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
@@ -971,7 +973,7 @@ export function PostModal({
                       }}
                   />
                   <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-semibold">
-                    Y
+                    {currentUser?.username?.[0]?.toUpperCase() || 'Y'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 flex gap-3">

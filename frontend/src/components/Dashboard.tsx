@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PostModal } from './ui/post-modal';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -12,7 +13,7 @@ import { apiService } from '../services/api';
 import { toast } from 'sonner';
 import { ContentCard, UniversalCardHeader, UniversalCardContent } from './ui/universal-layout';
 import { useApp } from '../App';
-import { PostModal } from './ui/post-modal';
+
 import { 
   MessageSquare, 
   Flag, 
@@ -169,7 +170,7 @@ function ReportModal({ post, isOpen, onClose }: { post: DashboardPost | null; is
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Flag className="w-5 h-5 text-red-500" />

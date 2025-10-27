@@ -157,7 +157,7 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-blue-500" />
