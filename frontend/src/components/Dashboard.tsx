@@ -816,50 +816,38 @@ export function Dashboard() {
                 description={`${post.title}\n\n${post.description}`}
                 images={
                   post.images && post.images.length > 0 ? (
-                    <div className="space-y-3">
-                      {post.images.length === 1 ? (
-                        <div className="rounded-lg overflow-hidden relative group">
-                          <ImageDisplay
-                            src={post.images[0].url}
-                            alt={`${post.type} image`}
-                            className="w-full h-48"
-                          />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <Eye className="w-8 h-8 text-white" />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <ImageIcon className="w-4 h-4" />
-                            <span>{post.images.length} images</span>
-                          </div>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            {post.images.slice(0, 6).map((image, index) => (
-                              <div key={index} className="aspect-square overflow-hidden rounded-lg border hover:shadow-md transition-shadow cursor-pointer group">
-                                <div className="relative w-full h-full">
-                                  <ImageDisplay
-                                    src={image.url}
-                                    alt={`${post.type} image ${index + 1}`}
-                                    className="w-full h-full"
-                                  />
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                    <Eye className="w-5 h-5 text-white" />
-                                  </div>
-                                </div>
+                    <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {post.images.slice(0, 3).map((image, imageIndex) => (
+                          <div 
+                            key={imageIndex} 
+                            className="aspect-square overflow-hidden rounded-lg border cursor-pointer hover:shadow-md transition-shadow group"
+                            onClick={() => handlePostClick(post)}
+                          >
+                            <div className="relative w-full h-full">
+                              <ImageDisplay
+                                src={image.url}
+                                alt={`${post.type} image ${imageIndex + 1}`}
+                                className="w-full h-full"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                <Eye className="w-5 h-5 text-white" />
                               </div>
-                            ))}
-                            {post.images.length > 6 && (
-                              <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg border flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow">
-                                <div className="text-center text-gray-500 dark:text-gray-400">
-                                  <ImageIcon className="w-6 h-6 mx-auto mb-1" />
-                                  <span className="text-xs">+{post.images.length - 6} more</span>
-                                </div>
-                              </div>
-                            )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        ))}
+                        {post.images.length > 3 && (
+                          <div 
+                            className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg border flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
+                            onClick={() => handlePostClick(post)}
+                          >
+                            <div className="text-center text-gray-500 dark:text-gray-400">
+                              <ImageIcon className="w-6 h-6 mx-auto mb-1" />
+                              <span className="text-xs">+{post.images.length - 3} more</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ) : undefined
                 }

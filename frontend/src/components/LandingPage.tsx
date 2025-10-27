@@ -108,13 +108,6 @@ export function LandingPage() {
             </p>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="mt-12 text-center text-gray-400">
-          <p className="text-sm">
-            Trusted by Roblox players worldwide • Secure • Verified • Community Focused
-          </p>
-        </div>
       </div>
     </div>
   );

@@ -2,9 +2,8 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Camera, X, CheckCircle, AlertCircle, UserCheck, UserX } from 'lucide-react';
+import { Camera, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import * as faceapi from 'face-api.js';
 
 interface MiddlemanFaceScannerProps {
   onComplete?: (faceImages: File[]) => void;
@@ -18,15 +17,13 @@ export function MiddlemanFaceScanner({
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
-
-  // Face detection states
-  const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [identificationStatus, setIdentificationStatus] = useState<'none' | 'detecting' | 'identified' | 'failed'>('none');
-  const [detectionInterval, setDetectionInterval] = useState<NodeJS.Timeout | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [capturedPhotos, setCapturedPhotos] = useState<File[]>([]);
+  const [currentPhotoPreview, setCurrentPhotoPreview] = useState<string | null>(null);
+  const [captureStep, setCaptureStep] = useState<'camera' | 'preview'>('camera');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Cleanup camera stream when component unmounts
   useEffect(() => {
@@ -34,123 +31,21 @@ export function MiddlemanFaceScanner({
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
-      if (detectionInterval) {
-        clearInterval(detectionInterval);
-      }
     };
-  }, [stream, detectionInterval]);
+  }, [stream]);
 
-  // Load face detection models
+  // Play video when stream is available
   useEffect(() => {
-    const loadModels = async () => {
-      try {
-        // Load models from CDN
-        const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
-
-        await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
-        ]);
-        setModelsLoaded(true);
-        toast.success('Face detection models loaded successfully');
-      } catch (error) {
-        console.error('Error loading face detection models:', error);
-        toast.error('Failed to load face detection models. Some features may not work.');
-      }
-    };
-
-    loadModels();
-  }, []);
-
-  const startFaceDetection = useCallback(() => {
-    if (!modelsLoaded || !videoRef.current || !overlayCanvasRef.current) {
-      return;
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.onloadedmetadata = () => {
+        videoRef.current?.play().catch(error => {
+          console.error('Error playing video:', error);
+          setCameraError('Failed to start video playback. Please try again.');
+        });
+      };
     }
-
-    setIdentificationStatus('detecting');
-
-    const video = videoRef.current;
-    const overlayCanvas = overlayCanvasRef.current;
-    const overlayContext = overlayCanvas.getContext('2d');
-
-    if (!overlayContext) return;
-
-    // Set overlay canvas dimensions to match video
-    overlayCanvas.width = video.videoWidth;
-    overlayCanvas.height = video.videoHeight;
-
-    const detectFaces = async () => {
-      if (!video || video.readyState !== 4) return;
-
-      try {
-        // Detect faces (basic detection only)
-        const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }));
-
-        // Clear previous drawings
-        overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
-        if (detections.length > 0) {
-          // Draw detections on overlay
-          detections.forEach((detection, index) => {
-            const { x, y, width, height } = detection.box;
-
-            // Draw bounding box
-            overlayContext.strokeStyle = '#00ff00';
-            overlayContext.lineWidth = 3;
-            overlayContext.strokeRect(x, y, width, height);
-
-            // Draw detection confidence
-            overlayContext.fillStyle = '#00ff00';
-            overlayContext.font = '16px Arial';
-            overlayContext.fillText(
-              `Confidence: ${(detection.score * 100).toFixed(1)}%`,
-              x,
-              y - 10
-            );
-
-            // Draw face number if multiple faces
-            if (detections.length > 1) {
-              overlayContext.fillStyle = '#ff0000';
-              overlayContext.fillText(`Face ${index + 1}`, x, y + height + 20);
-            }
-          });
-
-          // Update identification status
-          if (identificationStatus !== 'identified') {
-            setIdentificationStatus('identified');
-            toast.success('Face detected and identified successfully!');
-          }
-        } else {
-          setIdentificationStatus('failed');
-
-          // Draw "No face detected" message
-          overlayContext.fillStyle = '#ff0000';
-          overlayContext.font = '20px Arial';
-          overlayContext.fillText('No face detected', 20, 40);
-        }
-      } catch (error) {
-        console.error('Face detection error:', error);
-        setIdentificationStatus('failed');
-      }
-    };
-
-    // Start detection interval
-    const interval = setInterval(detectFaces, 100); // Detect every 100ms
-    setDetectionInterval(interval);
-  }, [modelsLoaded, identificationStatus]);
-
-  const stopFaceDetection = useCallback(() => {
-    if (detectionInterval) {
-      clearInterval(detectionInterval);
-      setDetectionInterval(null);
-    }
-    if (overlayCanvasRef.current) {
-      const context = overlayCanvasRef.current.getContext('2d');
-      if (context) {
-        context.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
-      }
-    }
-    setIdentificationStatus('none');
-  }, [detectionInterval]);
+  }, [stream]);
 
   const startCamera = useCallback(async () => {
     try {
@@ -167,20 +62,7 @@ export function MiddlemanFaceScanner({
       setStream(mediaStream);
       setIsCameraActive(true);
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        // Wait for video to be ready
-        await new Promise((resolve) => {
-          if (videoRef.current) {
-            videoRef.current.onloadedmetadata = resolve;
-          }
-        });
-
-        // Start face detection if models are loaded
-        if (modelsLoaded) {
-          startFaceDetection();
-        }
-      }
+      // Note: Video playback is handled by useEffect when stream changes
     } catch (error) {
       console.error('Error accessing camera:', error);
       let errorMessage = 'Unable to access camera. ';
@@ -200,16 +82,79 @@ export function MiddlemanFaceScanner({
       setCameraError(errorMessage);
       toast.error('Camera access failed. Please check your permissions.');
     }
-  }, [modelsLoaded, startFaceDetection]);
+  }, []);
 
   const stopCamera = useCallback(() => {
-    stopFaceDetection();
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
     setIsCameraActive(false);
-  }, [stream, stopFaceDetection]);
+  }, [stream]);
+
+  const capturePhoto = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    setIsCapturing(true);
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context) return;
+
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Draw current video frame to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Convert canvas to blob and create File
+    canvas.toBlob(async (blob) => {
+      if (blob) {
+        // Create a File object from the blob
+        const file = new File([blob], `face-verification-${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+        // Convert to base64 for preview
+        const reader = new FileReader();
+        reader.onload = () => {
+          setCurrentPhotoPreview(reader.result as string);
+          setCaptureStep('preview');
+        };
+        reader.readAsDataURL(blob);
+
+        // Store the file temporarily
+        setCapturedPhotos([file]);
+      } else {
+        toast.error('Failed to capture photo. Please try again.');
+      }
+      setIsCapturing(false);
+    }, 'image/jpeg', 0.9);
+  }, []);
+
+  const retakePhoto = useCallback(() => {
+    setCurrentPhotoPreview(null);
+    setCapturedPhotos([]);
+    setCaptureStep('camera');
+    
+    // Ensure video is playing when returning to camera mode
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(error => {
+        console.error('Error restarting video after retake:', error);
+        setCameraError('Failed to restart camera preview. Please try starting the camera again.');
+      });
+    }
+  }, [stream]);
+
+  const confirmPhoto = useCallback(() => {
+    if (capturedPhotos.length > 0 && onComplete) {
+      stopCamera();
+      onComplete(capturedPhotos);
+      toast.success('Face verification photo captured successfully!');
+    }
+  }, [capturedPhotos, onComplete, stopCamera]);
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -218,10 +163,10 @@ export function MiddlemanFaceScanner({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Camera className="w-6 h-6 text-blue-500" />
-            Real-Time Face Identification
+            Face Verification Capture
           </CardTitle>
           <CardDescription>
-            Use your camera for real-time face detection and identification. This provides live verification of your identity.
+            Capture and review your face verification photo for your middleman application.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -229,14 +174,14 @@ export function MiddlemanFaceScanner({
       {/* Instructions */}
       <Alert>
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Real-Time Identification Instructions</AlertTitle>
+        <AlertTitle>Face Verification Instructions</AlertTitle>
         <AlertDescription>
           <ul className="list-disc pl-4 mt-2 space-y-1">
             <li>Position yourself in front of the camera with good lighting</li>
-            <li>Keep your face clearly visible within the camera frame</li>
-            <li>The system will automatically detect and identify your face</li>
-            <li>Green bounding boxes indicate successful face detection</li>
-            <li>Face landmarks and expressions are analyzed in real-time</li>
+            <li>Make sure your face is clearly visible and centered</li>
+            <li>Click "Take Photo" when you're ready</li>
+            <li>Review the captured photo and choose to "Confirm" or "Retake"</li>
+            <li>The photo will be saved locally until you submit your application</li>
           </ul>
         </AlertDescription>
       </Alert>
@@ -244,35 +189,71 @@ export function MiddlemanFaceScanner({
       {/* Camera Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Live Face Detection</CardTitle>
+          <CardTitle className="text-lg">
+            {captureStep === 'camera' ? 'Camera Preview' : 'Photo Preview'}
+          </CardTitle>
           <CardDescription>
-            Real-time face detection and identification using advanced AI algorithms
+            {captureStep === 'camera' 
+              ? 'Live camera feed for face verification photo capture'
+              : 'Review your captured photo'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Camera Controls */}
-          <div className="flex flex-wrap justify-center gap-3">
-            {!isCameraActive ? (
+          {captureStep === 'camera' ? (
+            <div className="flex flex-wrap justify-center gap-3">
+              {!isCameraActive ? (
+                <Button
+                  onClick={startCamera}
+                  className="flex items-center gap-2"
+                  size="lg"
+                >
+                  <Camera className="w-5 h-5" />
+                  Start Camera
+                </Button>
+              ) : (
+                <div className="flex gap-3">
+                  <Button
+                    onClick={capturePhoto}
+                    disabled={isCapturing}
+                    className="flex items-center gap-2"
+                    size="lg"
+                  >
+                    <CheckCircle className="w-5 h-5" />
+                    {isCapturing ? 'Capturing...' : 'Take Photo'}
+                  </Button>
+                  <Button
+                    onClick={stopCamera}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Stop Camera
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-wrap justify-center gap-3">
               <Button
-                onClick={startCamera}
+                onClick={confirmPhoto}
                 className="flex items-center gap-2"
                 size="lg"
-                disabled={!modelsLoaded}
               >
-                <Camera className="w-5 h-5" />
-                {modelsLoaded ? 'Start Real-Time Identification' : 'Loading AI Models...'}
+                <CheckCircle className="w-5 h-5" />
+                Confirm Photo
               </Button>
-            ) : (
               <Button
-                onClick={stopCamera}
+                onClick={retakePhoto}
                 variant="outline"
                 className="flex items-center gap-2"
               >
-                <X className="w-4 h-4" />
-                Stop Identification
+                <Camera className="w-4 h-4" />
+                Retake Photo
               </Button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Camera Error */}
           {cameraError && (
@@ -283,8 +264,8 @@ export function MiddlemanFaceScanner({
             </Alert>
           )}
 
-          {/* Video Feed */}
-          {isCameraActive && (
+          {/* Video Feed or Photo Preview */}
+          {captureStep === 'camera' && isCameraActive && (
             <div className="flex justify-center">
               <div className="relative border-2 border-gray-300 rounded-lg overflow-hidden">
                 <video
@@ -292,13 +273,8 @@ export function MiddlemanFaceScanner({
                   autoPlay
                   playsInline
                   muted
-                  className="max-w-full h-auto"
-                  style={{ maxWidth: '640px', maxHeight: '480px' }}
-                />
-                <canvas
-                  ref={overlayCanvasRef}
-                  className="absolute top-0 left-0 pointer-events-none"
-                  style={{ maxWidth: '640px', maxHeight: '480px' }}
+                  className="w-full h-auto"
+                  style={{ width: '640px', height: '480px', objectFit: 'cover' }}
                 />
                 <canvas
                   ref={canvasRef}
@@ -307,81 +283,33 @@ export function MiddlemanFaceScanner({
                 <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
                   Live Camera Feed
                 </div>
-                <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                  Status: {identificationStatus === 'none' && 'Ready'}
-                  {identificationStatus === 'detecting' && 'Detecting...'}
-                  {identificationStatus === 'identified' && '✓ Identified'}
-                  {identificationStatus === 'failed' && '✗ No Face'}
+                <div className="absolute top-2 right-2 bg-green-500 bg-opacity-75 text-white px-2 py-1 rounded text-sm">
+                  Ready to Capture
                 </div>
-                {modelsLoaded && (
-                  <div className="absolute top-2 left-2 bg-green-500 bg-opacity-75 text-white px-2 py-1 rounded text-xs">
-                    AI Models Loaded
-                  </div>
-                )}
+              </div>
+            </div>
+          )}
+
+          {captureStep === 'preview' && currentPhotoPreview && (
+            <div className="flex justify-center">
+              <div className="relative border-2 border-gray-300 rounded-lg overflow-hidden">
+                <img
+                  src={currentPhotoPreview}
+                  alt="Captured face verification photo"
+                  className="w-full h-auto"
+                  style={{ width: '640px', height: '480px', objectFit: 'cover' }}
+                />
+                <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+                  Captured Photo
+                </div>
+                <div className="absolute top-2 right-2 bg-blue-500 bg-opacity-75 text-white px-2 py-1 rounded text-sm">
+                  Ready to Confirm
+                </div>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Identification Status */}
-      {isCameraActive && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              {identificationStatus === 'identified' ? (
-                <>
-                  <UserCheck className="w-5 h-5 text-green-500" />
-                  Identification Successful
-                </>
-              ) : identificationStatus === 'failed' ? (
-                <>
-                  <UserX className="w-5 h-5 text-red-500" />
-                  No Face Detected
-                </>
-              ) : (
-                <>
-                  <Camera className="w-5 h-5 text-blue-500" />
-                  Identifying...
-                </>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center space-y-4">
-              {identificationStatus === 'identified' && (
-                <Alert className="bg-green-50 border-green-200 text-green-800">
-                  <CheckCircle className="h-4 w-4" />
-                  <AlertTitle>Face Successfully Identified</AlertTitle>
-                  <AlertDescription>
-                    Your identity has been verified in real-time. The system detected facial features and confirmed your presence.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {identificationStatus === 'failed' && (
-                <Alert className="bg-red-50 border-red-200 text-red-800">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>No Face Detected</AlertTitle>
-                  <AlertDescription>
-                    Please position yourself clearly in front of the camera with adequate lighting.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {identificationStatus === 'detecting' && (
-                <Alert className="bg-blue-50 border-blue-200 text-blue-800">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Scanning for Face</AlertTitle>
-                  <AlertDescription>
-                    The AI is actively scanning the camera feed for facial features...
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Action Buttons */}
       <Card>
@@ -397,16 +325,6 @@ export function MiddlemanFaceScanner({
                 Cancel
               </Button>
             )}
-
-            <Button
-              onClick={() => onComplete && onComplete([])}
-              disabled={identificationStatus !== 'identified'}
-              className="flex items-center gap-2"
-              size="lg"
-            >
-              <CheckCircle className="w-5 h-5" />
-              {identificationStatus === 'identified' ? 'Complete Identification' : 'Waiting for Identification...'}
-            </Button>
           </div>
         </CardContent>
       </Card>

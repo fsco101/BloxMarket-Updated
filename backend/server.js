@@ -119,6 +119,7 @@ const wishlistsDir = path.join(uploadsDir, 'wishlists');
 const avatarsDir = path.join(uploadsDir, 'avatars');
 const eventDir = path.join(uploadsDir, 'event');
 const documentsDir = path.join(uploadsDir, 'documents');
+const middlemanfaceDir = path.join(uploadsDir, 'middlemanface');
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -140,6 +141,9 @@ if (!fs.existsSync(eventDir)) {
 }
 if (!fs.existsSync(documentsDir)) {
   fs.mkdirSync(documentsDir, { recursive: true });
+}
+if (!fs.existsSync(middlemanfaceDir)) {
+  fs.mkdirSync(middlemanfaceDir, { recursive: true });
 }
 
 // MongoDB connection

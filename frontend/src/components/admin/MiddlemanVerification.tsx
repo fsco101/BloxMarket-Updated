@@ -153,7 +153,10 @@ export function MiddlemanVerification() {
       console.log('API Response:', response);
       
       if (!response || !response.data) {
-        throw new Error('Invalid response format');
+        console.log('No data in response, using empty array');
+        setRequests([]);
+        setLoading(false);
+        return;
       }
       
       // Normalize the request data
@@ -179,37 +182,10 @@ export function MiddlemanVerification() {
       console.log('Normalized requests:', normalizedRequests.length);
       setRequests(normalizedRequests);
       
-      // Wait for jQuery to be ready before initializing DataTable
-      if (!jQueryReady) {
-        console.log('Waiting for jQuery to be ready...');
-        const ready = await checkJQueryReady();
-        if (!ready) {
-          setError('DataTables library not available');
-          return;
-        }
-      }
-      
-      // Wait for DOM to update and table to be rendered
+      // Initialize DataTable after a short delay to ensure DOM is ready
       setTimeout(() => {
-        if (dataTableRef.current) {
-          console.log('Updating existing DataTable...');
-          try {
-            dataTableRef.current.clear();
-            dataTableRef.current.rows.add(normalizedRequests);
-            dataTableRef.current.draw();
-          } catch {
-            console.error('Error updating DataTable');
-            // Reinitialize if update fails
-            dataTableRef.current.destroy();
-            dataTableRef.current = null;
-            isInitialized.current = false;
-            initializeDataTable(normalizedRequests);
-          }
-        } else if (!isInitialized.current) {
-          console.log('Initializing new DataTable...');
-          initializeDataTable(normalizedRequests);
-        }
-      }, 200);
+        initializeDataTable(normalizedRequests);
+      }, 100);
       
     } catch (error: unknown) {
       const err = error as Error;
@@ -227,12 +203,13 @@ export function MiddlemanVerification() {
       
       setError(errorMessage);
       toast.error(errorMessage);
+      setRequests([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
-  }, [jQueryReady]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const initializeDataTable = (requestData: VerificationRequest[]) => {
+  const initializeDataTable = useCallback((requestData: VerificationRequest[]) => {
     if (!window.$ || !window.$.fn || !window.$.fn.DataTable) {
       console.error('jQuery or DataTables not available');
       setError('DataTables library not loaded. Please refresh the page.');
@@ -252,12 +229,17 @@ export function MiddlemanVerification() {
       // Destroy existing instance if exists
       if (dataTableRef.current) {
         try {
-          dataTableRef.current.destroy();
-        } catch {
-          console.log('No existing DataTable to destroy');
+          $(tableRef.current).off();
+          if ($.fn.DataTable.isDataTable(tableRef.current)) {
+            dataTableRef.current.destroy();
+          }
+        } catch (destroyError) {
+          console.warn('Error destroying existing DataTable:', destroyError);
         }
+        dataTableRef.current = null;
       }
 
+      // Initialize new DataTable
       dataTableRef.current = $(tableRef.current).DataTable({
         data: requestData,
         destroy: true,
@@ -265,13 +247,13 @@ export function MiddlemanVerification() {
         pageLength: 25,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
         order: [[4, 'desc']],
+        deferRender: true,
         columns: [
           {
             title: 'Applicant',
             data: null,
             orderable: false,
             render: (data: VerificationRequest) => {
-              // Add null checks
               if (!data || !data.username) {
                 return '<div class="text-gray-500">Invalid request data</div>';
               }
@@ -297,7 +279,6 @@ export function MiddlemanVerification() {
             data: null,
             orderable: false,
             render: (data: VerificationRequest) => {
-              // Add null checks
               if (!data) {
                 return '<div class="text-gray-500">-</div>';
               }
@@ -316,7 +297,6 @@ export function MiddlemanVerification() {
             data: null,
             orderable: false,
             render: (data: VerificationRequest) => {
-              // Add null checks
               if (!data) {
                 return '<div class="text-gray-500">-</div>';
               }
@@ -375,7 +355,6 @@ export function MiddlemanVerification() {
             orderable: false,
             width: '200px',
             render: (data: VerificationRequest) => {
-              // Add null checks
               if (!data || !data._id) {
                 return '<div class="text-gray-500">-</div>';
               }
@@ -418,9 +397,10 @@ export function MiddlemanVerification() {
       isInitialized.current = true;
       console.log('DataTable initialized successfully');
 
-      // Event handlers using arrow functions to preserve context
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const handleViewEvent = function(this: any, e: any) {
+            // Event handlers
+      $(tableRef.current).off(); // Remove old handlers
+      
+      $(tableRef.current).on('click', '.view-btn', function(e) {
         e.preventDefault();
         const requestId = $(this).data('request-id');
         const request = requestData.find((r: VerificationRequest) => r && r._id === requestId);
@@ -428,35 +408,27 @@ export function MiddlemanVerification() {
           setSelectedRequest(request);
           setIsViewDialogOpen(true);
         }
-      };
+      });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const handleApproveEvent = async function(this: any, e: any) {
+      $(tableRef.current).on('click', '.approve-btn', function(e) {
         e.preventDefault();
         const requestId = $(this).data('request-id');
-        await handleApprove(requestId);
-      };
+        handleApprove(requestId);
+      });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const handleRejectEvent = function(this: any, e: any) {
+      $(tableRef.current).on('click', '.reject-btn', function(e) {
         e.preventDefault();
         const requestId = $(this).data('request-id');
         const request = requestData.find((r: VerificationRequest) => r && r._id === requestId);
         if (request) openRejectDialog(request);
-      };
-
-      // Attach event handlers
-      $(tableRef.current).off(); // Remove old handlers
-      $(tableRef.current).on('click', '.view-btn', handleViewEvent);
-      $(tableRef.current).on('click', '.approve-btn', handleApproveEvent);
-      $(tableRef.current).on('click', '.reject-btn', handleRejectEvent);
+      });
       
     } catch (error) {
       console.error('Error initializing DataTable:', error);
       toast.error('Failed to initialize table');
       setError('Failed to initialize data table. Please refresh the page.');
     }
-  };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Check authentication
@@ -471,20 +443,20 @@ export function MiddlemanVerification() {
       loadVerificationRequests();
     }
     
-    // Cleanup
+    // Cleanup function
     return () => {
-      if (dataTableRef.current) {
+      const tableElement = tableRef.current; // eslint-disable-line react-hooks/exhaustive-deps
+      if (dataTableRef.current && window.$ && window.$.fn && window.$.fn.DataTable) {
         try {
           const $ = window.$;
-          const currentTable = tableRef.current;
-          if ($ && currentTable) {
-            $(currentTable).off(); // Remove event handlers
+          if (tableElement && $.fn.DataTable.isDataTable(tableElement)) {
+            $(tableElement).off(); // Remove event handlers first
+            dataTableRef.current.destroy();
           }
-          dataTableRef.current.destroy();
           dataTableRef.current = null;
           isInitialized.current = false;
-        } catch {
-          console.error('Error destroying DataTable');
+        } catch (error) {
+          console.error('Error destroying DataTable during cleanup:', error);
         }
       }
     };
@@ -902,6 +874,49 @@ export function MiddlemanVerification() {
                         </Button>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Face Verification Images */}
+              {selectedRequest.documents && selectedRequest.documents.filter(doc => doc.document_type === 'face_verification').length > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-3">Face Verification Images</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {selectedRequest.documents
+                      .filter(doc => doc.document_type === 'face_verification')
+                      .map((doc, i) => (
+                        <div key={i} className="border rounded-md p-3">
+                          <div className="aspect-square bg-gray-100 rounded-md overflow-hidden mb-2">
+                            <img
+                              src={`http://localhost:5000/uploads/middlemanface/${doc.filename}`}
+                              alt={`Face verification ${i + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '/placeholder-avatar.png'; // Fallback image
+                              }}
+                            />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm text-muted-foreground">Face Image {i + 1}</p>
+                            <Badge className={doc.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                              {doc.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <div className="flex items-start gap-2">
+                      <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-800">Face Verification Review</p>
+                        <p className="text-xs text-blue-700 mt-1">
+                          Review these images to verify the applicant's identity. Ensure the face is clearly visible and matches the profile information.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

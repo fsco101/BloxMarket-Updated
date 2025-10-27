@@ -22,6 +22,8 @@ import { RateLimitListener } from './components/RateLimitListener';
 import { GlobalLoadingProvider } from './contexts/GlobalLoadingContext';
 import GlobalLoader from './components/GlobalLoader';
 import GlobalLoadingSetup from './components/GlobalLoadingSetup';
+import { Footer } from './components/ui/footer';
+import { Header } from './components/ui/header';
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -346,8 +348,12 @@ export default function App() {
         <ThemeContext.Provider value={{ isDark, toggleTheme }}>
           <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading }}>
             <AppContext.Provider value={{ currentPage, setCurrentPage }}>
-              <div className="min-h-screen bg-background text-foreground">
-                {currentPage === 'auth' ? <AuthPage /> : <LandingPage />}
+              <div className="min-h-screen bg-background text-foreground flex flex-col">
+                <Header />
+                <main className="flex-1">
+                  {currentPage === 'auth' ? <AuthPage /> : <LandingPage />}
+                </main>
+                <Footer />
               </div>
               <GlobalLoader />
               <GlobalLoadingSetup />
@@ -363,13 +369,17 @@ export default function App() {
       <ThemeContext.Provider value={{ isDark, toggleTheme }}>
         <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading }}>
           <AppContext.Provider value={{ currentPage, setCurrentPage }}>
-            <div className="min-h-screen bg-background text-foreground flex">
-              <Sidebar />
-              <main className="flex-1 overflow-hidden min-h-screen">
-                <ErrorBoundary>
-                  {renderCurrentPage()}
-                </ErrorBoundary>
-              </main>
+            <div className="min-h-screen bg-background text-foreground flex flex-col">
+              <Header />
+              <div className="flex flex-1 overflow-hidden">
+                <Sidebar />
+                <main className="flex-1 overflow-hidden min-h-screen">
+                  <ErrorBoundary>
+                    {renderCurrentPage()}
+                  </ErrorBoundary>
+                </main>
+              </div>
+              <Footer />
 
               {/* Enhanced Toast notifications */}
               <Toaster />

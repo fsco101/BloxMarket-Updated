@@ -836,6 +836,10 @@ export function Wishlist() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedWishlistForReport, setSelectedWishlistForReport] = useState<WishlistItem | null>(null);
   
+  // Voting state
+  const [votingLoading, setVotingLoading] = useState<string | null>(null);
+  const [userWishlistVotes, setUserWishlistVotes] = useState<Map<string, 'up' | 'down' | null>>(new Map());
+  
   const [newWishlist, setNewWishlist] = useState({
     itemName: '',
     description: '',
@@ -943,6 +947,36 @@ export function Wishlist() {
     loadWishlists();
   }, [loadWishlists]);
 
+  // Load user's wishlist votes when component mounts or wishlists change
+  useEffect(() => {
+    const loadUserVotes = async () => {
+      if (!currentUser || wishlistItems.length === 0) return;
+
+      try {
+        const votesMap = new Map<string, 'up' | 'down' | null>();
+        
+        // Load votes for each wishlist
+        for (const item of wishlistItems) {
+          try {
+            const response = await apiService.getWishlistVotes(item.wishlist_id);
+            votesMap.set(item.wishlist_id, response.userVote || null);
+          } catch (error) {
+            console.warn(`Could not load vote status for wishlist ${item.wishlist_id}:`, error);
+            votesMap.set(item.wishlist_id, null);
+          }
+        }
+        
+        setUserWishlistVotes(votesMap);
+      } catch (error) {
+        console.error('Failed to load user votes:', error);
+      }
+    };
+
+    if (currentUser && wishlistItems.length > 0) {
+      loadUserVotes();
+    }
+  }, [currentUser, wishlistItems]);
+
   // Permission functions - UPDATE THESE
   const canEditWishlist = (wishlist: WishlistItem) => {
     if (!currentUser) return false;
@@ -1002,20 +1036,6 @@ export function Wishlist() {
     setCurrentPage(`profile-${userId}`);
   };
 
-  const handleEditFromModal = () => {
-    if (selectedWishlist) {
-      setIsDetailsDialogOpen(false);
-      handleEditWishlist(selectedWishlist);
-    }
-  };
-
-  const handleDeleteFromModal = () => {
-    if (selectedWishlist) {
-      setIsDetailsDialogOpen(false);
-      handleDeleteWishlist(selectedWishlist.wishlist_id, selectedWishlist.item_name);
-    }
-  };
-
   const handleReportWishlist = (wishlist: WishlistItem) => {
     setSelectedWishlistForReport(wishlist);
     setIsReportModalOpen(true);
@@ -1061,6 +1081,79 @@ export function Wishlist() {
       }
       
       toast.error('Failed to submit report', { description: errorMessage });
+    }
+  };
+
+  // Voting functions
+  const handleUpvoteWishlist = async (wishlistId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!currentUser) {
+      toast.error('Please log in to vote');
+      return;
+    }
+
+    try {
+      setVotingLoading(wishlistId);
+      
+      const response = await apiService.voteWishlist(wishlistId, 'up');
+      
+      // Update local state
+      setUserWishlistVotes(prev => new Map(prev).set(wishlistId, response.userVote));
+      setWishlistItems(prev => prev.map(item => 
+        item.wishlist_id === wishlistId 
+          ? { ...item, upvotes: response.upvotes, downvotes: response.downvotes }
+          : item
+      ));
+      
+      if (response.userVote === 'up') {
+        toast.success('Upvoted!');
+      } else if (response.userVote === null) {
+        toast.success('Vote removed!');
+      } else {
+        toast.success('Changed to upvote!');
+      }
+    } catch (error) {
+      console.error('Failed to upvote:', error);
+      toast.error('Failed to update vote');
+    } finally {
+      setVotingLoading(null);
+    }
+  };
+
+  const handleDownvoteWishlist = async (wishlistId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!currentUser) {
+      toast.error('Please log in to vote');
+      return;
+    }
+
+    try {
+      setVotingLoading(wishlistId);
+      
+      const response = await apiService.voteWishlist(wishlistId, 'down');
+      
+      // Update local state
+      setUserWishlistVotes(prev => new Map(prev).set(wishlistId, response.userVote));
+      setWishlistItems(prev => prev.map(item => 
+        item.wishlist_id === wishlistId 
+          ? { ...item, upvotes: response.upvotes, downvotes: response.downvotes }
+          : item
+      ));
+      
+      if (response.userVote === 'down') {
+        toast.success('Downvoted!');
+      } else if (response.userVote === null) {
+        toast.success('Vote removed!');
+      } else {
+        toast.success('Changed to downvote!');
+      }
+    } catch (error) {
+      console.error('Failed to downvote:', error);
+      toast.error('Failed to update vote');
+    } finally {
+      setVotingLoading(null);
     }
   };
 
@@ -1770,13 +1863,27 @@ export function Wishlist() {
                   
                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950">
-                        <ArrowUp className="w-4 h-4" />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className={`h-8 px-2 ${userWishlistVotes.get(item.wishlist_id) === 'up' ? 'text-green-600 bg-green-50 dark:bg-green-950' : 'text-muted-foreground hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950'} transition-colors`}
+                        onClick={(e) => handleUpvoteWishlist(item.wishlist_id, e)}
+                        disabled={votingLoading === item.wishlist_id}
+                      >
+                        <ArrowUp className={`w-4 h-4 ${userWishlistVotes.get(item.wishlist_id) === 'up' ? 'fill-current' : ''}`} />
                         <span className="ml-1">{item.upvotes || 0}</span>
+                        {votingLoading === item.wishlist_id && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950">
-                        <ArrowDown className="w-4 h-4" />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className={`h-8 px-2 ${userWishlistVotes.get(item.wishlist_id) === 'down' ? 'text-red-600 bg-red-50 dark:bg-red-950' : 'text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950'} transition-colors`}
+                        onClick={(e) => handleDownvoteWishlist(item.wishlist_id, e)}
+                        disabled={votingLoading === item.wishlist_id}
+                      >
+                        <ArrowDown className={`w-4 h-4 ${userWishlistVotes.get(item.wishlist_id) === 'down' ? 'fill-current' : ''}`} />
                         <span className="ml-1">{item.downvotes || 0}</span>
+                        {votingLoading === item.wishlist_id && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
                       </Button>
                     </div>
                     

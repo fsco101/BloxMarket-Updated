@@ -283,6 +283,16 @@ export const verificationController = {
         return res.status(400).json({ error: 'No face images provided' });
       }
 
+      // Find the user's pending application
+      const pendingApplication = await MiddlemanApplication.findOne({
+        user_id: userId,
+        status: 'pending'
+      });
+
+      if (!pendingApplication) {
+        return res.status(400).json({ error: 'No pending middleman application found' });
+      }
+
       // Create face image documents
       const faceImageIds = [];
       for (const file of req.files) {
@@ -306,6 +316,16 @@ export const verificationController = {
         } catch (faceError) {
           console.error('Error saving face image:', faceError);
         }
+      }
+
+      // Link face images to the application
+      if (faceImageIds.length > 0) {
+        pendingApplication.documents = [
+          ...(pendingApplication.documents || []),
+          ...faceImageIds
+        ];
+        await pendingApplication.save();
+        console.log('Face images linked to application:', faceImageIds.length);
       }
 
       res.status(201).json({

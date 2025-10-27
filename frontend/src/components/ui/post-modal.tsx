@@ -19,7 +19,8 @@ import {
   Gift,
   ChevronDown,
   ChevronUp,
-  Search
+  Search,
+  Heart
 } from "lucide-react";
 
 import { cn } from "./utils";
@@ -367,6 +368,35 @@ export function PostModal({
           setDownvotes(post.downvotes || 0);
           setUserVote(null);
         }
+      } else if (post.type === 'wishlist') {
+        try {
+          const [commentsResponse, votesResponse] = await Promise.allSettled([
+            apiService.getWishlistComments(post.id),
+            apiService.getWishlistVotes(post.id)
+          ]);
+
+          if (commentsResponse.status === 'fulfilled') {
+            setComments(commentsResponse.value.comments || []);
+          } else {
+            setComments([]);
+          }
+
+          if (votesResponse.status === 'fulfilled') {
+            setUpvotes(votesResponse.value.upvotes || 0);
+            setDownvotes(votesResponse.value.downvotes || 0);
+            setUserVote(votesResponse.value.userVote || null);
+          } else {
+            setUpvotes(post.upvotes || 0);
+            setDownvotes(post.downvotes || 0);
+            setUserVote(null);
+          }
+        } catch (apiError) {
+          console.error('Failed to load wishlist data:', apiError);
+          setComments([]);
+          setUpvotes(post.upvotes || 0);
+          setDownvotes(post.downvotes || 0);
+          setUserVote(null);
+        }
       } else {
         setComments([]);
         setUpvotes(post.upvotes || 0);
@@ -400,6 +430,8 @@ export function PostModal({
         response = await apiService.voteTradePost(post.id, 'up');
       } else if (post.type === 'event') {
         response = await apiService.voteEvent(post.id, 'up');
+      } else if (post.type === 'wishlist') {
+        response = await apiService.voteWishlist(post.id, 'up');
       } else {
         toast.info('Voting not available for this post type');
         return;
@@ -439,6 +471,8 @@ export function PostModal({
         response = await apiService.voteTradePost(post.id, 'down');
       } else if (post.type === 'event') {
         response = await apiService.voteEvent(post.id, 'down');
+      } else if (post.type === 'wishlist') {
+        response = await apiService.voteWishlist(post.id, 'down');
       } else {
         toast.info('Voting not available for this post type');
         return;
@@ -478,6 +512,8 @@ export function PostModal({
         newComment = await apiService.addTradeComment(post.id, comment);
       } else if (post.type === 'event') {
         newComment = await apiService.addEventComment(post.id, comment);
+      } else if (post.type === 'wishlist') {
+        newComment = await apiService.addWishlistComment(post.id, comment);
       } else {
         newComment = {
           comment_id: Date.now().toString(),
@@ -508,6 +544,7 @@ export function PostModal({
       case 'trade': return <TrendingUp className="w-4 h-4" />;
       case 'event': return <Gift className="w-4 h-4" />;
       case 'forum': return <MessageSquare className="w-4 h-4" />;
+      case 'wishlist': return <Heart className="w-4 h-4" />;
       default: return <MessageSquare className="w-4 h-4" />;
     }
   };
@@ -517,6 +554,7 @@ export function PostModal({
       case 'trade': return 'bg-blue-500';
       case 'event': return 'bg-green-500';
       case 'forum': return 'bg-purple-500';
+      case 'wishlist': return 'bg-red-500';
       default: return 'bg-gray-500';
     }
   };

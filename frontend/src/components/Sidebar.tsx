@@ -126,25 +126,7 @@ export function Sidebar() {
 
   return (
     <div className="w-64 sm:w-72 lg:w-80 h-screen bg-background border-r border-border flex flex-col flex-shrink-0 shadow-lg">
-      {/* Header */}
-      <div className="p-4 sm:p-5 lg:p-6 border-b border-border flex-shrink-0 bg-gradient-to-br from-primary/10 via-primary/5 to-secondary/10">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="relative">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 bg-gradient-to-br from-primary via-primary to-secondary rounded-xl flex items-center justify-center shadow-lg ring-2 ring-background">
-              <span className="text-primary-foreground font-black text-base sm:text-lg tracking-tight">BM</span>
-            </div>
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded-full border-2 border-background"></div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-lg sm:text-xl text-foreground bg-gradient-to-r from-primary to-primary bg-clip-text text-transparent">
-              BloxMarket
-            </h2>
-            <p className="text-xs text-muted-foreground font-medium tracking-wide uppercase">
-              Trading Community
-            </p>
-          </div>
-        </div>
-      </div>
+
 
       {/* User Info */}
       <div className="p-3 sm:p-4 border-b border-border flex-shrink-0 bg-muted/30">
@@ -233,7 +215,7 @@ export function Sidebar() {
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 sm:w-64 p-2 bg-card/95 backdrop-blur-sm border border-border shadow-xl rounded-xl">
+            <DropdownMenuContent align="start" className="w-56 sm:w-64 p-2 bg-card/95 backdrop-blur-sm border border-border shadow-xl rounded-xl">
               {profileMenuItems.map(({ id, label, icon: Icon }) => (
                 <DropdownMenuItem
                   key={id}
@@ -281,7 +263,7 @@ export function Sidebar() {
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 sm:w-64 p-2 bg-card/95 backdrop-blur-sm border border-border shadow-xl rounded-xl">
+              <DropdownMenuContent align="start" className="w-56 sm:w-64 p-2 bg-card/95 backdrop-blur-sm border border-border shadow-xl rounded-xl">
                 {adminMenuItems.map(({ id, label, icon: Icon }) => (
                   <DropdownMenuItem
                     key={id}

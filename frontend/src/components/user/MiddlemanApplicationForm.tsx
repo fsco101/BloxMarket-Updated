@@ -32,6 +32,7 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
     reviewedAt?: string;
     rejectionReason?: string;
   }>(null);
+  const [faceImages, setFaceImages] = useState<File[]>([]);
   const [showFaceScanner, setShowFaceScanner] = useState(false);
   const [faceImagesUploaded, setFaceImagesUploaded] = useState(false);
   
@@ -101,7 +102,7 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
       return;
     }
     
-    if (!faceImagesUploaded) {
+    if (faceImages.length === 0) {
       toast.error('Please complete face verification first');
       return;
     }
@@ -129,6 +130,11 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
           external_links: externalLinks,
           preferred_trade_types: preferredTradeTypes
         }, documents);
+        
+        // Upload face images after successful application submission
+        if (faceImages.length > 0) {
+          await apiService.uploadFaceImages(faceImages);
+        }
         
         toast.dismiss(toastId);
         toast.success('Application submitted successfully!');
@@ -420,14 +426,13 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
         {/* Face Scanner Modal */}
         {showFaceScanner && (
           <MiddlemanFaceScanner
-            onComplete={(faceImages) => {
+            onComplete={(capturedFaceImages) => {
+              setFaceImages(capturedFaceImages);
               setFaceImagesUploaded(true);
               setShowFaceScanner(false);
               toast.success('Face verification completed successfully!');
             }}
             onCancel={() => setShowFaceScanner(false)}
-            requiredImages={1}
-            maxImages={3}
           />
         )}
       </DialogContent>

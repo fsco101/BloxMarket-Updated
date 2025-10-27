@@ -9,7 +9,7 @@ function Card({ className, hover = true, ...props }: React.ComponentProps<"div">
       className={cn(
         "bg-card text-card-foreground border border-border rounded-lg shadow-sm",
         "transition-all duration-300 ease-in-out",
-        hover && "hover:shadow-md",
+        hover && "hover:shadow-xl hover:shadow-primary/20 hover:-translate-y-1 hover:border-primary/40 hover:scale-[1.02]",
         className,
       )}
       {...props}

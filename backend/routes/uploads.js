@@ -328,4 +328,73 @@ router.get('/event/:filename', (req, res) => {
   }
 });
 
+// Serve middleman face images
+router.get('/middlemanface/:filename', (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const sanitizedFilename = path.basename(filename);
+    const filepath = path.join(__dirname, '../uploads/middlemanface', sanitizedFilename);
+    
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ error: 'Face image not found' });
+    }
+    
+    const stats = fs.statSync(filepath);
+    const ext = path.extname(sanitizedFilename).toLowerCase();
+    let contentType = 'image/jpeg';
+    
+    switch (ext) {
+      case '.png':
+        contentType = 'image/png';
+        break;
+      case '.gif':
+        contentType = 'image/gif';
+        break;
+      case '.webp':
+        contentType = 'image/webp';
+        break;
+      case '.jpg':
+      case '.jpeg':
+        contentType = 'image/jpeg';
+        break;
+      case '.svg':
+        contentType = 'image/svg+xml';
+        break;
+      default:
+        return res.status(400).json({ error: 'Unsupported file type' });
+    }
+    
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', stats.size);
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    res.setHeader('ETag', `"${stats.mtime.getTime()}"`);
+    res.setHeader('Last-Modified', stats.mtime.toUTCString());
+    
+    const ifNoneMatch = req.headers['if-none-match'];
+    const ifModifiedSince = req.headers['if-modified-since'];
+    
+    if (ifNoneMatch === `"${stats.mtime.getTime()}"` || 
+        (ifModifiedSince && new Date(ifModifiedSince) >= stats.mtime)) {
+      return res.status(304).end();
+    }
+    
+    const readStream = fs.createReadStream(filepath);
+    
+    readStream.on('error', (err) => {
+      console.error('Error reading face image file:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to read face image file' });
+      }
+    });
+    
+    readStream.pipe(res);
+    
+  } catch (error) {
+    console.error('Error serving face image:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+});
+
 export default router;
