@@ -253,6 +253,9 @@ export const tradeController = {
       const { tradeId } = req.params;
       const userId = req.user.userId;
       const { itemOffered, itemRequested, description, status, category } = req.body;
+      const uploadedFiles = req.files;
+
+      console.log('Update trade request:', { tradeId, itemOffered, itemRequested, status, category, filesCount: uploadedFiles?.length || 0 });
 
       if (!mongoose.Types.ObjectId.isValid(tradeId)) {
         return res.status(400).json({ error: 'Invalid trade ID' });
@@ -265,15 +268,59 @@ export const tradeController = {
 
       // Check if user owns the trade
       if (trade.user_id.toString() !== userId) {
+        // Clean up uploaded files if user doesn't own the trade
+        if (uploadedFiles && uploadedFiles.length > 0) {
+          uploadedFiles.forEach(file => {
+            try {
+              if (fs.existsSync(file.path)) {
+                fs.unlinkSync(file.path);
+              }
+            } catch (err) {
+              console.error('Error deleting file:', err);
+            }
+          });
+        }
         return res.status(403).json({ error: 'You can only update your own trades' });
       }
 
-      // Update fields
+      // Update text fields
       if (itemOffered !== undefined) trade.item_offered = itemOffered.trim();
       if (itemRequested !== undefined) trade.item_requested = itemRequested.trim();
       if (description !== undefined) trade.description = description.trim();
       if (status !== undefined) trade.status = status;
       if (category !== undefined) trade.category = category;
+
+      // Handle image updates - replace existing images with new ones
+      if (uploadedFiles && uploadedFiles.length > 0) {
+        // Delete existing images from filesystem
+        if (trade.images && trade.images.length > 0) {
+          trade.images.forEach(image => {
+            try {
+              if (fs.existsSync(image.path)) {
+                fs.unlinkSync(image.path);
+              }
+            } catch (err) {
+              console.error('Error deleting old image file:', err);
+            }
+          });
+        }
+
+        // Process new uploaded images
+        const images = [];
+        uploadedFiles.forEach(file => {
+          images.push({
+            image_url: `/uploads/trades/${file.filename}`,
+            filename: file.filename,
+            originalName: file.originalname,
+            path: file.path,
+            size: file.size,
+            mimetype: file.mimetype,
+            uploaded_at: new Date()
+          });
+        });
+
+        trade.images = images;
+      }
 
       await trade.save();
 
@@ -318,6 +365,20 @@ export const tradeController = {
 
     } catch (error) {
       console.error('Update trade error:', error);
+      
+      // Clean up uploaded files on error
+      if (req.files && req.files.length > 0) {
+        req.files.forEach(file => {
+          try {
+            if (fs.existsSync(file.path)) {
+              fs.unlinkSync(file.path);
+            }
+          } catch (err) {
+            console.error('Error deleting file during cleanup:', err);
+          }
+        });
+      }
+      
       res.status(500).json({ error: 'Failed to update trade' });
     }
   },

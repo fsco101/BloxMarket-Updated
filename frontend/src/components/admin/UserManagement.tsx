@@ -73,6 +73,21 @@ export function UserManagement() {
   const dataTableRef = useRef<any>(null);
   const isInitialized = useRef(false);
 
+  // Helper function to get avatar URL
+  const getAvatarUrl = (avatarUrl?: string) => {
+    if (!avatarUrl) return '';
+
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+      return avatarUrl;
+    }
+
+    if (avatarUrl.startsWith('/uploads/') || avatarUrl.startsWith('/api/uploads/')) {
+      return `http://localhost:5000${avatarUrl}`;
+    }
+
+    return `http://localhost:5000/uploads/avatars/${avatarUrl}`;
+  };
+
   // Check if jQuery and DataTables are loaded
   const checkJQueryReady = () => {
     return new Promise<boolean>((resolve) => {
@@ -246,7 +261,7 @@ export function UserManagement() {
               }
               
               const avatarHtml = data.avatar_url 
-                ? `<img src="${data.avatar_url}" alt="${data.username}" class="w-10 h-10 rounded-full object-cover" />`
+                ? `<img src="${getAvatarUrl(data.avatar_url)}" alt="${data.username}" class="w-10 h-10 rounded-full object-cover" />`
                 : `<div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center"><span class="font-medium text-sm">${data.username[0]?.toUpperCase()}</span></div>`;
               
               return `
@@ -864,7 +879,7 @@ export function UserManagement() {
             <div className="space-y-4">
               <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
                 <Avatar className="w-16 h-16">
-                  <AvatarImage src={selectedUser.avatar_url} />
+                  <AvatarImage src={getAvatarUrl(selectedUser.avatar_url)} />
                   <AvatarFallback className="text-xl">
                     {selectedUser.username[0]?.toUpperCase()}
                   </AvatarFallback>

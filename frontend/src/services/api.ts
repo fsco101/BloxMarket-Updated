@@ -396,17 +396,40 @@ class ApiService {
 
   async updateTrade(
     tradeId: string,
-    tradeData: { itemOffered: string; itemRequested?: string; description?: string }
+    tradeData: { itemOffered: string; itemRequested?: string; description?: string },
+    images?: File[]
   ) {
-    // Send JSON; backend updateTrade expects camelCase fields
-    return this.request(`/trades/${tradeId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        itemOffered: tradeData.itemOffered,
-        itemRequested: tradeData.itemRequested,
-        description: tradeData.description,
-      }),
-    });
+    if (images && images.length > 0) {
+      // Create FormData for image uploads
+      const formData = new FormData();
+      formData.append('itemOffered', tradeData.itemOffered);
+      if (tradeData.itemRequested) {
+        formData.append('itemRequested', tradeData.itemRequested);
+      }
+      if (tradeData.description) {
+        formData.append('description', tradeData.description);
+      }
+      
+      // Add images to FormData
+      images.forEach((image) => {
+        formData.append('images', image);
+      });
+      
+      return this.request(`/trades/${tradeId}`, {
+        method: 'PATCH',
+        body: formData,
+      });
+    } else {
+      // No images, use regular JSON request
+      return this.request(`/trades/${tradeId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          itemOffered: tradeData.itemOffered,
+          itemRequested: tradeData.itemRequested,
+          description: tradeData.description,
+        }),
+      });
+    }
   }
 
   async updateTradeStatus(tradeId: string, status: string) {

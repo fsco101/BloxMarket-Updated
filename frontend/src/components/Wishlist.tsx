@@ -1827,6 +1827,35 @@ export function Wishlist() {
                         {item.description || 'No description provided'}
                       </p>
                       
+                      {/* Image Preview */}
+                      {item.images && item.images.length > 0 && (
+                        <div className="flex gap-2 mb-3 overflow-x-auto">
+                          {item.images.slice(0, 3).map((image, imgIndex) => (
+                            <div key={imgIndex} className="relative flex-shrink-0">
+                              <img 
+                                src={`${window.location.protocol}//${window.location.hostname}:5000/uploads/wishlists/${image.filename}`}
+                                alt={`Preview ${imgIndex + 1}`}
+                                className="w-16 h-16 object-cover rounded-md border hover:scale-105 transition-transform cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(`${window.location.protocol}//${window.location.hostname}:5000/uploads/wishlists/${image.filename}`, '_blank');
+                                }}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/64?text=Img';
+                                }}
+                              />
+                              {item.images!.length > 3 && imgIndex === 2 && (
+                                <div className="absolute inset-0 bg-black/60 rounded-md flex items-center justify-center">
+                                  <span className="text-white text-xs font-medium">
+                                    +{item.images!.length - 3}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
                       {/* Category */}
                       <div className="flex flex-wrap gap-1 mb-3">
                         <Badge variant="outline" className="text-xs capitalize">

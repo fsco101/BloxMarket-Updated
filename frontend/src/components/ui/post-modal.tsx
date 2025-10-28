@@ -23,17 +23,18 @@ import {
   Heart
 } from "lucide-react";
 
-import { cn } from "./utils";
-import { Dialog, DialogContent } from "./dialog";
+import { Dialog, DialogContent } from "./dialog.tsx";
 import { Button } from "./button";
 import { Badge } from "./badge";
 import { Avatar, AvatarImage, AvatarFallback } from "./avatar";
 import { Input } from "./input";
+import { Card, CardHeader, CardFooter, CardTitle, CardAction, CardDescription, CardContent } from "./card";
 import { apiService } from "../../services/api";
 import { toast } from "sonner";
 import { useAuth } from "../../App";
 
 // Types for the PostModal
+
 export interface PostModalPost {
   id: string;
   type: 'trade' | 'forum' | 'event' | 'wishlist';
@@ -96,7 +97,6 @@ interface PostModalProps {
   onClose: () => void;
   onUserClick?: (userId: string) => void;
   onReportClick?: () => void;
-  className?: string;
 }
 
 // ImageViewer Component for better image showcasing
@@ -272,8 +272,7 @@ export function PostModal({
   isOpen,
   onClose,
   onUserClick,
-  onReportClick,
-  className
+  onReportClick
 }: PostModalProps) {
   const { user: currentUser } = useAuth();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -586,7 +585,7 @@ export function PostModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent scrollMode="modal" className={cn("max-w-[95vw] w-full p-0 shadow-2xl bg-background custom-scrollbar", className)}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="flex flex-col lg:flex-row min-h-0">
           {/* Left side - Image Viewer - More responsive */}
           <div className="flex-1 bg-black relative order-1 lg:order-1 min-h-[200px] lg:min-h-0">

@@ -47,7 +47,7 @@ const upload = multer({
 router.get('/', tradeController.getAllTrades);
 router.post('/', authenticateToken, upload.array('images', 5), tradeController.createTrade);
 router.get('/:tradeId', tradeController.getTradeById);
-router.patch('/:tradeId', authenticateToken, tradeController.updateTrade);
+router.patch('/:tradeId', authenticateToken, upload.array('images', 5), tradeController.updateTrade);
 // Add PUT alias so older clients don't 404
 router.put('/:tradeId', authenticateToken, tradeController.updateTrade);
 router.delete('/:tradeId', authenticateToken, tradeController.deleteTrade);

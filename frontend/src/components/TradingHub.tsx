@@ -1339,7 +1339,7 @@ export function TradingHub() {
     });
 
     if (validFiles.length > 0) {
-      // Clean up existing object URLs to prevent memory leaks (only revoke blob URLs)
+      // Clean up existing blob URLs to prevent memory leaks (only revoke blob URLs)
       editImagePreviewUrls.forEach(url => {
         if (url && url.startsWith('blob:')) {
           URL.revokeObjectURL(url);
@@ -1352,6 +1352,11 @@ export function TradingHub() {
       // Create preview URLs using URL.createObjectURL for better performance
       const newPreviewUrls = validFiles.map(file => URL.createObjectURL(file));
       setEditImagePreviewUrls(newPreviewUrls);
+      
+      // Reset the file input to allow selecting the same files again
+      if (e.target) {
+        e.target.value = '';
+      }
     }
   };
 
@@ -1997,11 +2002,11 @@ export function TradingHub() {
                       e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
                       const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
                       if (files.length > 0) {
-                        const input = document.getElementById('edit-image-upload') as HTMLInputElement;
-                        const dt = new DataTransfer();
-                        files.forEach(file => dt.items.add(file));
-                        input.files = dt.files;
-                        handleEditImageSelect({ target: input } as React.ChangeEvent<HTMLInputElement>);
+                        // Create a synthetic event
+                        const syntheticEvent = {
+                          target: { files: files }
+                        } as unknown as React.ChangeEvent<HTMLInputElement>;
+                        handleEditImageSelect(syntheticEvent);
                       }
                     }}
                   >
@@ -2012,23 +2017,23 @@ export function TradingHub() {
                       onChange={handleEditImageSelect}
                       className="hidden"
                       id="edit-image-upload"
-                      disabled={editUploadSelectedImages.length >= 5}
+                      disabled={editImagePreviewUrls.length >= 5}
                     />
                     <label
                       htmlFor="edit-image-upload"
                       className={`cursor-pointer flex flex-col items-center gap-2 ${
-                        editUploadSelectedImages.length >= 5 ? 'opacity-50 cursor-not-allowed' : ''
+                        editImagePreviewUrls.length >= 5 ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                     >
                       <Upload className="w-8 h-8 text-gray-400" />
                       <span className="text-sm text-gray-600 dark:text-gray-300">
-                        {editUploadSelectedImages.length >= 5 
+                        {editImagePreviewUrls.length >= 5 
                           ? 'Maximum 5 images reached' 
                           : 'Click to upload images or drag and drop'
                         }
                       </span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        PNG, JPG, GIF up to 5MB each • {editUploadSelectedImages.length}/5 selected
+                        PNG, JPG, GIF up to 5MB each • {editImagePreviewUrls.length}/5 selected
                       </span>
                     </label>
                   </div>

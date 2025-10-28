@@ -97,6 +97,21 @@ export function MiddlemanVerification() {
   const dataTableRef = useRef<any>(null);
   const isInitialized = useRef(false);
 
+  // Helper function to get avatar URL
+  const getAvatarUrl = (avatarUrl?: string) => {
+    if (!avatarUrl) return '';
+
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+      return avatarUrl;
+    }
+
+    if (avatarUrl.startsWith('/uploads/') || avatarUrl.startsWith('/api/uploads/')) {
+      return `http://localhost:5000${avatarUrl}`;
+    }
+
+    return `http://localhost:5000/uploads/avatars/${avatarUrl}`;
+  };
+
   // Check if jQuery and DataTables are loaded
   const checkJQueryReady = () => {
     return new Promise<boolean>((resolve) => {
@@ -259,7 +274,7 @@ export function MiddlemanVerification() {
               }
               
               const avatarHtml = data.avatar_url 
-                ? `<img src="${data.avatar_url}" alt="${data.username}" class="w-10 h-10 rounded-full object-cover" />`
+                ? `<img src="${getAvatarUrl(data.avatar_url)}" alt="${data.username}" class="w-10 h-10 rounded-full object-cover" />`
                 : `<div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center"><span class="font-medium text-sm">${data.username[0]?.toUpperCase()}</span></div>`;
               
               return `
@@ -738,7 +753,7 @@ export function MiddlemanVerification() {
                     {selectedRequest.username[0]?.toUpperCase()}
                   </AvatarFallback>
                   {selectedRequest.avatar_url && (
-                    <AvatarImage src={selectedRequest.avatar_url} alt={selectedRequest.username} />
+                    <AvatarImage src={getAvatarUrl(selectedRequest.avatar_url)} alt={selectedRequest.username} />
                   )}
                 </Avatar>
                 <div>

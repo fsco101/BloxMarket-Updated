@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, Component } from 'react';
+import { PostModal } from './components/ui/post-modal';
+import type { PostModalPost } from './components/ui/post-modal';
 import type { ErrorInfo, ReactNode } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { AuthPage } from './components/AuthPage';
@@ -52,7 +54,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="min-h-screen flex items-center justify-center bg-slate-900">
           <div className="text-center p-8">
             <div className="text-red-500 mb-4">
               <svg className="w-16 h-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -102,15 +104,17 @@ interface User {
 const AuthContext = createContext<{
   user: User | null;
   login: (userData: User, rememberMe?: boolean) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoggedIn: boolean;
   isLoading: boolean;
+  isLoggingOut: boolean;
 }>({
   user: null,
   login: () => {},
-  logout: () => {},
+  logout: async () => {},
   isLoggedIn: false,
-  isLoading: true
+  isLoading: true,
+  isLoggingOut: false
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -136,6 +140,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // State for rate limit notifications
   const [rateLimitNotification, setRateLimitNotification] = useState<{
@@ -282,8 +287,14 @@ export default function App() {
     otherStorage.removeItem('bloxmarket-user');
   };
 
-  const logout = () => {
+  const logout = async () => {
+    setIsLoggingOut(true);
+    
+    // Add a small delay to show the loading state
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
     handleLogout();
+    setIsLoggingOut(false);
   };
 
   const renderCurrentPage = () => {
@@ -331,7 +342,7 @@ export default function App() {
   // Show loading screen while checking authentication
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4 shadow-lg animate-pulse">
             <span className="text-white font-bold text-2xl">BM</span>
@@ -346,9 +357,9 @@ export default function App() {
     return (
       <GlobalLoadingProvider>
         <ThemeContext.Provider value={{ isDark, toggleTheme }}>
-          <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading }}>
+          <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading, isLoggingOut }}>
             <AppContext.Provider value={{ currentPage, setCurrentPage }}>
-              <div className="min-h-screen bg-background text-foreground flex flex-col">
+              <div className="min-h-screen bg-slate-900 text-foreground flex flex-col">
                 <Header />
                 <main className="flex-1">
                   {currentPage === 'auth' ? <AuthPage /> : <LandingPage />}
@@ -367,13 +378,13 @@ export default function App() {
   return (
     <GlobalLoadingProvider>
       <ThemeContext.Provider value={{ isDark, toggleTheme }}>
-        <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading }}>
+        <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading, isLoggingOut }}>
           <AppContext.Provider value={{ currentPage, setCurrentPage }}>
-            <div className="min-h-screen bg-background text-foreground flex flex-col">
+            <div className="min-h-screen bg-slate-900 text-foreground flex flex-col">
               <Header />
               <div className="flex flex-1 overflow-hidden">
                 <Sidebar />
-                <main className="flex-1 overflow-hidden min-h-screen">
+                <main className="flex-1 overflow-auto" style={{ marginLeft: 'px', marginTop: '64px' }}>
                   <ErrorBoundary>
                     {renderCurrentPage()}
                   </ErrorBoundary>
