@@ -61,20 +61,65 @@ router.get('/stats', async (req, res) => {
       console.log('ForumPost model not available');
     }
 
-    // Try to get wishlist statistics
+    // Try to get wishlist statistics with popularity
     try {
       const { Wishlist } = await import('../models/Wishlist.js');
       stats.totalWishlists = await Wishlist.countDocuments({});
+      
+      // Get popular wishlists with vote counts (using upvotes field directly)
+      const popularWishlists = await Wishlist.aggregate([
+        {
+          $sort: { upvotes: -1 }
+        },
+        {
+          $limit: 5
+        },
+        {
+          $project: {
+            name: '$item_name',
+            popularity: '$upvotes',
+            items: { $size: '$images' }
+          }
+        }
+      ]);
+      
+      stats.wishlistStats = popularWishlists;
     } catch (err) {
-      console.log('Wishlist model not available');
+      console.log('Wishlist model not available or aggregation failed:', err);
+      stats.wishlistStats = [];
     }
 
-    // Try to get event statistics
+    // Try to get event statistics with participants
     try {
       const { Event } = await import('../models/Event.js');
       stats.totalEvents = await Event.countDocuments({});
+      
+      // Get events with participant counts (participants are embedded in the Event document)
+      const eventsWithParticipants = await Event.aggregate([
+        {
+          $addFields: {
+            participants: { $size: '$participants' }
+          }
+        },
+        {
+          $sort: { participants: -1, createdAt: -1 }
+        },
+        {
+          $limit: 5
+        },
+        {
+          $project: {
+            name: '$title',
+            participants: 1,
+            date: '$startDate'
+          }
+        }
+      ]);
+      
+      stats.eventStats = eventsWithParticipants;
     } catch (err) {
-      console.log('Event model not available');
+      console.log('Event model not available or aggregation failed:', err);
+      stats.eventStats = [];
     }
 
     // Try to get report statistics

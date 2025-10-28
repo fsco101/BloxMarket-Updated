@@ -16,8 +16,10 @@ import {
   Activity,
   UserCheck,
   RefreshCw,
-  Eye
+  Eye,
+  Download
 } from 'lucide-react';
+import { ChartReportGenerator, type ChartDataPoint } from '../utils/chartReportGenerator';
 import {
   AreaChart,
   Area,
@@ -56,6 +58,24 @@ interface AdminStats {
   totalWishlists: number;
   totalEvents: number;
   middlemanApplications: number;
+  userRoles?: {
+    user: number;
+    verified: number;
+    middleman: number;
+    moderator: number;
+    admin: number;
+    banned: number;
+  };
+  wishlistStats?: Array<{
+    name: string;
+    popularity: number;
+    items: number;
+  }>;
+  eventStats?: Array<{
+    name: string;
+    participants: number;
+    date: string;
+  }>;
 }
 
 interface ChartData {
@@ -64,6 +84,8 @@ interface ChartData {
   trades: number;
   posts: number;
   reports: number;
+  wishlists?: number;
+  events?: number;
 }
 
 interface AnalyticsData {
@@ -71,6 +93,8 @@ interface AnalyticsData {
   tradeActivity: Array<{ date: string; trades: number }>;
   forumActivity: Array<{ date: string; posts: number }>;
   reportActivity: Array<{ date: string; reports: number }>;
+  wishlistActivity?: Array<{ date: string; wishlists: number }>;
+  eventActivity?: Array<{ date: string; events: number }>;
 }
 
 export function AdminPanel() {
@@ -389,11 +413,22 @@ export function AdminPanel() {
         };
       }) : [];
 
-    const pieData = stats ? [
+    // Prepare wishlist and event data
+    const wishlistData = stats.wishlistStats || [];
+    const eventData = stats.eventStats || [];
+
+    const pieData = stats.userRoles ? [
+      { name: 'Regular Users', value: stats.userRoles.user || 0, color: '#6c757d' },
+      { name: 'Verified Users', value: stats.userRoles.verified || 0, color: '#0d6efd' },
+      { name: 'Middlemen', value: stats.userRoles.middleman || 0, color: '#198754' },
+      { name: 'Moderators', value: stats.userRoles.moderator || 0, color: '#fd7e14' },
+      { name: 'Admins', value: stats.userRoles.admin || 0, color: '#dc3545' },
+      { name: 'Banned Users', value: stats.userRoles.banned || 0, color: '#6f42c1' },
+    ].filter(item => item.value > 0) : [
       { name: 'Active Users', value: stats.activeUsers, color: '#0d6efd' },
       { name: 'Banned Users', value: stats.bannedUsers, color: '#dc3545' },
       { name: 'Inactive Users', value: Math.max(0, stats.totalUsers - stats.activeUsers - stats.bannedUsers), color: '#6c757d' },
-    ].filter(item => item.value > 0) : []; // Only show segments with data
+    ].filter(item => item.value > 0); // Only show segments with data
 
     return (
       <div className="container-fluid">
@@ -595,66 +630,96 @@ export function AdminPanel() {
                       {(config as { days: number; label: string }).label}
                     </button>
                   ))}
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => ChartReportGenerator.downloadChartReport({
+                      chartId: 'activity-chart',
+                      filename: 'platform-activity',
+                      chartData: chartData as ChartDataPoint[],
+                      dataKey: 'users',
+                      nameKey: 'name'
+                    })}
+                    title="Download Chart"
+                  >
+                    <i className="fas fa-download"></i>
+                  </button>
                 </div>
               </div>
               <div className="card-body">
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Area type="monotone" dataKey="users" stackId="1" stroke="#0d6efd" fill="#0d6efd" fillOpacity={0.6} />
-                    <Area type="monotone" dataKey="trades" stackId="1" stroke="#198754" fill="#198754" fillOpacity={0.6} />
-                    <Area type="monotone" dataKey="posts" stackId="1" stroke="#6f42c1" fill="#6f42c1" fillOpacity={0.6} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div id="activity-chart" style={{ width: '100%', height: '300px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Area type="monotone" dataKey="users" stackId="1" stroke="#0d6efd" fill="#0d6efd" fillOpacity={0.6} />
+                      <Area type="monotone" dataKey="trades" stackId="1" stroke="#198754" fill="#198754" fillOpacity={0.6} />
+                      <Area type="monotone" dataKey="posts" stackId="1" stroke="#6f42c1" fill="#6f42c1" fillOpacity={0.6} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
           </div>
 
           <div className="col-lg-4">
             <div className="card shadow-sm">
-              <div className="card-header bg-light">
+              <div className="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 className="card-title mb-0 d-flex align-items-center">
                   <PieChart className="me-2" style={{ width: '1.25rem', height: '1.25rem' }} />
                   User Status Distribution
                 </h5>
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => ChartReportGenerator.downloadChartReport({
+                    chartId: 'user-status-chart',
+                    filename: 'user-status-distribution',
+                    chartData: pieData as ChartDataPoint[],
+                    dataKey: 'value',
+                    nameKey: 'name'
+                  })}
+                  title="Download Chart"
+                >
+                  <i className="fas fa-download"></i>
+                </button>
               </div>
               <div className="card-body">
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(value: number, name: string) => [
-                        `${value} users (${((value / stats.totalUsers) * 100).toFixed(1)}%)`,
-                        name
-                      ]}
-                    />
-                    <Legend 
-                      verticalAlign="bottom" 
-                      height={36}
-                      formatter={(value, entry) => (
-                        <span style={{ color: entry.color }}>
-                          {value}: {entry.payload?.value || 0}
-                        </span>
-                      )}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div id="user-status-chart" style={{ width: '100%', height: '300px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number, name: string) => [
+                          `${value} users (${((value / stats.totalUsers) * 100).toFixed(1)}%)`,
+                          name
+                        ]}
+                      />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36}
+                        formatter={(value, entry) => (
+                          <span style={{ color: entry.color }}>
+                            {value}: {entry.payload?.value || 0}
+                          </span>
+                        )}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
           </div>
@@ -666,31 +731,125 @@ export function AdminPanel() {
             <div className="card shadow-sm">
               <div className="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 className="card-title mb-0 d-flex align-items-center">
+                  <i className="fas fa-heart me-2 text-danger"></i>
+                  Popular Wishlists
+                </h5>
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => ChartReportGenerator.downloadChartReport({
+                    chartId: 'wishlist-chart',
+                    filename: 'popular-wishlists',
+                    chartData: wishlistData as ChartDataPoint[],
+                    dataKey: 'popularity',
+                    nameKey: 'name'
+                  })}
+                  title="Download Chart"
+                >
+                  <i className="fas fa-download"></i>
+                </button>
+              </div>
+              <div className="card-body">
+                <div id="wishlist-chart" style={{ width: '100%', height: '250px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={wishlistData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="popularity" fill="#e83e8c" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-lg-6">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 className="card-title mb-0 d-flex align-items-center">
+                  <i className="fas fa-calendar-alt me-2 text-warning"></i>
+                  Event Participants
+                </h5>
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => ChartReportGenerator.downloadChartReport({
+                    chartId: 'event-chart',
+                    filename: 'event-participants',
+                    chartData: eventData as ChartDataPoint[],
+                    dataKey: 'participants',
+                    nameKey: 'name'
+                  })}
+                  title="Download Chart"
+                >
+                  <i className="fas fa-download"></i>
+                </button>
+              </div>
+              <div className="card-body">
+                <div id="event-chart" style={{ width: '100%', height: '250px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={eventData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="participants" fill="#ffc107" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Reports & Activity Row */}
+        <div className="row g-4 mb-4">
+          <div className="col-lg-6">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 className="card-title mb-0 d-flex align-items-center">
                   <TrendingUp className="me-2" style={{ width: '1.25rem', height: '1.25rem' }} />
                   Reports & Issues
                 </h5>
                 <div className="d-flex gap-2">
-                  {Object.entries(timePeriodConfig).map(([key, config]) => (
-                    <button
-                      key={key}
-                      className={`btn btn-sm ${timePeriod === key ? 'btn-primary' : 'btn-outline-primary'}`}
-                      onClick={() => setTimePeriod(key as 'weekly' | 'monthly' | 'quarterly' | 'yearly')}
-                    >
-                      {(config as { days: number; label: string }).label}
-                    </button>
-                  ))}
+                  <div className="d-flex gap-2">
+                    {Object.entries(timePeriodConfig).map(([key, config]) => (
+                      <button
+                        key={key}
+                        className={`btn btn-sm ${timePeriod === key ? 'btn-primary' : 'btn-outline-primary'}`}
+                        onClick={() => setTimePeriod(key as 'weekly' | 'monthly' | 'quarterly' | 'yearly')}
+                      >
+                        {(config as { days: number; label: string }).label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => ChartReportGenerator.downloadChartReport({
+                      chartId: 'reports-chart',
+                      filename: 'reports-issues',
+                      chartData: chartData as ChartDataPoint[],
+                      dataKey: 'reports',
+                      nameKey: 'name'
+                    })}
+                    title="Download Chart"
+                  >
+                    <i className="fas fa-download"></i>
+                  </button>
                 </div>
               </div>
               <div className="card-body">
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="reports" fill="#dc3545" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div id="reports-chart" style={{ width: '100%', height: '250px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="reports" fill="#dc3545" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
           </div>
