@@ -41,13 +41,69 @@ export const authenticateToken = async (req, res, next) => {
     if (user.role === 'banned') return res.status(403).json({ error: 'Account is banned' });
     if (!user.is_active) return res.status(403).json({ error: 'Account is deactivated' });
 
+    // Check for active penalties and handle them based on type
+    const now = new Date();
+    const activePenalties = user.penalties?.filter(penalty => 
+      penalty.is_active && (!penalty.expires_at || penalty.expires_at > now)
+    ) || [];
+
+    // Handle suspensions (block access)
+    const activeSuspensions = activePenalties.filter(p => p.type === 'suspension');
+    if (activeSuspensions.length > 0) {
+      const suspension = activeSuspensions[0]; // Get the most severe suspension
+      const expiryMessage = suspension.expires_at 
+        ? ` until ${suspension.expires_at.toLocaleDateString()}`
+        : ' permanently';
+      return res.status(403).json({ 
+        error: `Account is suspended${expiryMessage}. Reason: ${suspension.reason}` 
+      });
+    }
+
+    // Handle critical strikes (block access)
+    const activeCriticalStrikes = activePenalties.filter(p => p.type === 'strike' && p.severity === 'critical');
+    if (activeCriticalStrikes.length > 0) {
+      const strike = activeCriticalStrikes[0];
+      const expiryMessage = strike.expires_at 
+        ? ` until ${strike.expires_at.toLocaleDateString()}`
+        : ' permanently';
+      return res.status(403).json({ 
+        error: `Account has a critical strike${expiryMessage}. Reason: ${strike.reason}` 
+      });
+    }
+
+    // For warnings and restrictions, allow access but add penalty info to user data
+    const warningsAndRestrictions = activePenalties.filter(p => 
+      p.type === 'warning' || p.type === 'restriction' || 
+      (p.type === 'strike' && p.severity !== 'critical')
+    );
+
+    // Check and update expired penalties
+    if (user.penalties && user.penalties.length > 0) {
+      let hasExpiredPenalties = false;
+      user.penalties = user.penalties.map(penalty => {
+        if (penalty.is_active && penalty.expires_at && penalty.expires_at <= now) {
+          penalty.is_active = false;
+          hasExpiredPenalties = true;
+        }
+        return penalty;
+      });
+
+      if (hasExpiredPenalties) {
+        // Recalculate active penalties count
+        user.active_penalties = user.penalties.filter(p => p.is_active).length;
+        await user.save();
+      }
+    }
+
     // Set req.user with both decoded token data and full user object
     req.user = {
       userId: user._id.toString(),
       username: user.username,
       email: user.email,
       role: user.role,
-      userData: user
+      userData: user,
+      // Include active penalties for warnings/restrictions
+      activePenalties: warningsAndRestrictions.length > 0 ? warningsAndRestrictions : undefined
     };
     req.token = token;
     

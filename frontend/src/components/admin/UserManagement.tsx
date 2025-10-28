@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -22,7 +22,10 @@ import {
   Loader2,
   UserX,
   UserPlus,
-  RefreshCw
+  RefreshCw,
+  AlertCircle,
+  Clock,
+  XCircle
 } from 'lucide-react';
 
 declare global {
@@ -52,6 +55,19 @@ interface User {
   deactivation_reason?: string;
   deactivated_at?: string;
   deactivated_by?: string;
+  penalties?: Penalty[];
+  active_penalties?: number;
+}
+
+interface Penalty {
+  _id: string;
+  type: 'warning' | 'restriction' | 'suspension' | 'strike';
+  reason: string;
+  issued_by: string;
+  issued_at: string;
+  expires_at?: string;
+  is_active: boolean;
+  severity: 'low' | 'medium' | 'high' | 'critical';
 }
 
 export function UserManagement() {
@@ -65,9 +81,14 @@ export function UserManagement() {
   
   // Action dialogs
   const [banDialogOpen, setBanDialogOpen] = useState(false);
-  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+  const [penaltyDialogOpen, setPenaltyDialogOpen] = useState(false);
+  const [liftPenaltyDialogOpen, setLiftPenaltyDialogOpen] = useState(false);
+  const [liftBanDialogOpen, setLiftBanDialogOpen] = useState(false);
   const [actionUser, setActionUser] = useState<User | null>(null);
   const [actionReason, setActionReason] = useState('');
+  const [penaltyType, setPenaltyType] = useState<'warning' | 'restriction' | 'suspension' | 'strike'>('warning');
+  const [penaltySeverity, setPenaltySeverity] = useState<'low' | 'medium' | 'high' | 'critical'>('low');
+  const [penaltyDuration, setPenaltyDuration] = useState<string>('');
 
   const tableRef = useRef<HTMLTableElement>(null);
   const dataTableRef = useRef<any>(null);
@@ -125,7 +146,7 @@ export function UserManagement() {
     initJQuery();
   }, []);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -214,7 +235,7 @@ export function UserManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const initializeDataTable = (userData: User[]) => {
     if (!window.$ || !window.$.fn || !window.$.fn.DataTable) {
@@ -330,23 +351,73 @@ export function UserManagement() {
                 return '<span class="text-gray-500">Unknown</span>';
               }
               
-              const isActive = data.isActive !== undefined ? data.isActive : data.is_active;
               const isBanned = data.role === 'banned';
               
+              // Check for penalty statuses
+              const penalties = data.penalties || [];
+              const activePenalties = penalties.filter(p => p.is_active);
+              
+              const hasActiveSuspension = activePenalties.some(p => p.type === 'suspension');
+              const hasActiveRestriction = activePenalties.some(p => p.type === 'restriction');
+              const hasActiveWarning = activePenalties.some(p => p.type === 'warning');
+              const hasActiveStrike = activePenalties.some(p => p.type === 'strike');
+              
               let statusHtml = '';
+              let statusText = '';
+              let statusClass = '';
               
               if (isBanned) {
-                statusHtml = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Banned</span>';
+                statusText = 'Banned';
+                statusClass = 'bg-red-100 text-red-800';
+                statusHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>`;
                 if (data.ban_reason) {
                   statusHtml += `<div class="text-xs text-red-600 mt-1 p-1 bg-red-50 rounded max-w-xs truncate" title="${data.ban_reason}">Reason: ${data.ban_reason}</div>`;
                 }
-              } else if (isActive) {
-                statusHtml = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</span>';
-              } else {
-                statusHtml = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Inactive</span>';
-                if (data.deactivation_reason) {
-                  statusHtml += `<div class="text-xs text-orange-600 mt-1 p-1 bg-orange-50 rounded max-w-xs truncate" title="${data.deactivation_reason}">Reason: ${data.deactivation_reason}</div>`;
+              } else if (hasActiveSuspension) {
+                const suspension = activePenalties.find(p => p.type === 'suspension');
+                statusText = 'Suspended';
+                statusClass = 'bg-orange-100 text-orange-800';
+                statusHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>`;
+                if (suspension) {
+                  const expiryInfo = suspension.expires_at 
+                    ? ` until ${new Date(suspension.expires_at).toLocaleDateString()}`
+                    : ' permanently';
+                  statusHtml += `<div class="text-xs text-orange-600 mt-1 p-1 bg-orange-50 rounded max-w-xs truncate" title="${suspension.reason}">Suspended${expiryInfo}</div>`;
                 }
+              } else if (hasActiveRestriction) {
+                statusText = 'Restricted';
+                statusClass = 'bg-yellow-100 text-yellow-800';
+                statusHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>`;
+                if (activePenalties.some(p => p.type === 'restriction')) {
+                  statusHtml += `<div class="text-xs text-yellow-600 mt-1 p-1 bg-yellow-50 rounded max-w-xs">Has active restrictions</div>`;
+                }
+              } else if (hasActiveWarning) {
+                statusText = 'Warning';
+                statusClass = 'bg-blue-100 text-blue-800';
+                statusHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>`;
+                if (activePenalties.some(p => p.type === 'warning')) {
+                  statusHtml += `<div class="text-xs text-blue-600 mt-1 p-1 bg-blue-50 rounded max-w-xs">Has active warnings</div>`;
+                }
+              } else if (hasActiveStrike) {
+                const criticalStrike = activePenalties.find(p => p.type === 'strike' && p.severity === 'critical');
+                if (criticalStrike) {
+                  statusText = 'Critical Strike';
+                  statusClass = 'bg-red-100 text-red-800';
+                  statusHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>`;
+                  const expiryInfo = criticalStrike.expires_at 
+                    ? ` until ${new Date(criticalStrike.expires_at).toLocaleDateString()}`
+                    : ' permanently';
+                  statusHtml += `<div class="text-xs text-red-600 mt-1 p-1 bg-red-50 rounded max-w-xs truncate" title="${criticalStrike.reason}">Critical strike${expiryInfo}</div>`;
+                } else {
+                  statusText = 'Strike';
+                  statusClass = 'bg-purple-100 text-purple-800';
+                  statusHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>`;
+                  statusHtml += `<div class="text-xs text-purple-600 mt-1 p-1 bg-purple-50 rounded max-w-xs">Has active strikes</div>`;
+                }
+              } else {
+                statusText = 'Active';
+                statusClass = 'bg-green-100 text-green-800';
+                statusHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>`;
               }
               
               return statusHtml;
@@ -379,7 +450,6 @@ export function UserManagement() {
               }
               
               const isBanned = data.role === 'banned';
-              const isActive = data.isActive !== undefined ? data.isActive : data.is_active;
               
               return `
                 <div class="flex flex-wrap items-center gap-2">
@@ -391,6 +461,22 @@ export function UserManagement() {
                     <option value="admin" ${data.role === 'admin' ? 'selected' : ''}>Admin</option>
                   </select>
                   
+                                    ${!isBanned ? `
+                    <button class="btn btn-sm btn-info lift-penalty-btn" data-user-id="${data._id}" title="Lift Penalties">
+                      <i class="fas fa-undo"></i>
+                    </button>
+                  ` : `
+                    <button class="btn btn-sm btn-info lift-ban-btn" data-user-id="${data._id}" title="Lift Ban">
+                      <i class="fas fa-undo"></i>
+                    </button>
+                  `}
+                  
+                  ${!isBanned ? `
+                    <button class="btn btn-sm btn-warning penalty-btn" data-user-id="${data._id}" title="Issue Penalty">
+                      <i class="fas fa-exclamation-triangle"></i>
+                    </button>
+                  ` : ''}
+                  
                   ${!isBanned ? `
                     <button class="btn btn-sm btn-danger ban-btn" data-user-id="${data._id}" title="Ban User">
                       <i class="fas fa-ban"></i>
@@ -400,16 +486,6 @@ export function UserManagement() {
                       <i class="fas fa-check-circle"></i>
                     </button>
                   `}
-                  
-                  ${!isBanned ? (isActive ? `
-                    <button class="btn btn-sm btn-warning deactivate-btn" data-user-id="${data._id}" title="Deactivate">
-                      <i class="fas fa-user-times"></i>
-                    </button>
-                  ` : `
-                    <button class="btn btn-sm btn-info activate-btn" data-user-id="${data._id}" title="Activate">
-                      <i class="fas fa-user-check"></i>
-                    </button>
-                  `) : ''}
                   
                   <button class="btn btn-sm btn-primary view-btn" data-user-id="${data._id}" title="View Details">
                     <i class="fas fa-eye"></i>
@@ -445,6 +521,27 @@ export function UserManagement() {
         }
       };
 
+      const handlePenaltyEvent = function(this: any, e: any) {
+        e.preventDefault();
+        const userId = $(this).data('user-id');
+        const user = userData.find((u: User) => u && u._id === userId);
+        if (user) openPenaltyDialog(user);
+      };
+
+      const handleLiftPenaltyEvent = function(this: any, e: any) {
+        e.preventDefault();
+        const userId = $(this).data('user-id');
+        const user = userData.find((u: User) => u && u._id === userId);
+        if (user) openLiftPenaltyDialog(user);
+      };
+
+      const handleLiftBanEvent = function(this: any, e: any) {
+        e.preventDefault();
+        const userId = $(this).data('user-id');
+        const user = userData.find((u: User) => u && u._id === userId);
+        if (user) openLiftBanDialog(user);
+      };
+
       const handleBanEvent = function(this: any, e: any) {
         e.preventDefault();
         const userId = $(this).data('user-id');
@@ -458,19 +555,6 @@ export function UserManagement() {
         handleBanUser(userId, 'unban');
       };
 
-      const handleDeactivateEvent = function(this: any, e: any) {
-        e.preventDefault();
-        const userId = $(this).data('user-id');
-        const user = userData.find((u: User) => u && u._id === userId);
-        if (user) openDeactivateDialog(user);
-      };
-
-      const handleActivateEvent = function(this: any, e: any) {
-        e.preventDefault();
-        const userId = $(this).data('user-id');
-        handleStatusChange(userId, 'activate');
-      };
-
       const handleViewEvent = function(this: any, e: any) {
         e.preventDefault();
         const userId = $(this).data('user-id');
@@ -481,13 +565,19 @@ export function UserManagement() {
         }
       };
 
+      const tableElement = tableRef.current;
       // Attach event handlers
-      $(tableRef.current).off(); // Remove old handlers
-      $(tableRef.current).on('change', '.role-select', handleRoleChangeEvent);
-      $(tableRef.current).on('click', '.ban-btn', handleBanEvent);
+      $(tableElement).off(); // Remove old handlers
+      $(tableElement).on('change', '.role-select', handleRoleChangeEvent);
+      $(tableElement).on('click', '.penalty-btn', handlePenaltyEvent);
+      $(tableElement).on('click', '.lift-penalty-btn', handleLiftPenaltyEvent);
+      $(tableElement).on('click', '.lift-ban-btn', handleLiftBanEvent);
+      $(tableElement).on('click', '.ban-btn', handleBanEvent);
+
+      return () => {
+        $(tableElement).off(); // Cleanup
+      };
       $(tableRef.current).on('click', '.unban-btn', handleUnbanEvent);
-      $(tableRef.current).on('click', '.deactivate-btn', handleDeactivateEvent);
-      $(tableRef.current).on('click', '.activate-btn', handleActivateEvent);
       $(tableRef.current).on('click', '.view-btn', handleViewEvent);
       
     } catch (error) {
@@ -504,13 +594,13 @@ export function UserManagement() {
       setLoading(false);
       return;
     }
-    
+
     // Only load users if jQuery is ready
     if (jQueryReady) {
       loadUsers();
     }
-    
-    // Cleanup
+
+    // Cleanup function
     return () => {
       if (dataTableRef.current) {
         try {
@@ -526,7 +616,7 @@ export function UserManagement() {
         }
       }
     };
-  }, [jQueryReady]);
+  }, [jQueryReady, loadUsers]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     // Prevent multiple simultaneous operations
@@ -586,49 +676,124 @@ export function UserManagement() {
     }
   };
 
-  const handleStatusChange = async (userId: string, action: 'activate' | 'deactivate', reason?: string) => {
-    // Prevent multiple simultaneous operations
-    if (actionLoading) return;
-    
-    try {
-      setActionLoading(userId);
-      await apiService.updateUserStatus(userId, action, reason);
-      toast.success(`User ${action}d successfully`);
-      
-      // Update local state instead of reloading all users
-      setUsers(prevUsers => 
-        prevUsers.map(user => 
-          user._id === userId 
-            ? { 
-                ...user, 
-                is_active: action === 'activate',
-                deactivation_reason: action === 'deactivate' ? reason : undefined
-              } 
-            : user
-        )
-      );
-      
-      setDeactivateDialogOpen(false);
-      setActionReason('');
-    } catch (error) {
-      console.error(`Error ${action}ing user:`, error);
-      toast.error(`Failed to ${action} user`);
-      await loadUsers(); // Only reload on error
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   const openBanDialog = (user: User) => {
     setActionUser(user);
     setBanDialogOpen(true);
     setActionReason('');
   };
 
-  const openDeactivateDialog = (user: User) => {
+  const openPenaltyDialog = (user: User) => {
     setActionUser(user);
-    setDeactivateDialogOpen(true);
+    setPenaltyDialogOpen(true);
     setActionReason('');
+    setPenaltyType('warning');
+    setPenaltySeverity('low');
+    setPenaltyDuration('');
+  };
+
+  const openLiftPenaltyDialog = (user: User) => {
+    setSelectedUser(user);
+    setLiftPenaltyDialogOpen(true);
+  };
+
+  const openLiftBanDialog = (user: User) => {
+    setSelectedUser(user);
+    setLiftBanDialogOpen(true);
+  };
+
+  const handleIssuePenalty = async () => {
+    if (!actionUser || !actionReason.trim()) return;
+
+    try {
+      setActionLoading(actionUser._id);
+      
+      const penaltyData = {
+        userId: actionUser._id,
+        type: penaltyType,
+        severity: penaltySeverity,
+        reason: actionReason,
+        duration: penaltyDuration ? parseInt(penaltyDuration) : undefined
+      };
+
+      await apiService.issuePenalty(penaltyData);
+      toast.success('Penalty issued successfully');
+      
+      // Update local state
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === actionUser._id 
+            ? { 
+                ...user, 
+                active_penalties: (user.active_penalties || 0) + 1,
+                penalties: [...(user.penalties || []), {
+                  _id: Date.now().toString(), // Temporary ID
+                  type: penaltyType,
+                  reason: actionReason,
+                  issued_by: 'Current Admin', // This should come from API
+                  issued_at: new Date().toISOString(),
+                  expires_at: penaltyDuration ? new Date(Date.now() + parseInt(penaltyDuration) * 24 * 60 * 60 * 1000).toISOString() : undefined,
+                  is_active: true,
+                  severity: penaltySeverity
+                }]
+              } 
+            : user
+        )
+      );
+      
+      setPenaltyDialogOpen(false);
+      setActionReason('');
+      setPenaltyDuration('');
+    } catch (error) {
+      console.error('Error issuing penalty:', error);
+      toast.error('Failed to issue penalty');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleLiftPenalty = async (userId: string, penaltyId: string) => {
+    try {
+      setActionLoading(penaltyId);
+      
+      await apiService.liftPenalty(userId, penaltyId);
+      toast.success('Penalty lifted successfully');
+      
+      // Update local state
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === userId 
+            ? { 
+                ...user, 
+                active_penalties: Math.max(0, (user.active_penalties || 0) - 1),
+                penalties: user.penalties?.map(penalty => 
+                  penalty._id === penaltyId 
+                    ? { ...penalty, is_active: false }
+                    : penalty
+                ) || []
+              } 
+            : user
+        )
+      );
+      
+      // Update selected user if it's the same user
+      if (selectedUser && selectedUser._id === userId) {
+        setSelectedUser(prev => prev ? {
+          ...prev,
+          active_penalties: Math.max(0, (prev.active_penalties || 0) - 1),
+          penalties: prev.penalties?.map(penalty => 
+            penalty._id === penaltyId 
+              ? { ...penalty, is_active: false }
+              : penalty
+          ) || []
+        } : null);
+      }
+      
+    } catch (error) {
+      console.error('Error lifting penalty:', error);
+      toast.error('Failed to lift penalty');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   // Show error state
@@ -700,10 +865,28 @@ export function UserManagement() {
               <div>
                 <p className="text-sm text-muted-foreground">Active Users</p>
                 <p className="text-2xl font-bold">
-                  {users.filter(u => (u.isActive !== undefined ? u.isActive : u.is_active) && u.role !== 'banned').length}
+                  {users.filter(u => {
+                    const isBanned = u.role === 'banned';
+                    const hasActiveSuspension = (u.penalties || []).some(p => p.is_active && p.type === 'suspension');
+                    const hasCriticalStrike = (u.penalties || []).some(p => p.is_active && p.type === 'strike' && p.severity === 'critical');
+                    return !isBanned && !hasActiveSuspension && !hasCriticalStrike;
+                  }).length}
                 </p>
               </div>
               <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Suspended Users</p>
+                <p className="text-2xl font-bold">
+                  {users.filter(u => (u.penalties || []).some(p => p.is_active && p.type === 'suspension')).length}
+                </p>
+              </div>
+              <Clock className="w-8 h-8 text-orange-500" />
             </div>
           </CardContent>
         </Card>
@@ -715,6 +898,32 @@ export function UserManagement() {
                 <p className="text-2xl font-bold">{users.filter(u => u.role === 'banned').length}</p>
               </div>
               <Ban className="w-8 h-8 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Users with Penalties</p>
+                <p className="text-2xl font-bold">
+                  {users.filter(u => (u.active_penalties || 0) > 0).length}
+                </p>
+              </div>
+              <AlertTriangle className="w-8 h-8 text-yellow-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Restricted Users</p>
+                <p className="text-2xl font-bold">
+                  {users.filter(u => (u.penalties || []).some(p => p.is_active && p.type === 'restriction')).length}
+                </p>
+              </div>
+              <UserX className="w-8 h-8 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
@@ -820,24 +1029,66 @@ export function UserManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Deactivate Dialog */}
-      <Dialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
+      {/* Penalty Dialog */}
+      <Dialog open={penaltyDialogOpen} onOpenChange={setPenaltyDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <UserX className="w-5 h-5 text-orange-500" />
-              Deactivate User
+              <AlertTriangle className="w-5 h-5 text-yellow-500" />
+              Issue Penalty
             </DialogTitle>
             <DialogDescription>
-              Temporarily deactivate {actionUser?.username}'s account. They can be reactivated later.
+              Issue a penalty to {actionUser?.username}. Choose the type and severity of the penalty.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="penalty-type">Penalty Type *</Label>
+                <select
+                  id="penalty-type"
+                  value={penaltyType}
+                  onChange={(e) => setPenaltyType(e.target.value as 'warning' | 'restriction' | 'suspension' | 'strike')}
+                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="warning">Warning</option>
+                  <option value="restriction">Restriction</option>
+                  <option value="suspension">Suspension</option>
+                  <option value="strike">Strike</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="penalty-severity">Severity *</Label>
+                <select
+                  id="penalty-severity"
+                  value={penaltySeverity}
+                  onChange={(e) => setPenaltySeverity(e.target.value as 'low' | 'medium' | 'high' | 'critical')}
+                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+            </div>
             <div>
-              <Label htmlFor="deactivate-reason">Deactivation Reason *</Label>
+              <Label htmlFor="penalty-duration">Duration (days) - Optional</Label>
+              <input
+                id="penalty-duration"
+                type="number"
+                placeholder="Leave empty for permanent penalty"
+                value={penaltyDuration}
+                onChange={(e) => setPenaltyDuration(e.target.value)}
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min="1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="penalty-reason">Reason *</Label>
               <Textarea
-                id="deactivate-reason"
-                placeholder="Enter reason for deactivating this user..."
+                id="penalty-reason"
+                placeholder="Enter detailed reason for the penalty..."
                 value={actionReason}
                 onChange={(e) => setActionReason(e.target.value)}
                 rows={4}
@@ -846,26 +1097,162 @@ export function UserManagement() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeactivateDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setPenaltyDialogOpen(false)}>
               Cancel
             </Button>
             <Button
-              variant="secondary"
-              onClick={() => actionUser && handleStatusChange(actionUser._id, 'deactivate', actionReason)}
+              variant="destructive"
+              onClick={handleIssuePenalty}
               disabled={!actionReason.trim() || actionLoading === actionUser?._id}
             >
               {actionLoading === actionUser?._id ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
               ) : (
-                <UserX className="w-4 h-4 mr-2" />
+                <AlertTriangle className="w-4 h-4 mr-2" />
               )}
-              Deactivate User
+              Issue Penalty
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* User Details Dialog */}
+      {/* Lift Penalty Dialog */}
+      <Dialog open={liftPenaltyDialogOpen} onOpenChange={setLiftPenaltyDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-green-500" />
+              Lift Penalties
+            </DialogTitle>
+            <DialogDescription>
+              Select penalties to lift for {selectedUser?.username}. This will restore the user's access and privileges.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedUser && selectedUser.penalties && selectedUser.penalties.length > 0 ? (
+            <div className="space-y-3">
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {selectedUser.penalties.filter(p => p.is_active).map((penalty, index) => (
+                  <div key={penalty._id || index} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge variant="destructive">
+                        {penalty.type} - {penalty.severity}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleLiftPenalty(selectedUser._id, penalty._id)}
+                        disabled={actionLoading === penalty._id}
+                      >
+                        {actionLoading === penalty._id ? (
+                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                        ) : (
+                          <XCircle className="w-3 h-3 mr-1" />
+                        )}
+                        Lift Penalty
+                      </Button>
+                    </div>
+                    <p className="text-sm text-gray-700 mb-1">{penalty.reason}</p>
+                    <div className="text-xs text-gray-500">
+                      Issued by: {penalty.issued_by}
+                      {penalty.expires_at && (
+                        <span className="ml-2">
+                          Expires: {new Date(penalty.expires_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {selectedUser.penalties.filter(p => p.is_active).length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
+                  <p>No active penalties found for this user.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <AlertTriangle className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+              <p>No penalties found for this user.</p>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLiftPenaltyDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lift Ban Dialog */}
+      <Dialog open={liftBanDialogOpen} onOpenChange={setLiftBanDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-500" />
+              Lift Ban
+            </DialogTitle>
+            <DialogDescription>
+              Lift the ban for {selectedUser?.username}. This will restore the user's access to the platform.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedUser && (
+            <div className="space-y-4">
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <div>
+                    <strong>Ban Reason:</strong> {selectedUser.ban_reason || 'No reason provided'}
+                  </div>
+                  {selectedUser.banned_at && (
+                    <div className="mt-2">
+                      <strong>Banned on:</strong> {new Date(selectedUser.banned_at).toLocaleDateString()}
+                    </div>
+                  )}
+                  {selectedUser.banned_by && (
+                    <div className="mt-1">
+                      <strong>Banned by:</strong> {selectedUser.banned_by}
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+              
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">
+                  <strong>What happens when you lift the ban:</strong>
+                </p>
+                <ul className="mt-2 text-sm text-green-700 list-disc list-inside space-y-1">
+                  <li>User will regain access to the platform</li>
+                  <li>User role will be restored to 'user'</li>
+                  <li>All trading and account features will be available</li>
+                  <li>Ban reason will be cleared from their profile</li>
+                </ul>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLiftBanDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => selectedUser && handleBanUser(selectedUser._id, 'unban')}
+              disabled={actionLoading === selectedUser?._id}
+            >
+              {actionLoading === selectedUser?._id ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <CheckCircle className="w-4 h-4 mr-2" />
+              )}
+              Lift Ban
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -920,22 +1307,60 @@ export function UserManagement() {
                 </div>
               </div>
 
-              {(selectedUser.ban_reason || selectedUser.deactivation_reason) && (
+              {selectedUser.ban_reason && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
-                    {selectedUser.ban_reason && (
-                      <div>
-                        <strong>Ban Reason:</strong> {selectedUser.ban_reason}
-                      </div>
-                    )}
-                    {selectedUser.deactivation_reason && (
-                      <div>
-                        <strong>Deactivation Reason:</strong> {selectedUser.deactivation_reason}
-                      </div>
-                    )}
+                    <div>
+                      <strong>Ban Reason:</strong> {selectedUser.ban_reason}
+                    </div>
                   </AlertDescription>
                 </Alert>
+              )}
+
+              {/* Penalties Section */}
+              {selectedUser.penalties && selectedUser.penalties.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-lg font-semibold flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                    Penalties ({selectedUser.active_penalties || 0} active)
+                  </h4>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {selectedUser.penalties.map((penalty, index) => (
+                      <div key={penalty._id || index} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge variant={penalty.is_active ? "destructive" : "secondary"}>
+                            {penalty.type} - {penalty.severity}
+                          </Badge>
+                          {penalty.is_active && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleLiftPenalty(selectedUser._id, penalty._id)}
+                              disabled={actionLoading === penalty._id}
+                            >
+                              {actionLoading === penalty._id ? (
+                                <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                              ) : (
+                                <XCircle className="w-3 h-3 mr-1" />
+                              )}
+                              Lift
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-700 mb-1">{penalty.reason}</p>
+                        <div className="text-xs text-gray-500">
+                          Issued by: {penalty.issued_by}
+                          {penalty.expires_at && (
+                            <span className="ml-2">
+                              Expires: {new Date(penalty.expires_at).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           )}

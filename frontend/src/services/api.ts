@@ -2163,6 +2163,26 @@ class ApiService {
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
   }
+
+  // Penalty methods
+  async issuePenalty(penaltyData: {
+    userId: string;
+    type: 'warning' | 'restriction' | 'suspension' | 'strike';
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    reason: string;
+    duration?: number;
+  }) {
+    return this.request('/admin/users/penalty', {
+      method: 'POST',
+      body: JSON.stringify(penaltyData)
+    });
+  }
+
+  async liftPenalty(userId: string, penaltyId: string) {
+    return this.request(`/admin/users/${userId}/penalty/${penaltyId}`, {
+      method: 'DELETE'
+    });
+  }
 }
 
 export const apiService = new ApiService();

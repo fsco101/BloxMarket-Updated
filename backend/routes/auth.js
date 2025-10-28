@@ -210,6 +210,42 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Your account has been deactivated. Please contact support.' });
     }
 
+    // Check for active penalties and handle them based on type
+    const now = new Date();
+    const activePenalties = user.penalties?.filter(penalty => 
+      penalty.is_active && (!penalty.expires_at || penalty.expires_at > now)
+    ) || [];
+
+    // Handle suspensions (block login)
+    const activeSuspensions = activePenalties.filter(p => p.type === 'suspension');
+    if (activeSuspensions.length > 0) {
+      const suspension = activeSuspensions[0]; // Get the most severe suspension
+      const expiryMessage = suspension.expires_at 
+        ? ` until ${suspension.expires_at.toLocaleDateString()}`
+        : ' permanently';
+      return res.status(403).json({ 
+        error: `Your account is suspended${expiryMessage}. Reason: ${suspension.reason}` 
+      });
+    }
+
+    // Handle strikes (block login for critical strikes)
+    const activeStrikes = activePenalties.filter(p => p.type === 'strike' && p.severity === 'critical');
+    if (activeStrikes.length > 0) {
+      const strike = activeStrikes[0];
+      const expiryMessage = strike.expires_at 
+        ? ` until ${strike.expires_at.toLocaleDateString()}`
+        : ' permanently';
+      return res.status(403).json({ 
+        error: `Your account has a critical strike${expiryMessage}. Reason: ${strike.reason}` 
+      });
+    }
+
+    // For warnings and restrictions, allow login but include penalty info in response
+    const warningsAndRestrictions = activePenalties.filter(p => 
+      p.type === 'warning' || p.type === 'restriction' || 
+      (p.type === 'strike' && p.severity !== 'critical')
+    );
+
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
@@ -245,7 +281,14 @@ router.post('/login', async (req, res) => {
         credibility_score: user.credibility_score,
         roblox_username: user.roblox_username,
         avatar_url: user.avatar_url
-      }
+      },
+      // Include active penalties for warnings/restrictions
+      penalties: warningsAndRestrictions.length > 0 ? warningsAndRestrictions.map(p => ({
+        type: p.type,
+        severity: p.severity,
+        reason: p.reason,
+        expires_at: p.expires_at
+      })) : undefined
     });
   } catch (error) {
     console.error('Login error:', error);

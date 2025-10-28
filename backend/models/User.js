@@ -138,26 +138,25 @@ const userSchema = new mongoose.Schema({
   }],
   
   // Penalty tracking
-  penalty_history: [{
+  penalties: [{
+    _id: { type: String, required: true },
     type: {
       type: String,
-      enum: ['warning', 'suspension', 'ban', 'deactivation'],
+      enum: ['warning', 'restriction', 'suspension', 'strike'],
       required: true
     },
     reason: { type: String, required: true },
-    severity: { type: String, enum: ['low', 'medium', 'high'] },
+    severity: {
+      type: String,
+      enum: ['low', 'medium', 'high', 'critical'],
+      required: true
+    },
     issued_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     issued_at: { type: Date, required: true },
-    duration_days: Number,
     expires_at: Date,
-    status: {
-      type: String,
-      enum: ['active', 'lifted', 'expired'],
-      default: 'active'
-    },
-    lifted_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    lifted_at: Date
+    is_active: { type: Boolean, default: true }
   }],
+  active_penalties: { type: Number, default: 0 },
   
   // Ban tracking
   banned_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

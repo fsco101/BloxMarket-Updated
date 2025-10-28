@@ -9,6 +9,13 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { apiService } from '../services/api';
 
+interface Penalty {
+  type: 'warning' | 'restriction' | 'suspension' | 'strike';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  reason: string;
+  expires_at?: string;
+}
+
 export function Login() {
   const { login } = useAuth();
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
@@ -41,6 +48,21 @@ export function Login() {
         username: username,
         password: password
       }, rememberMe);
+
+      // Check for active penalties in the response
+      if (response.penalties && response.penalties.length > 0) {
+        // Show penalty warnings to the user
+        const penaltyMessages = response.penalties.map((penalty: Penalty) => 
+          `${penalty.type.charAt(0).toUpperCase() + penalty.type.slice(1)} (${penalty.severity}): ${penalty.reason}`
+        ).join('\n• ');
+        
+        // You can show this as a toast or alert
+        console.warn('User has active penalties:', response.penalties);
+        // For now, we'll show it in an alert after login
+        setTimeout(() => {
+          alert(`Warning: You have active penalties:\n• ${penaltyMessages}\n\nPlease review and comply with platform rules to avoid further action.`);
+        }, 1000);
+      }
 
       // Ensure token is persisted and ApiService has it
       if (response.token) {

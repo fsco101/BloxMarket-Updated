@@ -44,6 +44,7 @@ const notificationSchema = new mongoose.Schema({
       'admin_post_deleted',
       'admin_event_created',
       'admin_role_changed',
+      'penalty_issued',
 
       // System notifications
       'system_announcement'
@@ -68,7 +69,7 @@ const notificationSchema = new mongoose.Schema({
   },
   related_model: {
     type: String,
-    enum: ['ForumPost', 'ForumComment', 'Trade', 'TradeComment', 'Event', 'EventComment', 'Wishlist', 'WishlistComment', 'Vouch', 'User'],
+    enum: ['ForumPost', 'ForumComment', 'Trade', 'TradeComment', 'Event', 'EventComment', 'Wishlist', 'WishlistComment', 'Vouch', 'User', 'Penalty'],
     required: true
   },
   is_read: {
