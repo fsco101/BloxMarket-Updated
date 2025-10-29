@@ -2183,6 +2183,131 @@ class ApiService {
       method: 'DELETE'
     });
   }
+
+  // Messenger methods
+  async getUserChats(params?: { page?: number; limit?: number }) {
+    const queryString = params ? new URLSearchParams(
+      Object.entries(params).reduce((acc, [key, value]) => {
+        if (value !== undefined) acc[key] = value.toString();
+        return acc;
+      }, {} as Record<string, string>)
+    ).toString() : '';
+    return this.request(`/chats?${queryString}`);
+  }
+
+  async getChat(chatId: string) {
+    return this.request(`/chats/${chatId}`);
+  }
+
+  async createDirectChat(otherUserId: string) {
+    return this.request('/chats/direct', {
+      method: 'POST',
+      body: JSON.stringify({ otherUserId })
+    });
+  }
+
+  async createGroupChat(data: {
+    name: string;
+    description?: string;
+    participantIds: string[];
+  }) {
+    return this.request('/chats/group', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async updateGroupChat(chatId: string, data: {
+    name?: string;
+    description?: string;
+    avatar_url?: string;
+  }) {
+    return this.request(`/chats/${chatId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async deleteChat(chatId: string) {
+    return this.request(`/chats/${chatId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async addParticipant(chatId: string, newParticipantId: string) {
+    return this.request(`/chats/${chatId}/participants`, {
+      method: 'POST',
+      body: JSON.stringify({ newParticipantId })
+    });
+  }
+
+  async removeParticipant(chatId: string, participantId: string) {
+    return this.request(`/chats/${chatId}/participants`, {
+      method: 'DELETE',
+      body: JSON.stringify({ participantId })
+    });
+  }
+
+  async leaveGroupChat(chatId: string) {
+    return this.request(`/chats/${chatId}/leave`, {
+      method: 'POST'
+    });
+  }
+
+  async updateParticipantRole(chatId: string, participantId: string, role: 'member' | 'admin') {
+    return this.request(`/chats/${chatId}/participants/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ participantId, role })
+    });
+  }
+
+  async getMessages(chatId: string, params?: { page?: number; limit?: number }) {
+    const queryString = params ? new URLSearchParams(
+      Object.entries(params).reduce((acc, [key, value]) => {
+        if (value !== undefined) acc[key] = value.toString();
+        return acc;
+      }, {} as Record<string, string>)
+    ).toString() : '';
+    return this.request(`/messages/chats/${chatId}/messages?${queryString}`);
+  }
+
+  async sendMessage(chatId: string, content: string, messageType: 'text' | 'image' | 'file' = 'text', replyTo?: string) {
+    return this.request(`/messages/chats/${chatId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({
+        content,
+        message_type: messageType,
+        reply_to: replyTo
+      })
+    });
+  }
+
+  async editMessage(messageId: string, content: string) {
+    return this.request(`/messages/${messageId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content })
+    });
+  }
+
+  async deleteMessage(messageId: string) {
+    return this.request(`/messages/${messageId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async addReaction(messageId: string, emoji: string) {
+    return this.request(`/messages/${messageId}/reactions`, {
+      method: 'POST',
+      body: JSON.stringify({ emoji })
+    });
+  }
+
+  async removeReaction(messageId: string, emoji: string) {
+    return this.request(`/messages/${messageId}/reactions`, {
+      method: 'DELETE',
+      body: JSON.stringify({ emoji })
+    });
+  }
 }
 
 export const apiService = new ApiService();

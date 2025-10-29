@@ -30,7 +30,8 @@ import {
   ShoppingCart,
   BarChart3,
   FileText,
-  Package
+  Package,
+  MessageCircle
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 
@@ -59,6 +60,7 @@ export function Sidebar() {
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
     { id: 'middleman', label: 'Middleman Directory', icon: Shield },
     { id: 'forums', label: 'Forums', icon: MessageSquare },
+    { id: 'messenger', label: 'Messages', icon: MessageCircle },
     { id: 'events', label: 'Events & Giveaways', icon: Calendar }
   ];
 

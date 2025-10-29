@@ -19,6 +19,7 @@ import { MyForumPosts } from './components/user/MyForumPosts';
 import { MyTradePosts } from './components/user/MyTradePosts';
 import { MyWishlist } from './components/user/MyWishlist';
 import { NotificationsPage } from './components/NotificationsPage';
+import { Messenger } from './components/Messenger';
 import { Toaster } from './components/Toaster';
 import { RateLimitListener } from './components/RateLimitListener';
 import { GlobalLoadingProvider } from './contexts/GlobalLoadingContext';
@@ -330,6 +331,8 @@ export default function App() {
         return <MyWishlist />;
       case 'notifications':
         return <NotificationsPage />;
+      case 'messenger':
+        return <Messenger />;
       default:
         // Handle profile pages with user ID (format: profile-{userId})
         if (currentPage.startsWith('profile-')) {

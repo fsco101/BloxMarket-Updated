@@ -13,13 +13,16 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
-import path from 'path';
+import path, { dirname } from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 
-// Get __dirname equivalent for ES modules
+// Define __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(__filename);
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -44,7 +47,18 @@ import middlemanVerificationDatatableRoutes from './routes/datatables/middlemanV
 import vouchRoutes from './routes/vouches.js';
 import notificationRoutes from './routes/notifications.js';
 
+// Import messenger routes
+import messageRoutes from './routes/messages.js';
+import chatRoutes from './routes/chats.js';
+
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    credentials: true
+  }
+});
 const PORT = process.env.PORT || 5000;
 
 // Middleware
@@ -182,6 +196,10 @@ app.use('/api/wishlists', wishlistRoutes); // Add this line
 app.use('/api/vouches', vouchRoutes); // Add vouches routes
 app.use('/api/notifications', notificationRoutes); // Add notifications routes
 
+// Messenger routes
+app.use('/api/messages', messageRoutes);
+app.use('/api/chats', chatRoutes);
+
 // Custom rate limiter for datatable endpoints (which can be resource-intensive)
 const datatableLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
@@ -199,6 +217,70 @@ app.use('/api/admin/datatables/trading-posts', datatableLimiter, tradingPostData
 app.use('/api/admin/datatables/wishlists', datatableLimiter, wishlistDatatableRoutes);
 app.use('/api/admin/datatables/reports', datatableLimiter, reportsDatatableRoutes);
 app.use('/api/admin/datatables/verification', datatableLimiter, middlemanVerificationDatatableRoutes);
+
+// Socket.IO middleware for authentication
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error'));
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.userId;
+    socket.username = decoded.username;
+    next();
+  } catch (err) {
+    next(new Error('Authentication error'));
+  }
+});
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log(`User ${socket.username} connected with socket ID: ${socket.id}`);
+
+  // Join user's personal room for direct messaging
+  socket.join(`user_${socket.userId}`);
+
+  // Handle joining chat rooms
+  socket.on('join_chat', (chatId) => {
+    socket.join(`chat_${chatId}`);
+    console.log(`User ${socket.username} joined chat ${chatId}`);
+  });
+
+  // Handle leaving chat rooms
+  socket.on('leave_chat', (chatId) => {
+    socket.leave(`chat_${chatId}`);
+    console.log(`User ${socket.username} left chat ${chatId}`);
+  });
+
+  // Handle typing indicators
+  socket.on('typing_start', (data) => {
+    const { chatId } = data;
+    socket.to(`chat_${chatId}`).emit('user_typing', {
+      userId: socket.userId,
+      username: socket.username,
+      chatId
+    });
+  });
+
+  socket.on('typing_stop', (data) => {
+    const { chatId } = data;
+    socket.to(`chat_${chatId}`).emit('user_stopped_typing', {
+      userId: socket.userId,
+      username: socket.username,
+      chatId
+    });
+  });
+
+  // Handle disconnections
+  socket.on('disconnect', () => {
+    console.log(`User ${socket.username} disconnected`);
+  });
+});
+
+// Export io instance for use in controllers
+export { io };
 
 // Health check endpoint with rate limit info
 app.get('/api/health', (req, res) => {
@@ -250,8 +332,9 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🍃 Database: ${MONGODB_URI.includes('localhost') ? 'Local MongoDB' : 'Remote MongoDB'}`);
+  console.log(`💬 Socket.IO: Enabled for real-time messaging`);
 });

@@ -386,5 +386,39 @@ export const userController = {
       console.error('Request middleman error:', error);
       res.status(500).json({ error: 'Failed to request middleman status' });
     }
+  },
+
+  // Search users
+  searchUsers: async (req, res) => {
+    try {
+      const { query } = req.params;
+      const limit = parseInt(req.query.limit) || 10;
+
+      if (!query || query.trim().length < 2) {
+        return res.status(400).json({ error: 'Search query must be at least 2 characters long' });
+      }
+
+      const users = await User.find({
+        $or: [
+          { username: { $regex: query, $options: 'i' } },
+          { display_name: { $regex: query, $options: 'i' } }
+        ]
+      })
+      .select('_id username display_name avatar_url')
+      .limit(limit);
+
+      res.json({
+        users: users.map(user => ({
+          user_id: user._id,
+          username: user.username,
+          display_name: user.display_name,
+          avatar_url: user.avatar_url
+        }))
+      });
+
+    } catch (error) {
+      console.error('Search users error:', error);
+      res.status(500).json({ error: 'Failed to search users' });
+    }
   }
 };

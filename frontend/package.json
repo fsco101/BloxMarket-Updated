@@ -50,6 +50,7 @@
     "cmdk": "^1.1.1",
     "datatables.net-bs5": "^2.3.4",
     "datatables.net-dt": "^2.3.4",
+    "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "face-api.js": "^0.22.2",
     "html2canvas": "^1.4.1",
@@ -72,6 +73,7 @@
     "react-router-dom": "^7.9.3",
     "react-toastify": "^11.0.5",
     "recharts": "^2.15.4",
+    "socket.io-client": "^4.8.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "vaul": "^1.1.2"

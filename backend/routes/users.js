@@ -41,6 +41,7 @@ const upload = multer({
 // User routes
 router.get('/me', authenticateToken, userController.getCurrentUserProfile);
 router.get('/:userId', userController.getUserById);
+router.get('/search/:query', userController.searchUsers);
 router.patch('/me', authenticateToken, userController.updateProfile);
 router.post('/avatar', authenticateToken, upload.single('avatar'), userController.uploadAvatar);
 router.get('/:userId/wishlist', userController.getUserWishlist);
