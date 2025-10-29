@@ -35,7 +35,7 @@ interface Message {
     avatar_url?: string;
   };
   content: string;
-  message_type: 'text' | 'image' | 'file';
+  message_type: 'text' | 'image' | 'file' | 'system';
   file_url?: string;
   file_name?: string;
   file_size?: number;
@@ -64,7 +64,6 @@ export const Messenger: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [showCreateChat, setShowCreateChat] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load user's chats
@@ -112,11 +111,6 @@ export const Messenger: React.FC = () => {
             }
           : chat
       ));
-
-      // Scroll to bottom for new messages
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
     };
 
     const handleMessageEdited = (data: unknown) => {
@@ -154,11 +148,60 @@ export const Messenger: React.FC = () => {
       ));
     };
 
+    const handleUserLeftGroup = (data: unknown) => {
+      const leaveData = data as { chat_id: string; user_id: string; username: string; message: string };
+      console.log('Messenger: User left group:', leaveData);
+
+      // If this is the currently selected chat, add a system message
+      if (selectedChat && selectedChat.chat_id === leaveData.chat_id) {
+        const systemMessage = {
+          message_id: `system_${Date.now()}`,
+          chat_id: leaveData.chat_id,
+          sender: {
+            user_id: 'system',
+            username: 'System',
+            avatar_url: undefined
+          },
+          content: `${leaveData.username} left the group chat`,
+          message_type: 'system' as const,
+          is_read: true,
+          edited: false,
+          reactions: [],
+          created_at: new Date().toISOString()
+        };
+
+        setMessages(prev => [...prev, systemMessage]);
+      }
+
+      // Update the chat list - decrease participant count or remove chat if no participants left
+      setChats(prevChats => {
+        const updatedChats = prevChats.map(chat => {
+          if (chat.chat_id === leaveData.chat_id) {
+            const newParticipantCount = chat.participants_count - 1;
+            if (newParticipantCount <= 0) {
+              // Remove the chat if no participants left
+              return null;
+            } else {
+              // Update participant count
+              return {
+                ...chat,
+                participants_count: newParticipantCount
+              };
+            }
+          }
+          return chat;
+        }).filter(chat => chat !== null) as Chat[];
+
+        return updatedChats;
+      });
+    };
+
     socketService.on('new_message', handleNewMessage);
     socketService.on('message_edited', handleMessageEdited);
     socketService.on('message_deleted', handleMessageDeleted);
     socketService.on('reaction_added', handleReactionAdded);
     socketService.on('reaction_removed', handleReactionRemoved);
+    socketService.on('user_left_group', handleUserLeftGroup);
 
     return () => {
       socketService.off('new_message', handleNewMessage);
@@ -166,22 +209,23 @@ export const Messenger: React.FC = () => {
       socketService.off('message_deleted', handleMessageDeleted);
       socketService.off('reaction_added', handleReactionAdded);
       socketService.off('reaction_removed', handleReactionRemoved);
-    };
-  }, []);
-
-  // Join/leave chat rooms when selected chat changes
-  useEffect(() => {
-    if (selectedChat) {
-      socketService.joinChat(selectedChat.chat_id);
-      loadMessages(selectedChat.chat_id);
-    }
-
-    return () => {
-      if (selectedChat) {
-        socketService.leaveChat(selectedChat.chat_id);
-      }
+      socketService.off('user_left_group', handleUserLeftGroup);
     };
   }, [selectedChat]);
+
+  // Update selectedChat when chats change (e.g., when someone leaves a group)
+  useEffect(() => {
+    if (selectedChat) {
+      const updatedChat = chats.find(chat => chat.chat_id === selectedChat.chat_id);
+      if (!updatedChat) {
+        // Chat was removed
+        setSelectedChat(null);
+      } else if (updatedChat.participants_count !== selectedChat.participants_count) {
+        // Chat was updated (participant count changed)
+        setSelectedChat(updatedChat);
+      }
+    }
+  }, [chats, selectedChat]);
 
   const loadChats = async () => {
     try {
@@ -198,8 +242,11 @@ export const Messenger: React.FC = () => {
   const loadMessages = async (chatId: string) => {
     try {
       setMessagesLoading(true);
+      console.log('Loading messages for chat:', chatId);
       const response = await apiService.getMessages(chatId, { limit: 50 });
+      console.log('Messages response:', response);
       setMessages(response.messages || []);
+      console.log('Set messages to:', response.messages || []);
     } catch (error) {
       console.error('Failed to load messages:', error);
     } finally {
@@ -210,6 +257,25 @@ export const Messenger: React.FC = () => {
   const handleChatSelect = (chat: Chat) => {
     setSelectedChat(chat);
   };
+
+  // Load messages when selectedChat changes
+  useEffect(() => {
+    if (selectedChat) {
+      loadMessages(selectedChat.chat_id);
+      // Join the chat room for real-time updates
+      socketService.joinChat(selectedChat.chat_id);
+    } else {
+      // Clear messages when no chat is selected
+      setMessages([]);
+    }
+
+    // Leave previous chat room if switching chats
+    return () => {
+      if (selectedChat) {
+        socketService.leaveChat(selectedChat.chat_id);
+      }
+    };
+  }, [selectedChat]);
 
   const handleCreateChat = () => {
     setShowCreateChat(true);
@@ -256,7 +322,16 @@ export const Messenger: React.FC = () => {
             chats={chats}
             selectedChat={selectedChat}
             onChatSelect={handleChatSelect}
-            onlineUsers={onlineUsers}
+            onChatLeft={(chatId) => {
+              console.log('Messenger: onChatLeft called with chatId:', chatId);
+              console.log('Messenger: Current chats before filter:', chats.map(c => c.chat_id));
+              setChats(prevChats => prevChats.filter(chat => chat.chat_id !== chatId));
+              console.log('Messenger: Chats after filter:', chats.filter(chat => chat.chat_id !== chatId).map(c => c.chat_id));
+              if (selectedChat?.chat_id === chatId) {
+                console.log('Messenger: Clearing selected chat');
+                setSelectedChat(null);
+              }
+            }}
           />
         </div>
 
@@ -268,25 +343,24 @@ export const Messenger: React.FC = () => {
               messages={messages}
               loading={messagesLoading}
               messagesEndRef={messagesEndRef}
-              onSendMessage={async (content: string, replyTo?: string) => {
+              onSendMessage={async (content: string, replyTo?: string, messageType?: 'text' | 'image', fileUrl?: string, fileName?: string, fileSize?: number) => {
                 if (!selectedChat) return;
 
                 try {
-                  await apiService.sendMessage(selectedChat.chat_id, content, 'text', replyTo);
+                  await apiService.sendMessage(selectedChat.chat_id, content, messageType || 'text', replyTo, fileUrl, fileName, fileSize);
                   // Message will be added via socket event
                 } catch (error) {
                   console.error('Failed to send message:', error);
                 }
               }}
-              onSendImage={async (file: File) => {
-                if (!selectedChat) return;
-
-                try {
-                  // For now, we'll send the image as a text message with the filename
-                  // TODO: Implement proper image upload functionality
-                  await apiService.sendMessage(selectedChat.chat_id, `[Image: ${file.name}]`, 'image');
-                } catch (error) {
-                  console.error('Failed to send image:', error);
+              onChatLeft={(chatId: string) => {
+                console.log('Messenger ChatWindow: onChatLeft called with chatId:', chatId);
+                // Remove the chat from the chats list
+                setChats(prevChats => prevChats.filter(chat => chat.chat_id !== chatId));
+                // Clear selected chat if it's the one being left
+                if (selectedChat?.chat_id === chatId) {
+                  console.log('Messenger ChatWindow: Clearing selected chat');
+                  setSelectedChat(null);
                 }
               }}
             />

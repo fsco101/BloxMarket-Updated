@@ -2271,13 +2271,16 @@ class ApiService {
     return this.request(`/messages/chats/${chatId}/messages?${queryString}`);
   }
 
-  async sendMessage(chatId: string, content: string, messageType: 'text' | 'image' | 'file' = 'text', replyTo?: string) {
+  async sendMessage(chatId: string, content: string, messageType: 'text' | 'image' | 'file' = 'text', replyTo?: string, fileUrl?: string, fileName?: string, fileSize?: number) {
     return this.request(`/messages/chats/${chatId}/messages`, {
       method: 'POST',
       body: JSON.stringify({
         content,
         message_type: messageType,
-        reply_to: replyTo
+        reply_to: replyTo,
+        file_url: fileUrl,
+        file_name: fileName,
+        file_size: fileSize
       })
     });
   }
@@ -2306,6 +2309,82 @@ class ApiService {
     return this.request(`/messages/${messageId}/reactions`, {
       method: 'DELETE',
       body: JSON.stringify({ emoji })
+    });
+  }
+
+  async uploadChatImage(chatId: string, imageFile: File) {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    return this.request(`/messages/chats/${chatId}/upload-image`, {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+   // Chat methods
+  async getUserChats(params?: { limit?: number; offset?: number }) {
+    const queryString = params ? new URLSearchParams(
+      Object.entries(params).reduce((acc, [key, value]) => {
+        if (value !== undefined) acc[key] = value.toString();
+        return acc;
+      }, {} as Record<string, string>)
+    ).toString() : '';
+    return this.request(`/chats?${queryString}`);
+  }
+
+  async getMessages(chatId: string, params?: { limit?: number; offset?: number }) {
+    const queryString = params ? new URLSearchParams(
+      Object.entries(params).reduce((acc, [key, value]) => {
+        if (value !== undefined) acc[key] = value.toString();
+        return acc;
+      }, {} as Record<string, string>)
+    ).toString() : '';
+    return this.request(`/messages/chats/${chatId}/messages?${queryString}`);
+  }
+
+  async sendMessage(chatId: string, content: string, messageType: 'text' | 'image' = 'text', replyTo?: string, fileUrl?: string, fileName?: string, fileSize?: number) {
+    const messageData: any = {
+      content,
+      message_type: messageType
+    };
+
+    if (replyTo) messageData.reply_to = replyTo;
+    if (fileUrl) messageData.file_url = fileUrl;
+    if (fileName) messageData.file_name = fileName;
+    if (fileSize) messageData.file_size = fileSize;
+
+    return this.request(`/messages/chats/${chatId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(messageData)
+    });
+  }
+
+  async uploadChatImage(chatId: string, imageFile: File) {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    return this.request(`/messages/chats/${chatId}/upload-image`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        // Remove Content-Type header to let browser set it with boundary for FormData
+        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+      },
+    });
+  }
+
+  async sendMessage(chatId: string, content: string, messageType: 'text' | 'image' = 'text', replyTo?: string, fileUrl?: string, fileName?: string, fileSize?: number) {
+    return this.request(`/messages/chats/${chatId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({
+        content,
+        message_type: messageType,
+        reply_to: replyTo,
+        file_url: fileUrl,
+        file_name: fileName,
+        file_size: fileSize
+      })
     });
   }
 }

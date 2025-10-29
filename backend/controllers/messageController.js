@@ -92,12 +92,56 @@ export const messageController = {
     }
   },
 
+  // Upload chat image
+  uploadChatImage: async (req, res) => {
+    try {
+      const { chatId } = req.params;
+      const userId = req.user.userId;
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image file provided' });
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(chatId)) {
+        return res.status(400).json({ error: 'Invalid chat ID' });
+      }
+
+      // Check if user is participant in the chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        return res.status(404).json({ error: 'Chat not found' });
+      }
+
+      const participant = chat.participants.find(p => p.user_id.equals(userId) && p.is_active);
+      if (!participant) {
+        return res.status(403).json({ error: 'Not authorized to upload images in this chat' });
+      }
+
+      // Check if group chat has restrictions
+      if (chat.chat_type === 'group' && chat.settings.only_admins_can_send && participant.role !== 'admin') {
+        return res.status(403).json({ error: 'Only admins can upload images in this group' });
+      }
+
+      // Return the uploaded file info
+      const fileUrl = `/uploads/chat/${req.file.filename}`;
+      res.json({
+        file_url: fileUrl,
+        file_name: req.file.originalname,
+        file_size: req.file.size
+      });
+
+    } catch (error) {
+      console.error('Upload chat image error:', error);
+      res.status(500).json({ error: 'Failed to upload image' });
+    }
+  },
+
   // Send a message
   sendMessage: async (req, res) => {
     try {
       const { chatId } = req.params;
       const userId = req.user.userId;
-      const { content, message_type = 'text', reply_to } = req.body;
+      const { content, message_type = 'text', reply_to, file_url, file_name, file_size } = req.body;
 
       if (!mongoose.Types.ObjectId.isValid(chatId)) {
         return res.status(400).json({ error: 'Invalid chat ID' });
@@ -134,7 +178,10 @@ export const messageController = {
         sender_id: userId,
         content: content.trim(),
         message_type,
-        reply_to: reply_to || null
+        reply_to: reply_to || null,
+        file_url,
+        file_name,
+        file_size
       });
 
       const savedMessage = await message.save();
@@ -152,11 +199,15 @@ export const messageController = {
 
       // Increment unread counts for other participants
       const otherParticipants = chat.participants.filter(p => !p.user_id.equals(userId) && p.is_active);
-      for (const participant of otherParticipants) {
-        await Chat.updateOne(
-          { _id: chatId, 'unread_counts.user_id': participant.user_id },
-          { $inc: { 'unread_counts.$.count': 1 } },
-          { upsert: true }
+      if (otherParticipants.length > 0) {
+        const unreadUpdates = {};
+        otherParticipants.forEach(participant => {
+          unreadUpdates[`unread_counts.${participant.user_id}`] = 1;
+        });
+        
+        await Chat.findOneAndUpdate(
+          { _id: chatId },
+          { $inc: unreadUpdates }
         );
       }
 
@@ -173,6 +224,9 @@ export const messageController = {
         },
         content: savedMessage.content,
         message_type: savedMessage.message_type,
+        file_url: savedMessage.file_url,
+        file_name: savedMessage.file_name,
+        file_size: savedMessage.file_size,
         is_read: savedMessage.is_read,
         created_at: savedMessage.createdAt
       };

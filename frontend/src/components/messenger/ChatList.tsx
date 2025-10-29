@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BootstrapAvatar } from '../ui/bootstrap-avatar';
 import { BootstrapBadge } from '../ui/bootstrap-badge';
+import { BootstrapButton } from '../ui/bootstrap-button';
 import { formatDistanceToNow } from 'date-fns';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import { apiService } from '../../services/api';
+import { socketService } from '../../services/socket';
 
 interface Chat {
   chat_id: string;
@@ -25,13 +30,34 @@ interface ChatListProps {
   chats: Chat[];
   selectedChat: Chat | null;
   onChatSelect: (chat: Chat) => void;
+  onChatLeft?: (chatId: string) => void; // Callback when a chat is left
 }
 
 export const ChatList: React.FC<ChatListProps> = ({
   chats,
   selectedChat,
-  onChatSelect
+  onChatSelect,
+  onChatLeft
 }) => {
+  const [contextMenuChat, setContextMenuChat] = useState<Chat | null>(null);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+
+  // Socket event listeners
+  useEffect(() => {
+    const handleUserLeftGroup = (data: unknown) => {
+      const leaveData = data as { chat_id: string; user_id: string; username: string; message: string };
+      // Show notification that someone left the group
+      alert(`${leaveData.username} left the group chat`);
+    };
+
+    // Listen for user left group events
+    socketService.on('user_left_group', handleUserLeftGroup);
+
+    return () => {
+      socketService.off('user_left_group', handleUserLeftGroup);
+    };
+  }, []);
   const formatLastMessageTime = (timestamp: string) => {
     try {
       return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
@@ -43,6 +69,38 @@ export const ChatList: React.FC<ChatListProps> = ({
   const truncateMessage = (message: string, maxLength: number = 50) => {
     if (message.length <= maxLength) return message;
     return message.substring(0, maxLength) + '...';
+  };
+
+  // Handle right-click context menu
+  const handleContextMenu = (e: React.MouseEvent, chat: Chat) => {
+    e.preventDefault();
+    setContextMenuChat(chat);
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+  };
+
+  // Handle leave group chat
+  const handleLeaveGroupChat = async () => {
+    if (!contextMenuChat) return;
+
+    try {
+      console.log('Leaving group chat:', contextMenuChat.chat_id);
+      await apiService.leaveGroupChat(contextMenuChat.chat_id);
+      console.log('Successfully left group chat, calling onChatLeft callback');
+      setShowLeaveModal(false);
+      setContextMenuChat(null);
+      alert('You have successfully left the group chat. All your messages and uploaded files have been deleted.');
+      // Call the callback to refresh the chat list
+      onChatLeft?.(contextMenuChat.chat_id);
+      console.log('onChatLeft callback called with chat_id:', contextMenuChat.chat_id);
+    } catch (error) {
+      console.error('Error leaving group chat:', error);
+      alert('Failed to leave group chat. Please try again.');
+    }
+  };
+
+  // Close context menu
+  const closeContextMenu = () => {
+    setContextMenuChat(null);
   };
 
   return (
@@ -58,6 +116,7 @@ export const ChatList: React.FC<ChatListProps> = ({
             <div
               key={chat.chat_id}
               onClick={() => onChatSelect(chat)}
+              onContextMenu={(e) => handleContextMenu(e, chat)}
               className={`p-3 rounded-lg cursor-pointer hover-bg-light ${
                 selectedChat?.chat_id === chat.chat_id
                   ? 'bg-primary bg-opacity-10 border-start border-primary border-4'
@@ -114,6 +173,101 @@ export const ChatList: React.FC<ChatListProps> = ({
           ))}
         </div>
       )}
+
+      {/* Context Menu */}
+      {contextMenuChat && (
+        <div
+          className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg py-1 min-w-48"
+          style={{
+            left: contextMenuPosition.x,
+            top: contextMenuPosition.y,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {contextMenuChat.chat_type === 'group' && (
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+              onClick={() => {
+                setShowLeaveModal(true);
+                closeContextMenu();
+              }}
+            >
+              <FontAwesomeIcon icon={faSignOutAlt} />
+              Leave Group Chat
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Leave Group Chat Confirmation Modal */}
+      <LeaveGroupChatModal
+        isOpen={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+        onConfirm={handleLeaveGroupChat}
+        chatName={contextMenuChat?.name || ''}
+      />
+    </div>
+  );
+};
+
+// Leave Group Chat Modal Component
+const LeaveGroupChatModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  chatName: string;
+}> = ({ isOpen, onClose, onConfirm, chatName }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Leave Group Chat</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="mb-6">
+            <p className="text-gray-700 mb-3">
+              Are you sure you want to leave <strong>{chatName}</strong>?
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-800 text-sm mb-2">
+                <strong>Warning:</strong> This action cannot be undone.
+              </p>
+              <ul className="text-red-700 text-sm list-disc list-inside space-y-1">
+                <li>All your messages in this group chat will be permanently deleted</li>
+                <li>All images and files you uploaded will be permanently deleted</li>
+                <li>You will no longer have access to this group chat</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 justify-end">
+            <BootstrapButton
+              variant="outline-secondary"
+              onClick={onClose}
+            >
+              Cancel
+            </BootstrapButton>
+            <BootstrapButton
+              variant="danger"
+              onClick={onConfirm}
+            >
+              Leave Group Chat
+            </BootstrapButton>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

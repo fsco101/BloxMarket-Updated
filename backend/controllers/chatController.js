@@ -1,6 +1,9 @@
 import { Chat } from '../models/Chat.js';
 import { User } from '../models/User.js';
+import { Message } from '../models/Message.js';
 import mongoose from 'mongoose';
+import fs from 'fs';
+import path from 'path';
 
 export const chatController = {
   // Get user's chats
@@ -13,8 +16,12 @@ export const chatController = {
 
       // Find all chats where user is an active participant
       const chats = await Chat.find({
-        'participants.user_id': userId,
-        'participants.is_active': true,
+        participants: {
+          $elemMatch: {
+            user_id: userId,
+            is_active: true
+          }
+        },
         is_active: true
       })
         .populate('participants.user_id', 'username avatar_url credibility_score last_active')
@@ -426,19 +433,64 @@ export const chatController = {
         return res.status(400).json({ error: 'Not a participant in this chat' });
       }
 
-      // Cannot leave if you're the last admin
-      if (participant.role === 'admin') {
-        const adminCount = chat.participants.filter(p => p.role === 'admin' && p.is_active).length;
-        if (adminCount <= 1) {
-          return res.status(400).json({ error: 'Cannot leave group as the last admin. Promote another member first.' });
+      // Find all messages from this user in this chat
+      const userMessages = await Message.find({
+        chat_id: chatId,
+        sender_id: userId
+      });
+
+      // Delete uploaded files for image/file messages
+      for (const message of userMessages) {
+        if ((message.message_type === 'image' || message.message_type === 'file') && message.file_url) {
+          try {
+            // Extract file path from URL (assuming files are stored in uploads/ directory)
+            const filePath = message.file_url.replace(/^\/uploads\//, '');
+            const fullPath = path.join(process.cwd(), 'uploads', filePath);
+
+            // Check if file exists and delete it
+            if (fs.existsSync(fullPath)) {
+              fs.unlinkSync(fullPath);
+            }
+          } catch (fileError) {
+            console.error('Error deleting file:', fileError);
+            // Continue with message deletion even if file deletion fails
+          }
         }
       }
 
-      // Mark as inactive
+      // Delete all messages from this user in this chat
+      await Message.deleteMany({
+        chat_id: chatId,
+        sender_id: userId
+      });
+
+      // Get user info for notification
+      const User = mongoose.model('User');
+      const leavingUser = await User.findById(userId);
+
+      // Mark participant as inactive
       participant.is_active = false;
       await chat.save();
 
-      res.json({ message: 'Successfully left the group chat' });
+      // Send notification to other group members
+      if (leavingUser) {
+        const io = req.app.get('io');
+        const activeParticipants = chat.participants.filter(p => p.is_active && !p.user_id.equals(userId));
+
+        // Send real-time notification to other members
+        activeParticipants.forEach(participant => {
+          io.to(`user_${participant.user_id}`).emit('user_left_group', {
+            chat_id: chatId,
+            user_id: userId,
+            username: leavingUser.username,
+            message: `${leavingUser.username} left the group chat`
+          });
+        });
+      }
+
+      res.json({
+        message: 'Successfully left the group chat. All your messages and uploaded files have been deleted.'
+      });
 
     } catch (error) {
       console.error('Leave group chat error:', error);

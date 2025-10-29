@@ -90,6 +90,11 @@ class SocketService {
     this.socket.on('user_stopped_typing', (data) => {
       this.emit('user_stopped_typing', data);
     });
+
+    // Group chat events
+    this.socket.on('user_left_group', (data) => {
+      this.emit('user_left_group', data);
+    });
   }
 
   private setupReconnection() {

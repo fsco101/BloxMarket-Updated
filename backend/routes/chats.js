@@ -2,10 +2,16 @@ import express from 'express';
 import { chatController } from '../controllers/chatController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
+// Import message routes
+import messageRoutes from './messages.js';
+
 const router = express.Router();
 
 // All chat routes require authentication
 router.use(authenticateToken);
+
+// Message routes as sub-router
+router.use('/:chatId/messages', messageRoutes);
 
 // Chat routes
 router.get('/', chatController.getUserChats);
