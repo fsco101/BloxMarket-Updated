@@ -1,6 +1,6 @@
 import React from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Badge } from '../ui/badge';
+import { BootstrapAvatar } from '../ui/bootstrap-avatar';
+import { BootstrapBadge } from '../ui/bootstrap-badge';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Chat {
@@ -48,66 +48,64 @@ export const ChatList: React.FC<ChatListProps> = ({
   return (
     <div className="flex-1 overflow-y-auto">
       {chats.length === 0 ? (
-        <div className="p-4 text-center text-gray-500">
-          <p>No conversations yet</p>
-          <p className="text-sm mt-1">Start a new chat to begin messaging</p>
+        <div className="p-4 text-center text-muted">
+          <p className="mb-0">No conversations yet</p>
+          <p className="small mb-0 mt-1">Start a new chat to begin messaging</p>
         </div>
       ) : (
-        <div className="space-y-1 p-2">
+        <div className="gap-1 p-2">
           {chats.map((chat) => (
             <div
               key={chat.chat_id}
               onClick={() => onChatSelect(chat)}
-              className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 ${
+              className={`p-3 rounded-lg cursor-pointer hover-bg-light ${
                 selectedChat?.chat_id === chat.chat_id
-                  ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500'
+                  ? 'bg-primary bg-opacity-10 border-start border-primary border-4'
                   : ''
               }`}
+              style={{ cursor: 'pointer' }}
             >
-              <div className="flex items-center space-x-3">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={chat.avatar_url} alt={chat.name} />
-                  <AvatarFallback>
-                    {chat.name.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+              <div className="d-flex align-items-center gap-3">
+                <BootstrapAvatar src={chat.avatar_url} alt={chat.name} size="lg">
+                  {chat.name.substring(0, 2).toUpperCase()}
+                </BootstrapAvatar>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                  <div className="d-flex align-items-center justify-content-between">
+                    <h3 className="small fw-medium text-dark truncate mb-0">
                       {chat.name}
                     </h3>
                     {chat.last_message && (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                      <span className="small text-muted">
                         {formatLastMessageTime(chat.last_message.sent_at)}
                       </span>
                     )}
                   </div>
 
                   {chat.last_message ? (
-                    <p className="text-sm text-gray-600 dark:text-gray-300 truncate mt-1">
-                      <span className="font-medium">{chat.last_message.sender_username}: </span>
+                    <p className="small text-muted truncate mt-1 mb-0">
+                      <span className="fw-medium">{chat.last_message.sender_username}: </span>
                       {truncateMessage(chat.last_message.content)}
                     </p>
                   ) : (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="small text-muted mt-1 mb-0">
                       No messages yet
                     </p>
                   )}
 
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center space-x-2">
+                  <div className="d-flex align-items-center justify-content-between mt-2">
+                    <div className="d-flex align-items-center gap-2">
                       {chat.chat_type === 'group' && (
-                        <Badge variant="secondary" className="text-xs">
+                        <BootstrapBadge variant="secondary" className="small">
                           {chat.participants_count} members
-                        </Badge>
+                        </BootstrapBadge>
                       )}
                     </div>
 
                     {chat.unread_count > 0 && (
-                      <Badge variant="destructive" className="text-xs h-5 min-w-5 flex items-center justify-center">
+                      <BootstrapBadge variant="danger" className="small d-flex align-items-center justify-content-center min-w-5 h-5">
                         {chat.unread_count > 99 ? '99+' : chat.unread_count}
-                      </Badge>
+                      </BootstrapBadge>
                     )}
                   </div>
                 </div>

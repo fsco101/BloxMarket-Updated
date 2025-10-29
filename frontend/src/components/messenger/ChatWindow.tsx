@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { ScrollArea } from '../ui/scroll-area';
-import { Badge } from '../ui/badge';
-import { Send, MoreVertical, Reply } from 'lucide-react';
+import { BootstrapAvatar } from '../ui/bootstrap-avatar';
+import { BootstrapButton } from '../ui/bootstrap-button';
+import { BootstrapInput } from '../ui/bootstrap-input';
+import { BootstrapScrollArea } from '../ui/bootstrap-scroll-area';
+import { BootstrapBadge } from '../ui/bootstrap-badge';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPaperPlane, faEllipsisV, faReply } from '@fortawesome/free-solid-svg-icons';
 import { socketService } from '../../services/socket';
+import { useApp } from '../../App';
 
 interface Chat {
   chat_id: string;
@@ -75,6 +77,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { setCurrentPage } = useApp();
 
   // Handle typing indicators
   const handleInputChange = (value: string) => {
@@ -119,6 +122,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
+  // Handle user profile navigation
+  const handleUserProfileClick = (userId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setCurrentPage(`profile-${userId}`);
+  };
+
   // Format message time
   const formatMessageTime = (timestamp: string) => {
     try {
@@ -154,47 +163,46 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const messageGroups = groupMessagesByDate(messages);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="d-flex flex-column h-100">
       {/* Chat Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={chat.avatar_url} alt={chat.name} />
-              <AvatarFallback>
-                {chat.name.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+      <div className="p-4 border-bottom border-secondary bg-white">
+        <div className="d-flex align-items-center justify-content-between">
+          <div className="d-flex align-items-center gap-3">
+            <BootstrapAvatar src={chat.avatar_url} alt={chat.name} size="lg">
+              {chat.name.substring(0, 2).toUpperCase()}
+            </BootstrapAvatar>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <h2 className="h5 mb-0 fw-semibold text-dark">
                 {chat.name}
               </h2>
               {chat.chat_type === 'group' && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="mb-0 small text-muted">
                   {chat.participants_count} members
                 </p>
               )}
             </div>
           </div>
-          <Button variant="ghost" size="sm">
-            <MoreVertical className="h-4 w-4" />
-          </Button>
+          <BootstrapButton variant="outline-secondary" size="sm">
+            <FontAwesomeIcon icon={faEllipsisV} />
+          </BootstrapButton>
         </div>
       </div>
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4">
+      <BootstrapScrollArea className="flex-1 p-4">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="d-flex align-items-center justify-content-center h-100">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="gap-4">
             {Object.entries(messageGroups).map(([date, dateMessages]) => (
               <div key={date}>
                 {/* Date separator */}
-                <div className="flex items-center justify-center my-4">
-                  <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-3 py-1 rounded-full">
+                <div className="d-flex align-items-center justify-content-center my-4">
+                  <div className="bg-secondary text-muted small px-3 py-1 rounded-pill">
                     {new Date(date).toLocaleDateString([], {
                       weekday: 'long',
                       month: 'short',
@@ -204,55 +212,62 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 </div>
 
                 {/* Messages for this date */}
-                <div className="space-y-2">
+                <div className="gap-2">
                   {dateMessages.map((message) => (
                     <div key={message.message_id} className="group">
                       {/* Reply indicator */}
                       {message.reply_to && (
-                        <div className="ml-12 mb-1 p-2 bg-gray-100 dark:bg-gray-800 rounded border-l-2 border-blue-500">
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
-                            Replying to <span className="font-medium">{message.reply_to.sender_username}</span>
+                        <div className="ms-12 mb-1 p-2 bg-light rounded border-start border-primary">
+                          <p className="small text-muted mb-0">
+                            Replying to <span className="fw-medium">{message.reply_to.sender_username}</span>
                           </p>
-                          <p className="text-sm text-gray-800 dark:text-gray-200 truncate">
+                          <p className="small text-dark mb-0 truncate">
                             {message.reply_to.content}
                           </p>
                         </div>
                       )}
 
-                      <div className="flex items-start space-x-3">
-                        <Avatar className="h-8 w-8 mt-1">
-                          <AvatarImage src={message.sender.avatar_url} alt={message.sender.username} />
-                          <AvatarFallback>
+                      <div className="d-flex align-items-start gap-3">
+                        <div
+                          onClick={(e) => handleUserProfileClick(message.sender.user_id, e)}
+                          className="cursor-pointer"
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <BootstrapAvatar src={message.sender.avatar_url} alt={message.sender.username} size="sm">
                             {message.sender.username.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
+                          </BootstrapAvatar>
+                        </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          <div className="d-flex align-items-center gap-2 mb-1">
+                            <span
+                              className="small fw-medium text-dark cursor-pointer"
+                              style={{ cursor: 'pointer' }}
+                              onClick={(e) => handleUserProfileClick(message.sender.user_id, e)}
+                            >
                               {message.sender.username}
                             </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                            <span className="small text-muted">
                               {formatMessageTime(message.created_at)}
                             </span>
                             {message.edited && (
-                              <span className="text-xs text-gray-400 dark:text-gray-500">
+                              <span className="small text-muted">
                                 (edited)
                               </span>
                             )}
                           </div>
 
-                          <div className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                          <div className="small text-dark bg-light p-3 rounded">
                             {message.content}
                           </div>
 
                           {/* Reactions */}
                           {message.reactions.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
+                            <div className="d-flex flex-wrap gap-1 mt-2">
                               {message.reactions.map((reaction, index) => (
-                                <Badge key={index} variant="secondary" className="text-xs">
+                                <BootstrapBadge key={index} variant="secondary" className="small">
                                   {reaction.emoji}
-                                </Badge>
+                                </BootstrapBadge>
                               ))}
                             </div>
                           )}
@@ -266,51 +281,52 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             <div ref={messagesEndRef} />
           </div>
         )}
-      </ScrollArea>
+      </BootstrapScrollArea>
 
       {/* Reply indicator */}
       {replyTo && (
-        <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200 dark:border-blue-800">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Reply className="h-4 w-4 text-blue-600" />
-              <span className="text-sm text-blue-800 dark:text-blue-200">
-                Replying to <span className="font-medium">{replyTo.sender.username}</span>
+        <div className="px-4 py-2 bg-primary bg-opacity-10 border-top border-primary">
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center gap-2">
+              <FontAwesomeIcon icon={faReply} className="text-primary" />
+              <span className="small text-dark">
+                Replying to <span className="fw-medium">{replyTo.sender.username}</span>
               </span>
             </div>
-            <Button
-              variant="ghost"
+            <BootstrapButton
+              variant="outline-primary"
               size="sm"
               onClick={() => setReplyTo(null)}
-              className="text-blue-600 hover:text-blue-800"
+              className="border-0"
             >
               ✕
-            </Button>
+            </BootstrapButton>
           </div>
-          <p className="text-sm text-blue-700 dark:text-blue-300 mt-1 truncate">
+          <p className="small text-dark mt-1 truncate">
             {replyTo.content}
           </p>
         </div>
       )}
 
       {/* Message Input */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-        <div className="flex items-center space-x-2">
-          <Input
+      <div className="p-4 border-top border-secondary bg-white">
+        <div className="d-flex align-items-center gap-2">
+          <BootstrapInput
             ref={inputRef}
             value={newMessage}
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
             className="flex-1"
+            noWrapper
           />
-          <Button
+          <BootstrapButton
             onClick={handleSendMessage}
             disabled={!newMessage.trim()}
             size="sm"
           >
-            <Send className="h-4 w-4" />
-          </Button>
+            <FontAwesomeIcon icon={faPaperPlane} />
+          </BootstrapButton>
         </div>
       </div>
     </div>

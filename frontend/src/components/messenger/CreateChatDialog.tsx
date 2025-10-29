@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Checkbox } from '../ui/checkbox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { BootstrapDialog, BootstrapDialogContent, BootstrapDialogHeader, BootstrapDialogTitle } from '../ui/bootstrap-dialog';
+import { BootstrapButton } from '../ui/bootstrap-button';
+import { BootstrapInput } from '../ui/bootstrap-input';
+import { BootstrapLabel } from '../ui/bootstrap-label';
+import { BootstrapAvatar } from '../ui/bootstrap-avatar';
+import { BootstrapCheckbox } from '../ui/bootstrap-checkbox';
+import { BootstrapTabs, BootstrapTabsList, BootstrapTabsTrigger, BootstrapTabsContent } from '../ui/bootstrap-tabs';
 import { apiService } from '../../services/api';
-import { Search, Users, User } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSearch, faUsers, faUser } from '@fortawesome/free-solid-svg-icons';
 
 interface User {
   user_id: string;
@@ -101,42 +102,43 @@ export const CreateChatDialog: React.FC<CreateChatDialogProps> = ({
   };
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Create New Chat</DialogTitle>
-        </DialogHeader>
-
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'direct' | 'group')}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="direct" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
+    <BootstrapDialog open={true} onOpenChange={onClose}>
+      <BootstrapDialogHeader>
+        <BootstrapDialogTitle>Create New Chat</BootstrapDialogTitle>
+      </BootstrapDialogHeader>
+      <BootstrapDialogContent>
+        <BootstrapTabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'direct' | 'group')}>
+          <BootstrapTabsList className="mb-4">
+            <BootstrapTabsTrigger value="direct" className="d-flex align-items-center gap-2">
+              <FontAwesomeIcon icon={faUser} />
               Direct
-            </TabsTrigger>
-            <TabsTrigger value="group" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
+            </BootstrapTabsTrigger>
+            <BootstrapTabsTrigger value="group" className="d-flex align-items-center gap-2">
+              <FontAwesomeIcon icon={faUsers} />
               Group
-            </TabsTrigger>
-          </TabsList>
+            </BootstrapTabsTrigger>
+          </BootstrapTabsList>
 
-          <TabsContent value="direct" className="space-y-4">
+          <BootstrapTabsContent value="direct" className="space-y-4">
             <div>
-              <Label htmlFor="search">Search Users</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
+              <BootstrapLabel htmlFor="search">Search Users</BootstrapLabel>
+              <div className="position-relative">
+                <FontAwesomeIcon icon={faSearch} className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
+                <BootstrapInput
                   id="search"
                   placeholder="Search by username..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="ps-5"
                 />
               </div>
             </div>
 
             {searching && (
               <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                <div className="spinner-border spinner-border-sm text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
               </div>
             )}
 
@@ -145,20 +147,16 @@ export const CreateChatDialog: React.FC<CreateChatDialogProps> = ({
                 {users.map((user) => (
                   <div
                     key={user.user_id}
-                    className={`flex items-center space-x-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                      selectedUsers.some(u => u.user_id === user.user_id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                    }`}
+                    className={`d-flex align-items-center space-x-3 p-2 rounded-lg cursor-pointer hover-bg-light ${selectedUsers.some(u => u.user_id === user.user_id) ? 'bg-primary bg-opacity-10 border border-primary' : ''}`}
                     onClick={() => handleUserSelect(user)}
+                    style={{ cursor: 'pointer' }}
                   >
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar_url} alt={user.username} />
-                      <AvatarFallback>
-                        {user.username.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{user.display_name || user.username}</p>
-                      <p className="text-xs text-gray-500">@{user.username}</p>
+                    <BootstrapAvatar src={user.avatar_url} alt={user.username} size="sm">
+                      {user.username.substring(0, 2).toUpperCase()}
+                    </BootstrapAvatar>
+                    <div className="flex-1 ms-3">
+                      <p className="mb-0 fw-medium text-dark">{user.display_name || user.username}</p>
+                      <p className="mb-0 small text-muted">@{user.username}</p>
                     </div>
                   </div>
                 ))}
@@ -166,47 +164,46 @@ export const CreateChatDialog: React.FC<CreateChatDialogProps> = ({
             )}
 
             {!searching && searchQuery.length >= 2 && users.length === 0 && (
-              <div className="text-center py-4 text-gray-500">
+              <div className="text-center py-4 text-muted">
                 No users found
               </div>
             )}
-          </TabsContent>
+          </BootstrapTabsContent>
 
-          <TabsContent value="group" className="space-y-4">
-            <div>
-              <Label htmlFor="groupName">Group Name</Label>
-              <Input
-                id="groupName"
-                placeholder="Enter group name..."
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-              />
-            </div>
+          <BootstrapTabsContent value="group" className="space-y-4">
+            <BootstrapInput
+              label="Group Name"
+              id="groupName"
+              placeholder="Enter group name..."
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+            />
 
             <div>
-              <Label htmlFor="search">Add Members</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
+              <BootstrapLabel htmlFor="search">Add Members</BootstrapLabel>
+              <div className="position-relative">
+                <FontAwesomeIcon icon={faSearch} className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
+                <BootstrapInput
                   id="search"
                   placeholder="Search by username..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="ps-5"
                 />
               </div>
             </div>
 
             {selectedUsers.length > 0 && (
               <div>
-                <Label>Selected Members ({selectedUsers.length})</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <BootstrapLabel>Selected Members ({selectedUsers.length})</BootstrapLabel>
+                <div className="d-flex flex-wrap gap-2 mt-2">
                   {selectedUsers.map((user) => (
-                    <div key={user.user_id} className="flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded-full text-sm">
+                    <div key={user.user_id} className="d-flex align-items-center gap-2 bg-primary bg-opacity-10 px-2 py-1 rounded-pill small">
                       <span>{user.username}</span>
                       <button
                         onClick={() => handleUserSelect(user)}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="btn btn-sm btn-outline-primary border-0 p-0 ms-1"
+                        style={{ fontSize: '12px', lineHeight: 1 }}
                       >
                         ×
                       </button>
@@ -218,7 +215,9 @@ export const CreateChatDialog: React.FC<CreateChatDialogProps> = ({
 
             {searching && (
               <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                <div className="spinner-border spinner-border-sm text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
               </div>
             )}
 
@@ -229,19 +228,17 @@ export const CreateChatDialog: React.FC<CreateChatDialogProps> = ({
                   return (
                     <div
                       key={user.user_id}
-                      className="flex items-center space-x-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      className="d-flex align-items-center space-x-3 p-2 rounded-lg cursor-pointer hover-bg-light"
                       onClick={() => handleUserSelect(user)}
+                      style={{ cursor: 'pointer' }}
                     >
-                      <Checkbox checked={isSelected} />
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatar_url} alt={user.username} />
-                        <AvatarFallback>
-                          {user.username.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{user.display_name || user.username}</p>
-                        <p className="text-xs text-gray-500">@{user.username}</p>
+                      <BootstrapCheckbox checked={isSelected} />
+                      <BootstrapAvatar src={user.avatar_url} alt={user.username} size="sm">
+                        {user.username.substring(0, 2).toUpperCase()}
+                      </BootstrapAvatar>
+                      <div className="flex-1 ms-3">
+                        <p className="mb-0 fw-medium text-dark">{user.display_name || user.username}</p>
+                        <p className="mb-0 small text-muted">@{user.username}</p>
                       </div>
                     </div>
                   );
@@ -250,29 +247,31 @@ export const CreateChatDialog: React.FC<CreateChatDialogProps> = ({
             )}
 
             {!searching && searchQuery.length >= 2 && users.length === 0 && (
-              <div className="text-center py-4 text-gray-500">
+              <div className="text-center py-4 text-muted">
                 No users found
               </div>
             )}
-          </TabsContent>
-        </Tabs>
+          </BootstrapTabsContent>
+        </BootstrapTabs>
 
-        <div className="flex justify-end space-x-2 pt-4">
-          <Button variant="outline" onClick={onClose}>
+        <div className="d-flex justify-content-end gap-2 pt-4">
+          <BootstrapButton variant="outline-secondary" onClick={onClose}>
             Cancel
-          </Button>
-          <Button
+          </BootstrapButton>
+          <BootstrapButton
+            variant="primary"
             onClick={handleCreateChat}
             disabled={!canCreateChat() || loading}
           >
             {loading ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            ) : (
-              'Create Chat'
-            )}
-          </Button>
+              <div className="spinner-border spinner-border-sm me-2" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            ) : null}
+            Create Chat
+          </BootstrapButton>
         </div>
-      </DialogContent>
-    </Dialog>
+      </BootstrapDialogContent>
+    </BootstrapDialog>
   );
 };
