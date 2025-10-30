@@ -5,7 +5,7 @@ import { BootstrapInput } from '../ui/bootstrap-input';
 import { BootstrapScrollArea } from '../ui/bootstrap-scroll-area';
 import { BootstrapBadge } from '../ui/bootstrap-badge';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane, faEllipsisV, faReply, faImage, faSignOutAlt, faUserPlus, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faEllipsisV, faReply, faImage, faSignOutAlt, faUserPlus, faSearch, faUsers, faCrown } from '@fortawesome/free-solid-svg-icons';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +33,7 @@ interface Chat {
   message_count: number;
   created_at: string;
   updated_at: string;
+  created_by?: string;
 }
 
 interface Message {
@@ -173,6 +174,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Add user modal state
   const [showAddUserModal, setShowAddUserModal] = useState(false);
+
+  // View members modal state
+  const [showMembersModal, setShowMembersModal] = useState(false);
 
   // Handle typing indicators
   const handleInputChange = (value: string) => {
@@ -490,6 +494,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               {chat.chat_type === 'group' && (
                 <>
                   <DropdownMenuItem
+                    onClick={() => setShowMembersModal(true)}
+                  >
+                    <FontAwesomeIcon icon={faUsers} className="me-2" />
+                    View Members
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => setShowAddUserModal(true)}
                   >
                     <FontAwesomeIcon icon={faUserPlus} className="me-2" />
@@ -592,6 +602,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                                 >
                                   {message.sender.username}
                                 </span>
+                                {chat.chat_type === 'group' && chat.created_by === message.sender.user_id && (
+                                  <BootstrapBadge variant="warning" className="small d-flex align-items-center gap-1">
+                                    <FontAwesomeIcon icon={faCrown} className="small" />
+                                  </BootstrapBadge>
+                                )}
                                 <span className="small text-muted">
                                   {formatMessageTime(message.created_at)}
                                 </span>
@@ -799,6 +814,18 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         onClose={() => setShowAddUserModal(false)}
         chatId={chat.chat_id}
         chatName={chat.name}
+      />
+
+      {/* View Members Modal */}
+      <ViewMembersModal
+        isOpen={showMembersModal}
+        onClose={() => setShowMembersModal(false)}
+        chatId={chat.chat_id}
+        chat={chat}
+        onRemoveParticipant={(userId: string) => {
+          // Optionally handle post-remove UI updates at parent level
+          console.log('Participant removed:', userId);
+        }}
       />
     </div>
   );
@@ -1288,6 +1315,148 @@ const AddUserModal: React.FC<{
               )}
             </BootstrapButton>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// View Members Modal Component
+const ViewMembersModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  chatId: string;
+  chat: Chat;
+  onRemoveParticipant?: (userId: string) => void;
+}> = ({ isOpen, onClose, chatId, chat, onRemoveParticipant }) => {
+  const [members, setMembers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const { user: currentUser } = useAuth();
+  const { setCurrentPage } = useApp();
+
+  const isCreator = (userId: string) => {
+    const result = chat.created_by === userId;
+    console.log('isCreator check:', { userId, created_by: chat.created_by, result });
+    return result;
+  };
+
+  const handleViewProfile = (userId: string) => {
+    setCurrentPage(`profile-${userId}`);
+  };
+
+  const loadMembers = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await apiService.getChat(chatId);
+      // Expecting data.participants or data.chat.participants
+      const participants: User[] = data.participants || data.chat?.participants || [];
+      console.log('Loaded members:', participants);
+      console.log('Chat created_by:', chat.created_by);
+      setMembers(participants);
+    } catch (err) {
+      console.error('Failed to load chat members:', err);
+      setMembers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [chatId, chat.created_by]);
+
+  useEffect(() => {
+    if (isOpen) loadMembers();
+  }, [isOpen, loadMembers]);
+
+  const handleRemove = async (memberId: string) => {
+    if (!confirm('Remove this member from the group?')) return;
+    try {
+      setRemovingId(memberId);
+      await apiService.removeParticipant(chatId, memberId);
+      setMembers(prev => prev.filter(m => m.user_id !== memberId));
+      if (onRemoveParticipant) onRemoveParticipant(memberId);
+    } catch (err) {
+      console.error('Error removing participant:', err);
+      alert('Failed to remove member.');
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  const getAvatarUrl = (avatarUrl: string | undefined) => {
+    if (!avatarUrl) return undefined;
+    if (avatarUrl.startsWith('/uploads/')) {
+      return `http://localhost:5000${avatarUrl}`;
+    }
+    return avatarUrl;
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold">Members</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          </div>
+
+          {/* Permission Info */}
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800 mb-1">
+              <strong>Member Management:</strong>
+            </p>
+            <ul className="text-sm text-blue-700 list-disc list-inside space-y-1">
+              <li>Only the group creator can remove members</li>
+              <li>The creator is marked with a crown <BootstrapBadge variant="warning" className="small mx-1 d-inline-flex align-items-center gap-1"><FontAwesomeIcon icon={faCrown} className="small" />Creator</BootstrapBadge> badge</li>
+              <li>Members cannot remove themselves or the creator</li>
+            </ul>
+          </div>
+
+          {loading ? (
+            <div className="p-6 text-center">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {members.map(m => {
+                const isCreatorResult = isCreator(m.user_id);
+                console.log('Rendering member:', m.username, m.user_id, 'isCreator:', isCreatorResult);
+                return (
+                <div key={m.user_id} className="d-flex align-items-center justify-content-between p-2 border rounded">
+                  <div className="d-flex align-items-center gap-2">
+                    <BootstrapAvatar src={getAvatarUrl(m.avatar_url)} alt={m.username} size="sm">{m.username.substring(0,2).toUpperCase()}</BootstrapAvatar>
+                    <div>
+                      <div className="fw-medium d-flex align-items-center gap-2">
+                        {m.display_name || m.username}
+                        {isCreatorResult && (
+                          <BootstrapBadge variant="warning" className="small d-flex align-items-center gap-1">
+                            <FontAwesomeIcon icon={faCrown} className="small" />
+                            Creator
+                          </BootstrapBadge>
+                        )}
+                      </div>
+                      <div className="small text-muted">@{m.username}</div>
+                    </div>
+                  </div>
+                  <div className="d-flex gap-2">
+                    <BootstrapButton variant="outline-secondary" size="sm" onClick={() => handleViewProfile(m.user_id)}>
+                      View
+                    </BootstrapButton>
+                    {currentUser && currentUser.id !== m.user_id && !isCreatorResult && (
+                      <BootstrapButton variant="outline-danger" size="sm" disabled={removingId === m.user_id} onClick={() => handleRemove(m.user_id)}>
+                        {removingId === m.user_id ? 'Removing...' : 'Remove'}
+                      </BootstrapButton>
+                    )}
+                  </div>
+                </div>
+              )})}
+              {members.length === 0 && (
+                <div className="text-center text-muted p-4">No members found</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
