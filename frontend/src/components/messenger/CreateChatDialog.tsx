@@ -34,6 +34,22 @@ export const CreateChatDialog: React.FC<CreateChatDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
 
+  // Helper function to construct correct avatar URL
+  const getAvatarUrl = (avatarUrl: string | undefined) => {
+    if (!avatarUrl) return undefined;
+
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+      return avatarUrl;
+    }
+
+    if (avatarUrl.startsWith('/uploads/') || avatarUrl.startsWith('/api/uploads/')) {
+      return `http://localhost:5000${avatarUrl}`;
+    }
+
+    // Assume it's just a filename from backend/uploads/avatars/
+    return `http://localhost:5000/uploads/avatars/${avatarUrl}`;
+  };
+
   const searchUsers = useCallback(async () => {
     try {
       setSearching(true);
@@ -151,7 +167,7 @@ export const CreateChatDialog: React.FC<CreateChatDialogProps> = ({
                     onClick={() => handleUserSelect(user)}
                     style={{ cursor: 'pointer' }}
                   >
-                    <BootstrapAvatar src={user.avatar_url} alt={user.username} size="sm">
+                    <BootstrapAvatar src={getAvatarUrl(user.avatar_url)} alt={user.username} size="sm">
                       {user.username.substring(0, 2).toUpperCase()}
                     </BootstrapAvatar>
                     <div className="flex-1 ms-3">
@@ -233,7 +249,7 @@ export const CreateChatDialog: React.FC<CreateChatDialogProps> = ({
                       style={{ cursor: 'pointer' }}
                     >
                       <BootstrapCheckbox checked={isSelected} />
-                      <BootstrapAvatar src={user.avatar_url} alt={user.username} size="sm">
+                      <BootstrapAvatar src={getAvatarUrl(user.avatar_url)} alt={user.username} size="sm">
                         {user.username.substring(0, 2).toUpperCase()}
                       </BootstrapAvatar>
                       <div className="flex-1 ms-3">

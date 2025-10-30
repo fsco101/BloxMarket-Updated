@@ -51,17 +51,25 @@ export const chatController = {
           chatAvatar = chat.avatar_url;
         }
 
+        // Check if user has cleared this conversation
+        const clearedAt = currentUserParticipant?.cleared_at;
+        let lastMessage = null;
+
+        if (chat.last_message && (!clearedAt || chat.last_message.sent_at > clearedAt)) {
+          lastMessage = {
+            content: chat.last_message.content,
+            sender_username: chat.last_message.sender_id?.username,
+            sent_at: chat.last_message.sent_at
+          };
+        }
+
         return {
           chat_id: chat._id,
           chat_type: chat.chat_type,
           name: chatName,
           avatar_url: chatAvatar,
           description: chat.description,
-          last_message: chat.last_message ? {
-            content: chat.last_message.content,
-            sender_username: chat.last_message.sender_id?.username,
-            sent_at: chat.last_message.sent_at
-          } : null,
+          last_message: lastMessage,
           unread_count: unreadCount,
           participants_count: chat.participants.filter(p => p.is_active).length,
           message_count: chat.message_count,
@@ -554,6 +562,46 @@ export const chatController = {
     } catch (error) {
       console.error('Delete chat error:', error);
       res.status(500).json({ error: 'Failed to delete chat' });
+    }
+  },
+
+  // Clear conversation for current user
+  clearConversation: async (req, res) => {
+    try {
+      const { chatId } = req.params;
+      const userId = req.user.userId;
+
+      if (!mongoose.Types.ObjectId.isValid(chatId)) {
+        return res.status(400).json({ error: 'Invalid chat ID' });
+      }
+
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        return res.status(404).json({ error: 'Chat not found' });
+      }
+
+      // Check if user is an active participant
+      const participant = chat.participants.find(p => p.user_id.equals(userId) && p.is_active);
+      if (!participant) {
+        return res.status(403).json({ error: 'Not a participant in this chat' });
+      }
+
+      // Set cleared_at timestamp for this user
+      participant.cleared_at = new Date();
+      await chat.save();
+
+      // Reset unread count for this user
+      const unreadCountIndex = chat.unread_counts.findIndex(u => u.user_id.equals(userId));
+      if (unreadCountIndex !== -1) {
+        chat.unread_counts[unreadCountIndex].count = 0;
+        await chat.save();
+      }
+
+      res.json({ message: 'Conversation cleared successfully' });
+
+    } catch (error) {
+      console.error('Clear conversation error:', error);
+      res.status(500).json({ error: 'Failed to clear conversation' });
     }
   }
 };

@@ -143,11 +143,17 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   // Helper function to construct correct avatar URL
   const getAvatarUrl = (avatarUrl: string | undefined) => {
     if (!avatarUrl) return undefined;
-    // Ensure the URL is absolute by prepending API base if it's a relative path
-    if (avatarUrl.startsWith('/uploads/')) {
+
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+      return avatarUrl;
+    }
+
+    if (avatarUrl.startsWith('/uploads/') || avatarUrl.startsWith('/api/uploads/')) {
       return `http://localhost:5000${avatarUrl}`;
     }
-    return avatarUrl;
+
+    // Assume it's just a filename from backend/uploads/avatars/
+    return `http://localhost:5000/uploads/avatars/${avatarUrl}`;
   };
 
   // Helper to build absolute URL for uploaded files (images)
@@ -843,11 +849,17 @@ const ProfileModal: React.FC<{
 
   const getAvatarUrl = (avatarUrl?: string) => {
     if (!avatarUrl) return undefined;
-    // Ensure the URL is absolute by prepending API base if it's a relative path
-    if (avatarUrl.startsWith('/uploads/')) {
+
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+      return avatarUrl;
+    }
+
+    if (avatarUrl.startsWith('/uploads/') || avatarUrl.startsWith('/api/uploads/')) {
       return `http://localhost:5000${avatarUrl}`;
     }
-    return avatarUrl;
+
+    // Assume it's just a filename from backend/uploads/avatars/
+    return `http://localhost:5000/uploads/avatars/${avatarUrl}`;
   };
 
   return (
@@ -1199,10 +1211,17 @@ const AddUserModal: React.FC<{
 
   const getAvatarUrl = (avatarUrl: string | undefined) => {
     if (!avatarUrl) return undefined;
-    if (avatarUrl.startsWith('/uploads/')) {
+
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+      return avatarUrl;
+    }
+
+    if (avatarUrl.startsWith('/uploads/') || avatarUrl.startsWith('/api/uploads/')) {
       return `http://localhost:5000${avatarUrl}`;
     }
-    return avatarUrl;
+
+    // Assume it's just a filename from backend/uploads/avatars/
+    return `http://localhost:5000/uploads/avatars/${avatarUrl}`;
   };
 
   if (!isOpen) return null;
@@ -1383,10 +1402,17 @@ const ViewMembersModal: React.FC<{
 
   const getAvatarUrl = (avatarUrl: string | undefined) => {
     if (!avatarUrl) return undefined;
-    if (avatarUrl.startsWith('/uploads/')) {
+
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+      return avatarUrl;
+    }
+
+    if (avatarUrl.startsWith('/uploads/') || avatarUrl.startsWith('/api/uploads/')) {
       return `http://localhost:5000${avatarUrl}`;
     }
-    return avatarUrl;
+
+    // Assume it's just a filename from backend/uploads/avatars/
+    return `http://localhost:5000/uploads/avatars/${avatarUrl}`;
   };
 
   if (!isOpen) return null;

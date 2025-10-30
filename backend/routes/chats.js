@@ -19,6 +19,7 @@ router.get('/:chatId', chatController.getChatById);
 router.post('/direct', chatController.createDirectChat);
 router.post('/group', chatController.createGroupChat);
 router.put('/:chatId', chatController.updateGroupChat);
+router.put('/:chatId/clear', chatController.clearConversation);
 router.delete('/:chatId', chatController.deleteChat);
 
 // Group chat participant management

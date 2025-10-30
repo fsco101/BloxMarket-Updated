@@ -2233,6 +2233,12 @@ class ApiService {
     });
   }
 
+  async clearConversation(chatId: string) {
+    return this.request(`/chats/${chatId}/clear`, {
+      method: 'PUT'
+    });
+  }
+
   async deleteChat(chatId: string) {
     return this.request(`/chats/${chatId}`, {
       method: 'DELETE'

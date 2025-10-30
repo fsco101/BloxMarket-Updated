@@ -24,13 +24,19 @@ export const messageController = {
         return res.status(404).json({ error: 'Chat not found' });
       }
 
-      const isParticipant = chat.participants.some(p => p.user_id.equals(userId) && p.is_active);
-      if (!isParticipant) {
+      const participant = chat.participants.find(p => p.user_id.equals(userId) && p.is_active);
+      if (!participant) {
         return res.status(403).json({ error: 'Not authorized to view this chat' });
       }
 
+      // Build query to filter messages based on cleared_at timestamp
+      const query = { chat_id: chatId };
+      if (participant.cleared_at) {
+        query.createdAt = { $gt: participant.cleared_at };
+      }
+
       // Get messages
-      const messages = await Message.find({ chat_id: chatId })
+      const messages = await Message.find(query)
         .populate('sender_id', 'username avatar_url')
         .populate('reply_to', 'content sender_id')
         .sort({ createdAt: -1 })

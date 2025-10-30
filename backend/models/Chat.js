@@ -46,6 +46,9 @@ const chatSchema = new mongoose.Schema({
     last_seen: {
       type: Date,
       default: Date.now
+    },
+    cleared_at: {
+      type: Date
     }
   }],
   // For direct chats: reference to the other participant
