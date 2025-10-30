@@ -59,6 +59,9 @@ const io = new Server(server, {
     credentials: true
   }
 });
+
+// Attach io to app for use in controllers
+app.set('io', io);
 const PORT = process.env.PORT || 5000;
 
 // Middleware

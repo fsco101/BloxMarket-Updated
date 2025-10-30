@@ -363,6 +363,9 @@ export const Messenger: React.FC = () => {
                   setSelectedChat(null);
                 }
               }}
+              onAddSystemMessage={(message: Message) => {
+                setMessages(prev => [...prev, message]);
+              }}
             />
           ) : (
             <div className="d-flex flex-column justify-content-center align-items-center h-100 bg-light">

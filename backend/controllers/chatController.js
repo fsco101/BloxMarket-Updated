@@ -465,7 +465,6 @@ export const chatController = {
       });
 
       // Get user info for notification
-      const User = mongoose.model('User');
       const leavingUser = await User.findById(userId);
 
       // Mark participant as inactive

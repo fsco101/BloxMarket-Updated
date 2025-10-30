@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { BootstrapAvatar } from '../ui/bootstrap-avatar';
 import { BootstrapButton } from '../ui/bootstrap-button';
 import { BootstrapInput } from '../ui/bootstrap-input';
 import { BootstrapScrollArea } from '../ui/bootstrap-scroll-area';
 import { BootstrapBadge } from '../ui/bootstrap-badge';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane, faEllipsisV, faReply, faImage, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faEllipsisV, faReply, faImage, faSignOutAlt, faUserPlus, faSearch } from '@fortawesome/free-solid-svg-icons';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,6 +65,13 @@ interface Message {
   created_at: string;
 }
 
+interface User {
+  user_id: string;
+  username: string;
+  avatar_url?: string;
+  display_name?: string;
+}
+
 interface ProfileData {
   user: {
     _id: string;
@@ -99,6 +106,7 @@ interface ChatWindowProps {
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   onSendMessage: (content: string, replyTo?: string, messageType?: 'text' | 'image', fileUrl?: string, fileName?: string, fileSize?: number) => void;
   onChatLeft?: (chatId: string) => void;
+  onAddSystemMessage?: (message: Message) => void;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -107,7 +115,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   loading,
   messagesEndRef,
   onSendMessage,
-  onChatLeft
+  onChatLeft,
+  onAddSystemMessage
 }) => {
   const [newMessage, setNewMessage] = useState('');
   const [replyTo, setReplyTo] = useState<Message | null>(null);
@@ -161,6 +170,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Leave group chat modal state
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+
+  // Add user modal state
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
 
   // Handle typing indicators
   const handleInputChange = (value: string) => {
@@ -361,6 +373,29 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       console.log('ChatWindow: Leaving group chat:', chat.chat_id);
       await apiService.leaveGroupChat(chat.chat_id);
       console.log('ChatWindow: Successfully left group chat, calling onChatLeft callback');
+      
+      // Add a system message to show the user left
+      const systemMessage: Message = {
+        message_id: `system_leave_${Date.now()}`,
+        chat_id: chat.chat_id,
+        sender: {
+          user_id: 'system',
+          username: 'System',
+          avatar_url: undefined
+        },
+        content: 'You left the group chat',
+        message_type: 'system',
+        is_read: true,
+        edited: false,
+        reactions: [],
+        created_at: new Date().toISOString()
+      };
+      
+      // Add the system message to the messages
+      if (onAddSystemMessage) {
+        onAddSystemMessage(systemMessage);
+      }
+      
       // Close the modal
       setShowLeaveModal(false);
       // Notify parent component that chat was left
@@ -453,13 +488,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {chat.chat_type === 'group' && (
-                <DropdownMenuItem
-                  onClick={() => setShowLeaveModal(true)}
-                  className="text-danger"
-                >
-                  <FontAwesomeIcon icon={faSignOutAlt} className="me-2" />
-                  Leave Groupchat
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem
+                    onClick={() => setShowAddUserModal(true)}
+                  >
+                    <FontAwesomeIcon icon={faUserPlus} className="me-2" />
+                    Add User
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setShowLeaveModal(true)}
+                    className="text-danger"
+                  >
+                    <FontAwesomeIcon icon={faSignOutAlt} className="me-2" />
+                    Leave Groupchat
+                  </DropdownMenuItem>
+                </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -747,6 +790,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         isOpen={showLeaveModal}
         onClose={() => setShowLeaveModal(false)}
         onConfirm={handleLeaveGroupChat}
+        chatName={chat.name}
+      />
+
+      {/* Add User Modal */}
+      <AddUserModal
+        isOpen={showAddUserModal}
+        onClose={() => setShowAddUserModal(false)}
+        chatId={chat.chat_id}
         chatName={chat.name}
       />
     </div>
@@ -1051,6 +1102,190 @@ const LeaveGroupChatModal: React.FC<{
               onClick={onConfirm}
             >
               Leave Group Chat
+            </BootstrapButton>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Add User Modal Component
+const AddUserModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  chatId: string;
+  chatName: string;
+}> = ({ isOpen, onClose, chatId, chatName }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
+
+  const searchUsers = useCallback(async () => {
+    try {
+      setSearching(true);
+      const response = await apiService.searchUsers(searchQuery);
+      setUsers(response.users || []);
+    } catch (error) {
+      console.error('Failed to search users:', error);
+    } finally {
+      setSearching(false);
+    }
+  }, [searchQuery]);
+
+  // Search users when query changes
+  useEffect(() => {
+    if (searchQuery.trim().length >= 2) {
+      searchUsers();
+    } else {
+      setUsers([]);
+    }
+  }, [searchQuery, searchUsers]);
+
+  const handleUserSelect = (user: User) => {
+    setSelectedUser(user);
+  };
+
+  const handleAddUser = async () => {
+    if (!selectedUser) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await apiService.addParticipant(chatId, selectedUser.user_id);
+      setSearchQuery('');
+      setUsers([]);
+      setSelectedUser(null);
+      onClose();
+      alert('User added successfully!');
+    } catch (error) {
+      console.error('Error adding user:', error);
+      alert(error instanceof Error ? error.message : 'Failed to add user. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getAvatarUrl = (avatarUrl: string | undefined) => {
+    if (!avatarUrl) return undefined;
+    if (avatarUrl.startsWith('/uploads/')) {
+      return `http://localhost:5000${avatarUrl}`;
+    }
+    return avatarUrl;
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Add User to {chatName}</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="mb-6">
+            <div className="mb-4">
+              <label htmlFor="search" className="form-label">Search Users</label>
+              <div className="position-relative">
+                <FontAwesomeIcon icon={faSearch} className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
+                <BootstrapInput
+                  id="search"
+                  placeholder="Search by username..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="ps-5"
+                  noWrapper
+                />
+              </div>
+            </div>
+
+            {searching && (
+              <div className="text-center py-4">
+                <div className="spinner-border spinner-border-sm text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            )}
+
+            {!searching && users.length > 0 && (
+              <div className="max-h-48 overflow-y-auto space-y-2 mb-4">
+                {users.map((user) => (
+                  <div
+                    key={user.user_id}
+                    className={`d-flex align-items-center space-x-3 p-2 rounded-lg cursor-pointer hover-bg-light ${selectedUser?.user_id === user.user_id ? 'bg-primary bg-opacity-10 border border-primary' : ''}`}
+                    onClick={() => handleUserSelect(user)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <BootstrapAvatar src={getAvatarUrl(user.avatar_url)} alt={user.username} size="sm">
+                      {user.username.substring(0, 2).toUpperCase()}
+                    </BootstrapAvatar>
+                    <div className="flex-1 ms-3">
+                      <p className="mb-0 fw-medium text-dark">{user.display_name || user.username}</p>
+                      <p className="mb-0 small text-muted">@{user.username}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!searching && searchQuery.length >= 2 && users.length === 0 && (
+              <div className="text-center py-4 text-muted mb-4">
+                No users found
+              </div>
+            )}
+
+            {selectedUser && (
+              <div className="p-3 bg-light rounded">
+                <p className="mb-1 small text-muted">Selected User:</p>
+                <div className="d-flex align-items-center gap-2">
+                  <BootstrapAvatar src={getAvatarUrl(selectedUser.avatar_url)} alt={selectedUser.username} size="sm">
+                    {selectedUser.username.substring(0, 2).toUpperCase()}
+                  </BootstrapAvatar>
+                  <div>
+                    <p className="mb-0 fw-medium text-dark">{selectedUser.display_name || selectedUser.username}</p>
+                    <p className="mb-0 small text-muted">@{selectedUser.username}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 justify-end">
+            <BootstrapButton
+              variant="outline-secondary"
+              onClick={onClose}
+              disabled={loading}
+            >
+              Cancel
+            </BootstrapButton>
+            <BootstrapButton
+              onClick={handleAddUser}
+              disabled={loading || !selectedUser}
+            >
+              {loading ? (
+                <>
+                  <div className="spinner-border spinner-border-sm me-2" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  Adding...
+                </>
+              ) : (
+                'Add User'
+              )}
             </BootstrapButton>
           </div>
         </div>
