@@ -433,37 +433,6 @@ export const chatController = {
         return res.status(400).json({ error: 'Not a participant in this chat' });
       }
 
-      // Find all messages from this user in this chat
-      const userMessages = await Message.find({
-        chat_id: chatId,
-        sender_id: userId
-      });
-
-      // Delete uploaded files for image/file messages
-      for (const message of userMessages) {
-        if ((message.message_type === 'image' || message.message_type === 'file') && message.file_url) {
-          try {
-            // Extract file path from URL (assuming files are stored in uploads/ directory)
-            const filePath = message.file_url.replace(/^\/uploads\//, '');
-            const fullPath = path.join(process.cwd(), 'uploads', filePath);
-
-            // Check if file exists and delete it
-            if (fs.existsSync(fullPath)) {
-              fs.unlinkSync(fullPath);
-            }
-          } catch (fileError) {
-            console.error('Error deleting file:', fileError);
-            // Continue with message deletion even if file deletion fails
-          }
-        }
-      }
-
-      // Delete all messages from this user in this chat
-      await Message.deleteMany({
-        chat_id: chatId,
-        sender_id: userId
-      });
-
       // Get user info for notification
       const leavingUser = await User.findById(userId);
 
@@ -488,7 +457,7 @@ export const chatController = {
       }
 
       res.json({
-        message: 'Successfully left the group chat. All your messages and uploaded files have been deleted.'
+        message: 'Successfully left the group chat.'
       });
 
     } catch (error) {

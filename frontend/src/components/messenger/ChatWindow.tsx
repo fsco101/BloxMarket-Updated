@@ -405,7 +405,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       } else {
         console.log('ChatWindow: onChatLeft callback not provided');
       }
-      alert('You have successfully left the group chat. All your messages and uploaded files have been deleted.');
+      alert('You have successfully left the group chat.');
     } catch (error) {
       console.error('ChatWindow: Error leaving group chat:', error);
       alert('Failed to leave group chat. Please try again.');
@@ -1077,14 +1077,14 @@ const LeaveGroupChatModal: React.FC<{
             <p className="text-gray-700 mb-3">
               Are you sure you want to leave <strong>{chatName}</strong>?
             </p>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-800 text-sm mb-2">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-yellow-800 text-sm mb-2">
                 <strong>Warning:</strong> This action cannot be undone.
               </p>
-              <ul className="text-red-700 text-sm list-disc list-inside space-y-1">
-                <li>All your messages in this group chat will be permanently deleted</li>
-                <li>All images and files you uploaded will be permanently deleted</li>
+              <ul className="text-yellow-700 text-sm list-disc list-inside space-y-1">
                 <li>You will no longer have access to this group chat</li>
+                <li>You will not receive new messages from this group</li>
+                <li>Your previous messages will remain visible to other group members</li>
               </ul>
             </div>
           </div>
