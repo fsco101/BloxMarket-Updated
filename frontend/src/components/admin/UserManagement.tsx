@@ -25,8 +25,12 @@ import {
   RefreshCw,
   AlertCircle,
   Clock,
-  XCircle
+  XCircle,
+  FileSpreadsheet
 } from 'lucide-react';
+
+// Import export libraries
+import * as XLSX from 'xlsx';
 
 declare global {
   interface Window {
@@ -270,6 +274,62 @@ export function UserManagement() {
         pageLength: 25,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
         order: [[4, 'desc']],
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>><"row"<"col-sm-12"B>>rtip',
+        buttons: [
+          {
+            extend: 'excel',
+            text: '<i class="fas fa-file-excel"></i> Excel',
+            className: 'btn btn-success btn-sm',
+            title: 'BloxMarket Users Export',
+            exportOptions: {
+              columns: [0, 1, 2, 3, 4] // Exclude Actions column
+            }
+          },
+          {
+            extend: 'pdf',
+            text: '<i class="fas fa-file-pdf"></i> PDF',
+            className: 'btn btn-danger btn-sm',
+            title: 'BloxMarket Users Report',
+            orientation: 'landscape',
+            pageSize: 'A4',
+            exportOptions: {
+              columns: [0, 1, 2, 3, 4] // Exclude Actions column
+            },
+            customize: function(doc: any) {
+              // Add custom styling to PDF
+              doc.styles.tableHeader = {
+                bold: true,
+                fontSize: 12,
+                color: 'white',
+                fillColor: '#2563eb',
+                alignment: 'center'
+              };
+              doc.styles.tableBodyEven = {
+                fillColor: '#f8fafc'
+              };
+              doc.styles.tableBodyOdd = {
+                fillColor: '#ffffff'
+              };
+              
+              // Add title
+              doc.content.splice(0, 0, {
+                text: 'BloxMarket User Management Report',
+                fontSize: 16,
+                bold: true,
+                alignment: 'center',
+                margin: [0, 0, 20, 20]
+              });
+              
+              // Add generation date
+              doc.content.splice(1, 0, {
+                text: 'Generated on: ' + new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString(),
+                fontSize: 10,
+                alignment: 'right',
+                margin: [0, 0, 0, 10]
+              });
+            }
+          }
+        ],
         columns: [
           {
             title: 'User',
@@ -495,7 +555,6 @@ export function UserManagement() {
             }
           }
         ],
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
         language: {
           search: "_INPUT_",
           searchPlaceholder: "Search users...",
@@ -701,6 +760,48 @@ export function UserManagement() {
     setLiftBanDialogOpen(true);
   };
 
+  const handleLiftPenalty = async (userId: string, penaltyId: string) => {
+    // Prevent multiple simultaneous operations
+    if (actionLoading) return;
+    
+    try {
+      setActionLoading(penaltyId);
+      await apiService.liftPenalty(userId, penaltyId);
+      toast.success('Penalty lifted successfully');
+      
+      // Update local state
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === userId 
+            ? { 
+                ...user, 
+                active_penalties: Math.max(0, (user.active_penalties || 0) - 1),
+                penalties: (user.penalties || []).map(p => 
+                  p._id === penaltyId ? { ...p, is_active: false } : p
+                )
+              } 
+            : user
+        )
+      );
+      
+      // Also update selectedUser if it's the same user
+      if (selectedUser && selectedUser._id === userId) {
+        setSelectedUser(prev => prev ? {
+          ...prev,
+          active_penalties: Math.max(0, (prev.active_penalties || 0) - 1),
+          penalties: (prev.penalties || []).map(p => 
+            p._id === penaltyId ? { ...p, is_active: false } : p
+          )
+        } : null);
+      }
+    } catch (error) {
+      console.error('Error lifting penalty:', error);
+      toast.error('Failed to lift penalty');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleIssuePenalty = async () => {
     if (!actionUser || !actionReason.trim()) return;
 
@@ -751,49 +852,74 @@ export function UserManagement() {
     }
   };
 
-  const handleLiftPenalty = async (userId: string, penaltyId: string) => {
+  const exportToExcel = () => {
     try {
-      setActionLoading(penaltyId);
+      // Prepare data for export
+      const exportData = users.map(user => ({
+        Username: user.username,
+        Email: user.email,
+        'Roblox Username': user.roblox_username || '',
+        Role: user.role.charAt(0).toUpperCase() + user.role.slice(1),
+        'Total Trades': user.totalTrades || 0,
+        'Total Vouches': user.totalVouches || 0,
+        'Credibility Score': user.credibility_score || 0,
+        Status: getUserStatus(user),
+        'Member Since': new Date(user.createdAt).toLocaleDateString(),
+        'Last Active': user.lastActive ? new Date(user.lastActive).toLocaleDateString() : 'Never',
+        'Active Penalties': user.active_penalties || 0
+      }));
+
+      // Create worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
       
-      await apiService.liftPenalty(userId, penaltyId);
-      toast.success('Penalty lifted successfully');
-      
-      // Update local state
-      setUsers(prevUsers => 
-        prevUsers.map(user => 
-          user._id === userId 
-            ? { 
-                ...user, 
-                active_penalties: Math.max(0, (user.active_penalties || 0) - 1),
-                penalties: user.penalties?.map(penalty => 
-                  penalty._id === penaltyId 
-                    ? { ...penalty, is_active: false }
-                    : penalty
-                ) || []
-              } 
-            : user
-        )
-      );
-      
-      // Update selected user if it's the same user
-      if (selectedUser && selectedUser._id === userId) {
-        setSelectedUser(prev => prev ? {
-          ...prev,
-          active_penalties: Math.max(0, (prev.active_penalties || 0) - 1),
-          penalties: prev.penalties?.map(penalty => 
-            penalty._id === penaltyId 
-              ? { ...penalty, is_active: false }
-              : penalty
-          ) || []
-        } : null);
-      }
-      
+      // Set column widths
+      const colWidths = [
+        { wch: 15 }, // Username
+        { wch: 25 }, // Email
+        { wch: 15 }, // Roblox Username
+        { wch: 10 }, // Role
+        { wch: 12 }, // Total Trades
+        { wch: 12 }, // Total Vouches
+        { wch: 15 }, // Credibility Score
+        { wch: 15 }, // Status
+        { wch: 12 }, // Member Since
+        { wch: 12 }, // Last Active
+        { wch: 15 }  // Active Penalties
+      ];
+      ws['!cols'] = colWidths;
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Users');
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `bloxmarket_users_${timestamp}.xlsx`;
+
+      // Save file
+      XLSX.writeFile(wb, filename);
+      toast.success('Excel file exported successfully');
     } catch (error) {
-      console.error('Error lifting penalty:', error);
-      toast.error('Failed to lift penalty');
-    } finally {
-      setActionLoading(null);
+      console.error('Error exporting to Excel:', error);
+      toast.error('Failed to export Excel file');
     }
+  };
+
+  const getUserStatus = (user: User): string => {
+    const isBanned = user.role === 'banned';
+    
+    if (isBanned) return 'Banned';
+    
+    const penalties = user.penalties || [];
+    const activePenalties = penalties.filter(p => p.is_active);
+    
+    if (activePenalties.some(p => p.type === 'suspension')) return 'Suspended';
+    if (activePenalties.some(p => p.type === 'restriction')) return 'Restricted';
+    if (activePenalties.some(p => p.type === 'warning')) return 'Warning';
+    if (activePenalties.some(p => p.type === 'strike' && p.severity === 'critical')) return 'Critical Strike';
+    if (activePenalties.some(p => p.type === 'strike')) return 'Strike';
+    
+    return 'Active';
   };
 
   // Show error state
@@ -840,10 +966,18 @@ export function UserManagement() {
           </h2>
           <p className="text-muted-foreground">Manage user accounts, roles, and permissions</p>
         </div>
-        <Button onClick={loadUsers} disabled={loading} variant="outline">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportToExcel}
+            disabled={loading || users.length === 0}
+            className="flex items-center gap-2"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Export Excel
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}

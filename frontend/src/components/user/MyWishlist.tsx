@@ -125,68 +125,82 @@ export function MyWishlist() {
 
       console.log('Loading wishlists for user:', currentUser.id);
 
-      // Try to fetch user's wishlists
-      try {
-        console.log('Attempting to fetch user wishlists...');
-        const response = await apiService.getWishlists({ user_id: currentUser.id, limit: 100 });
-        
-        let userWishlists: Wishlist[] = [];
-        
-        interface WishlistResponse {
-          wishlist_id?: string;
-          _id?: string;
-          item_name: string;
-          description?: string;
-          max_price?: string;
-          category: string;
-          priority?: string;
-          upvotes?: number;
-          downvotes?: number;
-          created_at?: string;
-          createdAt?: string;
-          updated_at?: string;
-          updatedAt?: string;
-          username?: string;
-          credibility_score?: number;
-          user_id?: string;
-          images?: Array<{ filename: string; originalName?: string }>;
-          comment_count?: number;
-          watchers?: number;
-        }
-        
-        const mapToWishlist = (item: WishlistResponse): Wishlist => ({
-          wishlist_id: String(item.wishlist_id || item._id || ''),
-          item_name: item.item_name,
-          description: item.description || '',
-          max_price: item.max_price || 'Negotiable',
-          category: item.category,
-          priority: (item.priority || 'medium') as 'high' | 'medium' | 'low',
-          upvotes: item.upvotes || 0,
-          downvotes: item.downvotes || 0,
-          created_at: item.created_at || item.createdAt || new Date().toISOString(),
-          updated_at: item.updated_at || item.updatedAt,
-          username: item.username || currentUser.username,
-          credibility_score: item.credibility_score || 0,
-          user_id: String(item.user_id || currentUser.id),
-          images: Array.isArray(item.images) ? item.images : [],
-          comment_count: item.comment_count || 0,
-          watchers: item.watchers || 0
-        });
-        
-        if (response?.wishlists && Array.isArray(response.wishlists)) {
-          userWishlists = response.wishlists.map(mapToWishlist);
-        } else if (Array.isArray(response)) {
-          userWishlists = response.map(mapToWishlist);
-        }
+      // Define response interface and mapping function
+      interface WishlistResponse {
+        wishlist_id?: string;
+        _id?: string;
+        item_name: string;
+        description?: string;
+        max_price?: string;
+        category: string;
+        priority?: string;
+        upvotes?: number;
+        downvotes?: number;
+        created_at?: string;
+        createdAt?: string;
+        updated_at?: string;
+        updatedAt?: string;
+        username?: string;
+        credibility_score?: number;
+        user_id?: string;
+        images?: Array<{ filename: string; originalName?: string }>;
+        comment_count?: number;
+        watchers?: number;
+      }
+      
+      const mapToWishlist = (item: WishlistResponse): Wishlist => ({
+        wishlist_id: String(item.wishlist_id || item._id || ''),
+        item_name: item.item_name,
+        description: item.description || '',
+        max_price: item.max_price || 'Negotiable',
+        category: item.category,
+        priority: (item.priority || 'medium') as 'high' | 'medium' | 'low',
+        upvotes: item.upvotes || 0,
+        downvotes: item.downvotes || 0,
+        created_at: item.created_at || item.createdAt || new Date().toISOString(),
+        updated_at: item.updated_at || item.updatedAt,
+        username: item.username || (currentUser as any).username,
+        credibility_score: item.credibility_score || 0,
+        user_id: String(item.user_id || (currentUser as any).id),
+        images: Array.isArray(item.images) ? item.images : [],
+        comment_count: item.comment_count || 0,
+        watchers: item.watchers || 0
+      });
 
-        console.log('Successfully fetched user wishlists:', userWishlists.length);
+      // Get all wishlists and filter client-side for reliability
+      try {
+        console.log('Fetching all wishlists and filtering for current user...');
+        const allWishlistsResponse = await apiService.getWishlists({ limit: 1000 });
+        let allWishlists: WishlistResponse[] = [];
+        
+        // Handle different response formats
+        if ((allWishlistsResponse as any)?.wishlists && Array.isArray((allWishlistsResponse as any).wishlists)) {
+          allWishlists = (allWishlistsResponse as any).wishlists;
+        } else if (Array.isArray(allWishlistsResponse)) {
+          allWishlists = allWishlistsResponse as WishlistResponse[];
+        } else if ((allWishlistsResponse as any)?.data && Array.isArray((allWishlistsResponse as any).data)) {
+          allWishlists = (allWishlistsResponse as any).data;
+        }
+        
+        // Map and filter wishlists for current user only
+        const userWishlists = allWishlists
+          .map((item: WishlistResponse) => mapToWishlist(item))
+          .filter((wishlist: Wishlist) => {
+            // Strict filtering - only show wishlists owned by current user
+            const currentUserId = (currentUser as any).id || (currentUser as any)._id;
+            const currentUsername = (currentUser as any).username;
+            
+            return wishlist.user_id === currentUserId || wishlist.username === currentUsername;
+          });
+          
+        console.log('Filtered wishlists for current user:', userWishlists.length);
         setWishlists(userWishlists);
         
         if (userWishlists.length === 0) {
           console.log('No wishlists found for current user');
         }
       } catch (error) {
-        console.error('Error fetching user wishlists:', error);
+        console.error('Error fetching wishlists:', error);
         setError('Failed to fetch your wishlists. Please try again later.');
         setWishlists([]);
       }
@@ -290,13 +304,8 @@ export function MyWishlist() {
       setNewWishlistImages([]);
       setNewWishlistImagePreviews([]);
       
-      // Add the new wishlist to the beginning of the list (newest first)
-      if (created?.wishlist) {
-        setWishlists(prev => [created.wishlist, ...prev]);
-      } else {
-        // If the API doesn't return the created wishlist, reload all wishlists
-        await loadMyWishlists();
-      }
+      // Reload wishlists to show the new item
+      await loadMyWishlists();
       
       toast.success('Wishlist item created successfully!');
     } catch (error) {

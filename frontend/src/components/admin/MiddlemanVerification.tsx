@@ -9,6 +9,9 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { Label } from '../ui/label';
 import { apiService } from '../../services/api';
 import { toast } from 'sonner';
+
+// Import export libraries
+import * as XLSX from 'xlsx';
 import { 
   UserCheck, 
   CheckCircle, 
@@ -84,13 +87,17 @@ export function MiddlemanVerification() {
   const [selectedRequest, setSelectedRequest] = useState<VerificationRequest | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [jQueryReady, setJQueryReady] = useState(false);
   
   // Action dialogs
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [actionRequest, setActionRequest] = useState<VerificationRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+
+  // Bulk delete state
+  const [selectedApplications, setSelectedApplications] = useState<string[]>([]);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
   const tableRef = useRef<HTMLTableElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,82 +156,69 @@ export function MiddlemanVerification() {
     initJQuery();
   }, []);
 
+  // Cleanup function for DataTable
+  const cleanupDataTable = useCallback(() => {
+    if (dataTableRef.current && window.$ && window.$.fn && window.$.fn.DataTable) {
+      try {
+        const $ = window.$;
+        
+        // Remove all event handlers
+        if (tableRef.current) {
+          $(tableRef.current).off();
+        }
+        
+        // Destroy DataTable instance
+        if ($.fn.DataTable.isDataTable(tableRef.current)) {
+          dataTableRef.current.destroy();
+        }
+        
+        // Clear table body
+        if (tableRef.current) {
+          const tbody = tableRef.current.querySelector('tbody');
+          if (tbody) {
+            tbody.innerHTML = '';
+          }
+        }
+      } catch (error) {
+        console.warn('Error cleaning up DataTable:', error);
+      } finally {
+        dataTableRef.current = null;
+        isInitialized.current = false;
+      }
+    }
+  }, []);
+
   const loadVerificationRequests = useCallback(async () => {
     try {
       setLoading(true);
-      setError('');
+      setError(null);
       
-      console.log('Loading verification requests...');
+      const response = await apiService.getVerificationRequests();
+      const requestData = response.data || [];
       
-      const response = await apiService.getMiddlemanVerificationDataTable({
-        page: 1,
-        limit: 1000,
-        search: '',
-        status: '',
-        sortBy: 'createdAt',
-        sortOrder: 'desc'
+      console.log('Loaded verification requests:', requestData.length);
+      
+      // Clear selections when data changes
+      setSelectedApplications([]);
+      
+      // Clean up existing DataTable before initializing new one
+      cleanupDataTable();
+      
+      // Initialize DataTable with new data
+      requestAnimationFrame(() => {
+        initializeDataTable(requestData);
       });
       
-      console.log('API Response:', response);
-      
-      if (!response || !response.data) {
-        console.log('No data in response, using empty array');
-        setRequests([]);
-        setLoading(false);
-        return;
-      }
-      
-      // Normalize the request data
-      const normalizedRequests = response.data
-        .filter((request: unknown) => {
-          const req = request as VerificationRequest;
-          return req && req._id;
-        }) // Filter out null/undefined requests
-        .map((request: unknown) => {
-          const req = request as VerificationRequest;
-          return {
-            ...req,
-            documentCount: req.documents?.length || 0,
-            // Flatten user data for DataTables
-            username: req.user_id?.username || req.username || '',
-            email: req.user_id?.email || req.email || '',
-            roblox_username: req.user_id?.roblox_username || req.roblox_username || '',
-            avatar_url: req.user_id?.avatar_url || req.avatar_url || '',
-            credibility_score: req.user_id?.credibility_score || req.credibility_score || 0
-          };
-        });
-      
-      console.log('Normalized requests:', normalizedRequests.length);
-      setRequests(normalizedRequests);
-      
-      // Initialize DataTable after a short delay to ensure DOM is ready
-      setTimeout(() => {
-        initializeDataTable(normalizedRequests);
-      }, 100);
-      
-    } catch (error: unknown) {
-      const err = error as Error;
-      console.error('Error loading verification requests:', err);
-      
-      let errorMessage = 'Failed to load verification requests';
-      
-      if (err.message?.includes('403')) {
-        errorMessage = 'Access denied. Admin privileges required.';
-      } else if (err.message?.includes('401')) {
-        errorMessage = 'Authentication required. Please log in again.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
+      setRequests(requestData);
+    } catch (error) {
+      console.error('Error loading verification requests:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load verification requests';
       setError(errorMessage);
       toast.error(errorMessage);
-      setRequests([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const initializeDataTable = useCallback((requestData: VerificationRequest[]) => {
+  }, [cleanupDataTable, initializeDataTable]);
     if (!window.$ || !window.$.fn || !window.$.fn.DataTable) {
       console.error('jQuery or DataTables not available');
       setError('DataTables library not loaded. Please refresh the page.');
@@ -241,10 +235,15 @@ export function MiddlemanVerification() {
     console.log('Initializing DataTable with', requestData.length, 'requests');
     
     try {
-      // Destroy existing instance if exists
+      // Destroy existing instance if exists - more thorough cleanup
       if (dataTableRef.current) {
         try {
-          $(tableRef.current).off();
+          // Remove all event handlers first
+          if (tableRef.current) {
+            $(tableRef.current).off();
+          }
+          
+          // Destroy DataTable instance
           if ($.fn.DataTable.isDataTable(tableRef.current)) {
             dataTableRef.current.destroy();
           }
@@ -252,6 +251,14 @@ export function MiddlemanVerification() {
           console.warn('Error destroying existing DataTable:', destroyError);
         }
         dataTableRef.current = null;
+      }
+
+      // Clear the table body to prevent conflicts
+      if (tableRef.current) {
+        const tbody = tableRef.current.querySelector('tbody');
+        if (tbody) {
+          tbody.innerHTML = '';
+        }
       }
 
       // Initialize new DataTable
@@ -264,6 +271,22 @@ export function MiddlemanVerification() {
         order: [[4, 'desc']],
         deferRender: true,
         columns: [
+          {
+            title: '<input type="checkbox" id="select-all" />',
+            data: null,
+            orderable: false,
+            width: '40px',
+            render: (data: VerificationRequest) => {
+              if (!data || !data._id) {
+                return '<div class="text-gray-500">-</div>';
+              }
+              
+              const isCompleted = data.status === 'approved' || data.status === 'rejected';
+              const isSelected = selectedApplications.includes(data._id);
+              
+              return `<input type="checkbox" class="row-checkbox" data-request-id="${data._id}" ${isSelected ? 'checked' : ''} ${!isCompleted ? 'disabled' : ''} />`;
+            }
+          },
           {
             title: 'Applicant',
             data: null,
@@ -375,6 +398,7 @@ export function MiddlemanVerification() {
               }
               
               const isPending = data.status === 'pending';
+              const isCompleted = data.status === 'approved' || data.status === 'rejected';
               
               return `
                 <div class="flex flex-wrap items-center gap-2">
@@ -389,6 +413,12 @@ export function MiddlemanVerification() {
                     
                     <button class="btn btn-sm btn-danger reject-btn" data-request-id="${data._id}" title="Reject Application">
                       <i class="fas fa-times"></i>
+                    </button>
+                  ` : ''}
+                  
+                  ${isCompleted ? `
+                    <button class="btn btn-sm btn-danger delete-btn" data-request-id="${data._id}" title="Delete Application">
+                      <i class="fas fa-trash"></i>
                     </button>
                   ` : ''}
                 </div>
@@ -406,44 +436,132 @@ export function MiddlemanVerification() {
           infoFiltered: "(filtered from _MAX_ total applications)",
           zeroRecords: "No matching applications found",
           emptyTable: "No applications available"
+        },
+        drawCallback: function() {
+          // Update select-all checkbox state after table draw
+          const completedRequests = requestData.filter(r => r && (r.status === 'approved' || r.status === 'rejected'));
+          const completedIds = completedRequests.map(r => r._id);
+          const selectedCompleted = selectedApplications.filter(id => completedIds.includes(id));
+          
+          const selectAllCheckbox = document.getElementById('select-all') as HTMLInputElement;
+          if (selectAllCheckbox) {
+            selectAllCheckbox.checked = completedIds.length > 0 && selectedCompleted.length === completedIds.length;
+            selectAllCheckbox.indeterminate = selectedCompleted.length > 0 && selectedCompleted.length < completedIds.length;
+          }
         }
       });
 
       isInitialized.current = true;
       console.log('DataTable initialized successfully');
 
-            // Event handlers
-      $(tableRef.current).off(); // Remove old handlers
-      
-      $(tableRef.current).on('click', '.view-btn', function(e) {
-        e.preventDefault();
-        const requestId = $(this).data('request-id');
-        const request = requestData.find((r: VerificationRequest) => r && r._id === requestId);
-        if (request) {
-          setSelectedRequest(request);
-          setIsViewDialogOpen(true);
-        }
-      });
+            // Event handlers - use setTimeout to ensure DOM is ready
+      setTimeout(() => {
+        if (!tableRef.current || !dataTableRef.current) return;
+        
+        $(tableRef.current).off(); // Remove old handlers
+        
+        $(tableRef.current).on('click', '.view-btn', function(this: HTMLElement) {
+          const requestId = $(this).data('request-id');
+          const request = requestData.find((r: VerificationRequest) => r && r._id === requestId);
+          if (request) {
+            setSelectedRequest(request);
+            setIsViewDialogOpen(true);
+          }
+        });
 
-      $(tableRef.current).on('click', '.approve-btn', function(e) {
-        e.preventDefault();
-        const requestId = $(this).data('request-id');
-        handleApprove(requestId);
-      });
+        $(tableRef.current).on('click', '.approve-btn', function(this: HTMLElement) {
+          const requestId = $(this).data('request-id');
+          handleApprove(requestId);
+        });
 
-      $(tableRef.current).on('click', '.reject-btn', function(e) {
-        e.preventDefault();
-        const requestId = $(this).data('request-id');
-        const request = requestData.find((r: VerificationRequest) => r && r._id === requestId);
-        if (request) openRejectDialog(request);
-      });
+        $(tableRef.current).on('click', '.reject-btn', function(this: HTMLElement) {
+          const requestId = $(this).data('request-id');
+          const request = requestData.find((r: VerificationRequest) => r && r._id === requestId);
+          if (request) openRejectDialog(request);
+        });
+
+        $(tableRef.current).on('click', '.delete-btn', function(this: HTMLElement) {
+          const requestId = $(this).data('request-id');
+          const request = requestData.find((r: VerificationRequest) => r && r._id === requestId);
+          if (request) {
+            handleDelete(request);
+          }
+        });
+
+        // Checkbox event handlers
+        $(tableRef.current).on('change', '#select-all', function(this: HTMLElement) {
+          const isChecked = $(this).is(':checked');
+          const completedRequests = requestData.filter(r => r && (r.status === 'approved' || r.status === 'rejected'));
+          const completedIds = completedRequests.map(r => r._id);
+          
+          if (isChecked) {
+            setSelectedApplications(completedIds);
+          } else {
+            setSelectedApplications([]);
+          }
+          
+          // Update all row checkboxes
+          $(tableRef.current).find('.row-checkbox').each(function(this: HTMLElement) {
+            const requestId = $(this).data('request-id');
+            const isCompleted = completedIds.includes(requestId);
+            if (isCompleted) {
+              $(this).prop('checked', isChecked);
+            }
+          });
+        });
+
+        $(tableRef.current).on('change', '.row-checkbox', function(this: HTMLElement) {
+          const requestId = $(this).data('request-id');
+          const isChecked = $(this).is(':checked');
+          
+          setSelectedApplications(prev => {
+            if (isChecked) {
+              return [...prev, requestId];
+            } else {
+              return prev.filter(id => id !== requestId);
+            }
+          });
+        });
+      }, 50);
       
     } catch (error) {
       console.error('Error initializing DataTable:', error);
       toast.error('Failed to initialize table');
       setError('Failed to initialize data table. Please refresh the page.');
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedApplications]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup function for DataTable
+  const cleanupDataTable = useCallback(() => {
+    if (dataTableRef.current && window.$ && window.$.fn && window.$.fn.DataTable) {
+      try {
+        const $ = window.$;
+        
+        // Remove all event handlers
+        if (tableRef.current) {
+          $(tableRef.current).off();
+        }
+        
+        // Destroy DataTable instance
+        if ($.fn.DataTable.isDataTable(tableRef.current)) {
+          dataTableRef.current.destroy();
+        }
+        
+        // Clear table body
+        if (tableRef.current) {
+          const tbody = tableRef.current.querySelector('tbody');
+          if (tbody) {
+            tbody.innerHTML = '';
+          }
+        }
+      } catch (error) {
+        console.warn('Error cleaning up DataTable:', error);
+      } finally {
+        dataTableRef.current = null;
+        isInitialized.current = false;
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // Check authentication
@@ -460,22 +578,9 @@ export function MiddlemanVerification() {
     
     // Cleanup function
     return () => {
-      const tableElement = tableRef.current; // eslint-disable-line react-hooks/exhaustive-deps
-      if (dataTableRef.current && window.$ && window.$.fn && window.$.fn.DataTable) {
-        try {
-          const $ = window.$;
-          if (tableElement && $.fn.DataTable.isDataTable(tableElement)) {
-            $(tableElement).off(); // Remove event handlers first
-            dataTableRef.current.destroy();
-          }
-          dataTableRef.current = null;
-          isInitialized.current = false;
-        } catch (error) {
-          console.error('Error destroying DataTable during cleanup:', error);
-        }
-      }
+      cleanupDataTable();
     };
-  }, [jQueryReady, loadVerificationRequests]);
+  }, [jQueryReady, loadVerificationRequests, cleanupDataTable]);
 
   const handleViewDocument = async (documentId: string) => {
     try {
@@ -536,6 +641,44 @@ export function MiddlemanVerification() {
     }
   };
 
+  const handleDelete = async (request?: VerificationRequest) => {
+    const targetRequest = request || actionRequest;
+    if (!targetRequest) return;
+
+    try {
+      setActionLoading(targetRequest._id);
+      await apiService.deleteMiddlemanApplication(targetRequest._id);
+      toast.success('Application deleted successfully');
+      setActionRequest(null);
+      // Refresh the data
+      loadVerificationRequests();
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      toast.error('Failed to delete application. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedApplications.length === 0) return;
+
+    try {
+      setActionLoading('bulk-delete');
+      await apiService.bulkDeleteMiddlemanApplications(selectedApplications);
+      toast.success(`${selectedApplications.length} applications deleted successfully`);
+      setSelectedApplications([]);
+      setBulkDeleteDialogOpen(false);
+      // Refresh the data
+      loadVerificationRequests();
+    } catch (error) {
+      console.error('Error deleting applications:', error);
+      toast.error('Failed to delete applications. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const openRejectDialog = (request: VerificationRequest) => {
     setActionRequest(request);
     setRejectDialogOpen(true);
@@ -548,6 +691,67 @@ export function MiddlemanVerification() {
       case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
       default: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+    }
+  };
+
+  const exportToExcel = () => {
+    try {
+      // Prepare data for export
+      const exportData = requests.map(request => ({
+        Username: request.username,
+        Email: request.email,
+        'Roblox Username': request.roblox_username || '',
+        'Request Type': request.requestType || 'Middleman',
+        Experience: request.experience || '',
+        Availability: request.availability || '',
+        'Why Middleman': request.why_middleman || '',
+        'Total Trades': request.trades || 0,
+        'Total Vouches': request.vouches || 0,
+        'Credibility Score': request.credibility_score || 0,
+        'Documents Count': request.documentCount || 0,
+        Status: request.status.charAt(0).toUpperCase() + request.status.slice(1),
+        'Applied Date': new Date(request.createdAt).toLocaleDateString(),
+        'Applied Time': new Date(request.createdAt).toLocaleTimeString(),
+        'Rejection Reason': request.rejection_reason || ''
+      }));
+
+      // Create worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      
+      // Set column widths
+      const colWidths = [
+        { wch: 15 }, // Username
+        { wch: 25 }, // Email
+        { wch: 15 }, // Roblox Username
+        { wch: 12 }, // Request Type
+        { wch: 20 }, // Experience
+        { wch: 15 }, // Availability
+        { wch: 30 }, // Why Middleman
+        { wch: 12 }, // Total Trades
+        { wch: 12 }, // Total Vouches
+        { wch: 15 }, // Credibility Score
+        { wch: 15 }, // Documents Count
+        { wch: 10 }, // Status
+        { wch: 12 }, // Applied Date
+        { wch: 12 }, // Applied Time
+        { wch: 30 }  // Rejection Reason
+      ];
+      ws['!cols'] = colWidths;
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Middleman Applications');
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `bloxmarket_middleman_applications_${timestamp}.xlsx`;
+
+      // Save file
+      XLSX.writeFile(wb, filename);
+      toast.success('Excel file exported successfully');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast.error('Failed to export Excel file');
     }
   };
 
@@ -592,13 +796,25 @@ export function MiddlemanVerification() {
           <p className="text-muted-foreground">Review and approve middleman applications</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => apiService.exportMiddlemanVerificationCSV()} variant="outline">
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportToExcel}
+            disabled={loading || requests.length === 0}
+            className="flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Export Excel
           </Button>
-          <Button onClick={loadVerificationRequests} disabled={loading} variant="outline">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-            Refresh
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setBulkDeleteDialogOpen(true)}
+            disabled={loading || selectedApplications.length === 0}
+            className="flex items-center gap-2"
+          >
+            <XCircle className="w-4 h-4" />
+            Delete Selected ({selectedApplications.length})
           </Button>
         </div>
       </div>
@@ -673,6 +889,7 @@ export function MiddlemanVerification() {
               >
                 <thead>
                   <tr>
+                    <th>Select</th>
                     <th>Applicant</th>
                     <th>Application</th>
                     <th>Stats</th>
@@ -866,80 +1083,6 @@ export function MiddlemanVerification() {
                     ))}
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-4">
-                    {/* Applicant's Camera Photo */}
-                    <div className="border rounded-md p-2">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">Camera Verification Photo</span>
-                        <Badge className="bg-green-100 text-green-800">
-                          <Shield className="w-3 h-3 mr-1" />
-                          Security Proof
-                        </Badge>
-                      </div>
-                      <div className="aspect-square bg-gray-100 rounded-md overflow-hidden mb-2">
-                        <img
-                          src={`http://localhost:5000/uploads/middlemanface/${selectedRequest.user_id?._id || selectedRequest._id}_camera.jpg`}
-                          alt="Camera verification photo"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            // Try alternative naming patterns
-                            const alternativeSrcs = [
-                              `http://localhost:5000/uploads/middlemanface/${selectedRequest.user_id?._id || selectedRequest._id}_face.jpg`,
-                              `http://localhost:5000/uploads/middlemanface/${selectedRequest.username}_camera.jpg`,
-                              `http://localhost:5000/uploads/middlemanface/camera_${selectedRequest._id}.jpg`
-                            ];
-                            
-                            let currentIndex = 0;
-                            
-                            const tryNextSrc = () => {
-                              if (currentIndex < alternativeSrcs.length) {
-                                target.src = alternativeSrcs[currentIndex];
-                                currentIndex++;
-                              } else {
-                                // All sources failed, show placeholder
-                                target.style.display = 'none';
-                                const parent = target.parentElement;
-                                if (parent) {
-                                  parent.innerHTML = `
-                                    <div class="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500">
-                                      <div class="text-center">
-                                        <Shield className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                                        <p class="text-xs">Camera photo not available</p>
-                                      </div>
-                                    </div>
-                                  `;
-                                }
-                              }
-                            };
-                            
-                            target.onerror = tryNextSrc;
-                            tryNextSrc();
-                          }}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                        <Shield className="w-3 h-3" />
-                        <span>Live camera capture for identity verification</span>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="w-full text-xs h-7"
-                        onClick={() => {
-                          // Open camera photo in new tab for detailed review
-                          const img = document.querySelector('img[alt="Camera verification photo"]') as HTMLImageElement;
-                          if (img && img.src && !img.src.includes('placeholder')) {
-                            window.open(img.src, '_blank');
-                          } else {
-                            toast.error('Camera photo not available for viewing');
-                          }
-                        }}
-                      >
-                        <Eye className="w-3 h-3 mr-1" />
-                        View Full Size
-                      </Button>
-                    </div>
-
                     {/* Other Documents */}
                     {selectedRequest.documents.map((doc, i) => (
                       <div key={i} className="border rounded-md p-2">
@@ -1042,6 +1185,53 @@ export function MiddlemanVerification() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-red-500" />
+              Delete Selected Applications
+            </DialogTitle>
+            <DialogDescription>
+              Delete {selectedApplications.length} selected middleman application{selectedApplications.length !== 1 ? 's' : ''}. 
+              This action cannot be undone and will permanently remove the applications and associated files.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">Warning</p>
+                  <p className="text-xs text-red-700 mt-1">
+                    This will permanently delete {selectedApplications.length} application{selectedApplications.length !== 1 ? 's' : ''} 
+                    and all associated documents and files. Make sure you want to proceed.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={actionLoading === 'bulk-delete'}
+            >
+              {actionLoading === 'bulk-delete' ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <XCircle className="w-4 h-4 mr-2" />
+              )}
+              Delete {selectedApplications.length} Application{selectedApplications.length !== 1 ? 's' : ''}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

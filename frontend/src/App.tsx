@@ -403,7 +403,7 @@ export default function App() {
               <Header />
               <div className="flex flex-1 overflow-hidden">
                 <Sidebar />
-                <main className="flex-1 overflow-auto" style={{ marginLeft: 'px', marginTop: '64px' }}>
+                <main className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500" style={{ marginLeft: 'px', marginTop: '64px' }}>
                   <ErrorBoundary>
                     {renderCurrentPage()}
                   </ErrorBoundary>

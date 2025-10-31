@@ -63,6 +63,12 @@ router.get('/applications', verificationController.getApplications);
 // Review application (approve/reject) - admin only
 router.post('/applications/:applicationId/review', verificationController.reviewApplication);
 
+// Delete completed application - admin only
+router.delete('/applications/:applicationId', verificationController.deleteApplication);
+
+// Bulk delete completed applications - admin only
+router.delete('/applications/bulk/delete', verificationController.bulkDeleteApplications);
+
 // Access to documents (with security checks in the controller)
 router.get('/documents/:documentId', verificationController.getDocumentById);
 

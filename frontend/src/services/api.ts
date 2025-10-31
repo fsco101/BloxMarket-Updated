@@ -945,6 +945,19 @@ class ApiService {
     });
   }
 
+  async deleteMiddlemanApplication(applicationId: string) {
+    return this.request(`/verification/applications/${applicationId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async bulkDeleteMiddlemanApplications(applicationIds: string[]) {
+    return this.request('/verification/applications/bulk/delete', {
+      method: 'DELETE',
+      body: JSON.stringify({ applicationIds })
+    });
+  }
+
   async getMiddlemen() {
     return this.request('/verification/middlemen');
   }

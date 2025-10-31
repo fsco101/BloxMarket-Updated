@@ -277,85 +277,94 @@ export const Messenger: React.FC = () => {
     }
   };
 
+  const chatsRef = useRef<Chat[]>([]);
+  
+  // Keep chatsRef in sync with chats state
+  useEffect(() => {
+    chatsRef.current = chats;
+  }, [chats]);
+
   // Handle navigation to specific user chat
   const handleUserChatNavigation = useCallback(async () => {
-    if (!targetUserId || !chats.length || navigatingToChat) return;
+    if (!targetUserId || !chatsRef.current.length || navigatingToChat) return;
 
     setNavigatingToChat(true);
 
-    // Look for existing direct chat with the target user
-    // For now, we'll check if we can find a direct chat that might be with this user
-    // This is a simplified approach - in a real app, you'd want to check participants
-    const existingChat = chats.find(chat => 
-      chat && 
-      chat.chat_type === 'direct' && 
-      chat.participants_count === 2
-    );
-
-    if (existingChat) {
-      setSelectedChat(existingChat);
-      setNavigatingToChat(false);
-      return;
-    } else {
-      // Create a new direct chat with the target user
-      try {
-        const createResponse = await apiService.createDirectChat(targetUserId) as { chat_id: string; chat_type: string; message: string };
-        
-        // Fetch the full chat details since createDirectChat doesn't return complete chat object
-        const fullChat = await apiService.getChat(createResponse.chat_id) as FullChat;
-        
-        // Create a proper Chat object
-        const chatObject: Chat = {
-          chat_id: fullChat.chat_id,
-          chat_type: fullChat.chat_type,
-          name: fullChat.name || `Chat with ${fullChat.participants?.find((p: { user_id: string; username: string }) => p.user_id !== user?.id)?.username || 'User'}`,
-          avatar_url: fullChat.avatar_url,
-          description: fullChat.description,
-          last_message: fullChat.last_message,
-          unread_count: fullChat.unread_count || 0,
-          participants_count: fullChat.participants_count || fullChat.participants?.length || 0,
-          message_count: fullChat.message_count || 0,
-          created_at: fullChat.created_at,
-          updated_at: fullChat.updated_at,
-          created_by: fullChat.created_by
-        };
-        
-        setChats(prev => {
-          // Check if chat already exists to prevent duplicates
-          const chatExists = prev.some(chat => chat.chat_id === chatObject.chat_id);
-          if (chatExists) {
-            // Just select the existing chat
-            setSelectedChat(chatObject);
-            return prev;
+    try {
+      const currentChats = chatsRef.current;
+      
+      // First, try to find an existing direct chat with the target user
+      // We need to check the participants of each direct chat
+      for (const chat of currentChats) {
+        if (chat.chat_type === 'direct' && chat.participants_count === 2) {
+          try {
+            // Get full chat details to check participants
+            const fullChat = await apiService.getChat(chat.chat_id) as FullChat;
+            const participants = fullChat.participants || [];
+            
+            // Check if target user is a participant
+            const hasTargetUser = participants.some((p: { user_id: string }) => p.user_id === targetUserId);
+            const hasCurrentUser = participants.some((p: { user_id: string }) => p.user_id === user?.id);
+            
+            if (hasTargetUser && hasCurrentUser) {
+              // Found existing chat with target user
+              setSelectedChat(chat);
+              setNavigatingToChat(false);
+              return;
+            }
+          } catch (error) {
+            console.warn('Failed to check chat participants:', error);
+            // Continue checking other chats
           }
-          return [chatObject, ...prev];
-        });
-        setSelectedChat(chatObject);
-      } catch (error) {
-        console.error('Failed to create direct chat:', error);
-        alertService.error('Failed to start conversation. Please try again.');
-      } finally {
-        setNavigatingToChat(false);
+        }
       }
+
+      // No existing chat found, create a new one
+      const createResponse = await apiService.createDirectChat(targetUserId) as { chat_id: string; chat_type: string; message: string };
+      
+      // Fetch the full chat details
+      const fullChat = await apiService.getChat(createResponse.chat_id) as FullChat;
+      
+      // Create a proper Chat object
+      const chatObject: Chat = {
+        chat_id: fullChat.chat_id,
+        chat_type: fullChat.chat_type,
+        name: fullChat.name || `Chat with ${fullChat.participants?.find((p: { user_id: string; username: string }) => p.user_id !== user?.id)?.username || 'User'}`,
+        avatar_url: fullChat.avatar_url,
+        description: fullChat.description,
+        last_message: fullChat.last_message,
+        unread_count: fullChat.unread_count || 0,
+        participants_count: fullChat.participants_count || fullChat.participants?.length || 0,
+        message_count: fullChat.message_count || 0,
+        created_at: fullChat.created_at,
+        updated_at: fullChat.updated_at,
+        created_by: fullChat.created_by
+      };
+      
+      // Add to chats list if not already present
+      setChats(prev => {
+        const chatExists = prev.some(chat => chat.chat_id === chatObject.chat_id);
+        if (!chatExists) {
+          return [chatObject, ...prev];
+        }
+        return prev;
+      });
+      
+      setSelectedChat(chatObject);
+    } catch (error) {
+      console.error('Failed to handle user chat navigation:', error);
+      alertService.error('Failed to start conversation. Please try again.');
+    } finally {
+      setNavigatingToChat(false);
     }
-  }, [targetUserId, chats, user?.id, navigatingToChat]);
+  }, [targetUserId, user?.id, navigatingToChat]);
 
-  const [shouldNavigate, setShouldNavigate] = useState(false);
-
-  // Load chats and handle user navigation
+  // Handle automatic navigation to user chat when coming from profile
   useEffect(() => {
-    if (!loading && chats.length > 0 && targetUserId && !shouldNavigate) {
-      setShouldNavigate(true);
-    }
-  }, [loading, chats.length, targetUserId, shouldNavigate]);
-
-  // Handle navigation when shouldNavigate becomes true
-  useEffect(() => {
-    if (shouldNavigate && targetUserId && !navigatingToChat) {
+    if (!loading && chats.length > 0 && targetUserId && !navigatingToChat && !selectedChat) {
       handleUserChatNavigation();
-      setShouldNavigate(false);
     }
-  }, [shouldNavigate, targetUserId, handleUserChatNavigation, navigatingToChat]);
+  }, [loading, chats.length, targetUserId, navigatingToChat, selectedChat, handleUserChatNavigation]);
 
   const loadMessages = async (chatId: string) => {
     try {

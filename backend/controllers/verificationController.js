@@ -702,7 +702,7 @@ export const verificationController = {
 
       // Ensure IDs are ObjectIds
       const middlemanObjectId = mongoose.Types.ObjectId.isValid(middlemanId) 
-        ? new mongoose.Types.ObjectId(middlemanId) 
+        ? new mongoose.Types.ObjectId(middlemanId)
         : middlemanId;
       const userObjectId = mongoose.Types.ObjectId.isValid(userId) 
         ? new mongoose.Types.ObjectId(userId) 
@@ -828,6 +828,172 @@ export const verificationController = {
     } catch (error) {
       console.error('Error checking user vouch status:', error);
       res.status(500).json({ error: 'Failed to check vouch status' });
+    }
+  },
+
+  // Delete completed application (admin only)
+  deleteApplication: async (req, res) => {
+    try {
+      const { applicationId } = req.params;
+      const adminId = req.user.userId;
+
+      console.log('Deleting application:', applicationId, 'by admin:', adminId);
+
+      const application = await MiddlemanApplication.findById(applicationId);
+
+      if (!application) {
+        console.log('Application not found:', applicationId);
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      // Only allow deletion of completed applications
+      if (!['approved', 'rejected'].includes(application.status)) {
+        console.log('Application status not completed:', application.status);
+        return res.status(400).json({ error: 'Only completed applications can be deleted' });
+      }
+
+      console.log('Application found, status:', application.status);
+
+      // Delete associated documents from file system
+      if (application.documents && application.documents.length > 0) {
+        console.log('Deleting associated documents:', application.documents.length);
+
+        for (const docId of application.documents) {
+          try {
+            console.log('Processing document:', docId);
+            const document = await VerificationDocument.findById(docId);
+            if (document && document.file_path) {
+              console.log('Deleting file:', document.file_path);
+              // Delete file from uploads directory
+              const filePath = path.join(process.cwd(), document.file_path);
+              try {
+                await fs.unlink(filePath);
+                console.log('File deleted successfully:', filePath);
+              } catch (fileError) {
+                console.warn(`Failed to delete file ${filePath}:`, fileError.message);
+              }
+
+              // Delete document record
+              await VerificationDocument.findByIdAndDelete(docId);
+              console.log('Document record deleted:', docId);
+            } else {
+              console.log('Document not found or no file path:', docId);
+            }
+          } catch (docError) {
+            console.warn(`Failed to delete document ${docId}:`, docError.message);
+          }
+        }
+      } else {
+        console.log('No documents to delete');
+      }
+
+      // Delete the application
+      console.log('Deleting application record');
+      await MiddlemanApplication.findByIdAndDelete(applicationId);
+
+      console.log('Application deleted successfully');
+      res.status(200).json({
+        message: 'Application deleted successfully'
+      });
+    } catch (error) {
+      console.error('Error deleting middleman application:', error);
+      res.status(500).json({ error: 'Failed to delete application' });
+    }
+  },
+
+  // Bulk delete completed applications (admin only)
+  bulkDeleteApplications: async (req, res) => {
+    try {
+      const { applicationIds } = req.body;
+      const adminId = req.user.userId;
+
+      console.log('Bulk deleting applications:', applicationIds, 'by admin:', adminId);
+
+      if (!applicationIds || !Array.isArray(applicationIds) || applicationIds.length === 0) {
+        return res.status(400).json({ error: 'Application IDs array is required' });
+      }
+
+      if (applicationIds.length > 50) {
+        return res.status(400).json({ error: 'Cannot delete more than 50 applications at once' });
+      }
+
+      const results = {
+        successful: [],
+        failed: []
+      };
+
+      for (const applicationId of applicationIds) {
+        try {
+          console.log('Processing application:', applicationId);
+
+          const application = await MiddlemanApplication.findById(applicationId);
+
+          if (!application) {
+            console.log('Application not found:', applicationId);
+            results.failed.push({ id: applicationId, error: 'Application not found' });
+            continue;
+          }
+
+          // Only allow deletion of completed applications
+          if (!['approved', 'rejected'].includes(application.status)) {
+            console.log('Application status not completed:', application.status);
+            results.failed.push({ id: applicationId, error: 'Only completed applications can be deleted' });
+            continue;
+          }
+
+          // Delete associated documents from file system
+          if (application.documents && application.documents.length > 0) {
+            console.log('Deleting associated documents for:', applicationId);
+
+            for (const docId of application.documents) {
+              try {
+                console.log('Processing document:', docId);
+                const document = await VerificationDocument.findById(docId);
+                if (document && document.file_path) {
+                  console.log('Deleting file:', document.file_path);
+                  // Delete file from uploads directory
+                  const filePath = path.join(process.cwd(), document.file_path);
+                  try {
+                    await fs.unlink(filePath);
+                    console.log('File deleted successfully:', filePath);
+                  } catch (fileError) {
+                    console.warn(`Failed to delete file ${filePath}:`, fileError.message);
+                  }
+
+                  // Delete document record
+                  await VerificationDocument.findByIdAndDelete(docId);
+                  console.log('Document record deleted:', docId);
+                } else {
+                  console.log('Document not found or no file path:', docId);
+                }
+              } catch (docError) {
+                console.warn(`Failed to delete document ${docId}:`, docError.message);
+              }
+            }
+          }
+
+          // Delete the application
+          console.log('Deleting application record:', applicationId);
+          await MiddlemanApplication.findByIdAndDelete(applicationId);
+
+          results.successful.push(applicationId);
+          console.log('Application deleted successfully:', applicationId);
+
+        } catch (appError) {
+          console.error(`Error deleting application ${applicationId}:`, appError);
+          results.failed.push({ id: applicationId, error: appError.message });
+        }
+      }
+
+      console.log('Bulk delete completed. Successful:', results.successful.length, 'Failed:', results.failed.length);
+
+      res.status(200).json({
+        message: `Bulk delete completed. ${results.successful.length} successful, ${results.failed.length} failed`,
+        results
+      });
+    } catch (error) {
+      console.error('Error in bulk delete:', error);
+      res.status(500).json({ error: 'Failed to process bulk delete' });
     }
   }
 };
