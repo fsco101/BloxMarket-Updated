@@ -11,7 +11,6 @@ import {
   Star, 
   MessageSquare, 
   CheckCircle,
-  TrendingUp,
   Award,
   Heart,
   Loader2
@@ -359,8 +358,6 @@ export function MiddlemanDirectory() {
         return b.rating - a.rating || b.vouchCount - a.vouchCount;
       case 'vouches':
         return b.vouchCount - a.vouchCount;
-      case 'trades':
-        return b.completedTrades - a.completedTrades;
       case 'newest':
         return new Date(b.joinDate).getTime() - new Date(a.joinDate).getTime();
       default:
@@ -412,7 +409,6 @@ export function MiddlemanDirectory() {
             <SelectContent>
               <SelectItem value="rating">Highest Rated</SelectItem>
               <SelectItem value="vouches">Most Vouches</SelectItem>
-              <SelectItem value="trades">Most Trades</SelectItem>
               <SelectItem value="newest">Newest</SelectItem>
             </SelectContent>
           </Select>
@@ -425,14 +421,6 @@ export function MiddlemanDirectory() {
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-green-500" />
             <span>{sortedMiddlemen.length} Verified Middlemen</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-blue-500" />
-            <span>99.2% Success Rate</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-purple-500" />
-            <span>45,678 Completed Trades</span>
           </div>
         </div>
       </div>
@@ -527,14 +515,6 @@ export function MiddlemanDirectory() {
                     
                     {/* Stats Grid */}
                     <div className="grid grid-cols-2 gap-4 p-3 bg-muted/30 rounded-lg">
-                      <div>
-                        <span className="text-xs text-muted-foreground">Completed Trades</span>
-                        <p className="font-semibold text-green-600 dark:text-green-400">{mm.completedTrades.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">Success Rate</span>
-                        <p className="font-semibold text-blue-600 dark:text-blue-400">{mm.successRate}%</p>
-                      </div>
                       <div>
                         <span className="text-xs text-muted-foreground">Response Time</span>
                         <p className="font-semibold">{mm.responseTime}</p>

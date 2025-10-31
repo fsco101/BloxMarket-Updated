@@ -8,6 +8,7 @@ import { Checkbox } from './ui/checkbox';
 import { Alert, AlertDescription } from './ui/alert';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { apiService } from '../services/api';
+import { alertService } from '../services/alertService';
 
 interface Penalty {
   type: 'warning' | 'restriction' | 'suspension' | 'strike';
@@ -60,7 +61,7 @@ export function Login() {
         console.warn('User has active penalties:', response.penalties);
         // For now, we'll show it in an alert after login
         setTimeout(() => {
-          alert(`Warning: You have active penalties:\n• ${penaltyMessages}\n\nPlease review and comply with platform rules to avoid further action.`);
+          alertService.warning(`Warning: You have active penalties:\n• ${penaltyMessages}\n\nPlease review and comply with platform rules to avoid further action.`);
         }, 1000);
       }
 

@@ -2,6 +2,7 @@ import { User } from '../models/User.js';
 import { Trade } from '../models/Trade.js';
 import { Vouch } from '../models/Vouch.js';
 import { Wishlist } from '../models/Wishlist.js';
+import { MiddlemanVouch } from '../models/MiddlemanVouch.js';
 import mongoose from 'mongoose';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
@@ -58,7 +59,7 @@ export const userController = {
     }
   },
 
-  // Get user by ID
+      // Get user by ID
   getUserById: async (req, res) => {
     try {
       const { userId } = req.params;
@@ -72,12 +73,23 @@ export const userController = {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      // Get user stats
-      const [totalTrades, completedTrades, totalVouches] = await Promise.all([
+      // Get user stats and vouches
+      const [totalTrades, completedTrades, tradeVouchCount, middlemanVouchCount, vouches, middlemanVouches] = await Promise.all([
         Trade.countDocuments({ user_id: userId }),
         Trade.countDocuments({ user_id: userId, status: 'completed' }),
-        Vouch.countDocuments({ user_id: userId })
+        Vouch.countDocuments({ vouched_user_id: userId }),
+        MiddlemanVouch.countDocuments({ middleman_id: userId }),
+        Vouch.find({ vouched_user_id: userId })
+          .populate('given_by_user_id', 'username avatar_url')
+          .sort({ created_at: -1 })
+          .limit(10), // Limit to recent 10 vouches for performance
+        MiddlemanVouch.find({ middleman_id: userId })
+          .populate('given_by_user_id', 'username avatar_url')
+          .sort({ created_at: -1 })
+          .limit(10) // Limit to recent 10 middleman vouches for performance
       ]);
+
+      const totalVouches = tradeVouchCount + middlemanVouchCount;
 
       res.json({
         user: {
@@ -101,7 +113,29 @@ export const userController = {
           completedTrades,
           totalVouches,
           successRate: totalTrades > 0 ? Math.round((completedTrades / totalTrades) * 100) : 0
-        }
+        },
+        vouches: vouches.map(vouch => ({
+          id: vouch._id,
+          rating: vouch.rating,
+          comment: vouch.comment,
+          given_by: {
+            id: vouch.given_by_user_id._id,
+            username: vouch.given_by_user_id.username,
+            avatar_url: vouch.given_by_user_id.avatar_url
+          },
+          created_at: vouch.createdAt
+        })),
+        middlemanVouches: middlemanVouches.map(vouch => ({
+          id: vouch._id,
+          rating: vouch.rating,
+          comment: vouch.comment,
+          given_by: {
+            id: vouch.given_by_user_id._id,
+            username: vouch.given_by_user_id.username,
+            avatar_url: vouch.given_by_user_id.avatar_url
+          },
+          created_at: vouch.createdAt
+        }))
       });
 
     } catch (error) {

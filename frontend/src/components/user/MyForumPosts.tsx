@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Alert, AlertDescription } from '../ui/alert';
 import { apiService } from '../../services/api';
+import { alertService } from '../../services/alertService';
 import { toast } from 'sonner';
 import { 
   MessageSquare, 
@@ -343,7 +344,14 @@ export function MyForumPosts() {
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+    const confirmed = await alertService.confirm(
+      'Delete Forum Post',
+      'Are you sure you want to delete this post? This action cannot be undone.',
+      'Delete',
+      'Cancel'
+    );
+    
+    if (!confirmed) {
       return;
     }
     

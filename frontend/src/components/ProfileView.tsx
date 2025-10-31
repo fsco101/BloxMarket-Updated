@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../App';
+import { useApp, useAuth } from '../App';
 import { apiService } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -15,20 +15,8 @@ import {
   CheckCircle,
   Shield,
   Award,
-  Users,
-  Flag
+  Users
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from './ui/dialog';
-import { Textarea } from './ui/textarea';
-import { toast } from 'sonner';
 
 interface ProfileData {
   user: {
@@ -56,17 +44,36 @@ interface ProfileData {
     totalVouches: number;
     successRate: number;
   };
+  vouches?: {
+    id: string;
+    rating: number;
+    comment?: string;
+    given_by: {
+      id: string;
+      username: string;
+      avatar_url?: string;
+    };
+    created_at: string;
+  }[];
+  middlemanVouches?: {
+    id: string;
+    rating: number;
+    comment?: string;
+    given_by: {
+      id: string;
+      username: string;
+      avatar_url?: string;
+    };
+    created_at: string;
+  }[];
 }
 
 export function ProfileView() {
   const { currentPage, setCurrentPage } = useApp();
+  const { user: currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
-  const [reportModalOpen, setReportModalOpen] = useState(false);
-  const [reportReason, setReportReason] = useState('');
-  const [reportType, setReportType] = useState<'Scamming' | 'Harassment' | 'Inappropriate Content' | 'Spam' | 'Impersonation' | 'Other'>('Other');
-  const [submittingReport, setSubmittingReport] = useState(false);
 
   // Extract user ID from currentPage (format: 'profile-{userId}')
   const userId = currentPage.startsWith('profile-') ? currentPage.replace('profile-', '') : null;
@@ -83,7 +90,7 @@ export function ProfileView() {
         setLoading(true);
         setError('');
 
-        const data = await apiService.getUserProfile(userId);
+        const data = await apiService.getUserProfile(userId) as ProfileData;
         setProfileData(data);
       } catch (err: unknown) {
         console.error('Error loading profile:', err);
@@ -155,34 +162,14 @@ export function ProfileView() {
     return `Active ${Math.floor(diffInDays / 30)}mo ago`;
   };
 
-  const handleReportUser = async () => {
-    if (!profileData || !reportReason.trim()) {
-      toast.error('Please provide a reason for the report');
-      return;
-    }
-
-    try {
-      setSubmittingReport(true);
-
-      await apiService.createReport({
-        post_id: profileData.user._id,
-        post_type: 'user',
-        reason: reportReason.trim(),
-        type: reportType
-      });
-
-      toast.success('Report submitted successfully');
-      setReportModalOpen(false);
-      setReportReason('');
-      setReportType('Other');
-    } catch (error: unknown) {
-      console.error('Error submitting report:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to submit report';
-      toast.error(errorMessage);
-    } finally {
-      setSubmittingReport(false);
+  const handleMessageUser = () => {
+    if (profileData) {
+      setCurrentPage(`messages-${profileData.user._id}`);
     }
   };
+
+  // Check if this is the current user's own profile
+  const isOwnProfile = currentUser && profileData && currentUser.id === profileData.user._id;
 
   if (loading) {
     return (
@@ -210,7 +197,7 @@ export function ProfileView() {
     );
   }
 
-  const { user, stats } = profileData;
+  const { user } = profileData;
 
   return (
     <div className="min-h-screen bg-background">
@@ -276,100 +263,26 @@ export function ProfileView() {
                       </p>
                     </div>
 
-                    {/* Report Button */}
+                    {/* Message Button */}
                     <div className="flex justify-center lg:justify-end">
-                      <Dialog open={reportModalOpen} onOpenChange={setReportModalOpen}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" className="flex items-center gap-2">
-                            <Flag className="w-4 h-4" />
-                            Report User
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
-                          <DialogHeader>
-                            <DialogTitle>Report User</DialogTitle>
-                            <DialogDescription>
-                              Report {user.username} for violating community guidelines. All reports are reviewed by moderators.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                              <label htmlFor="report-type" className="text-sm font-medium">
-                                Report Type
-                              </label>
-                              <select
-                                id="report-type"
-                                value={reportType}
-                                onChange={(e) => setReportType(e.target.value as typeof reportType)}
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                <option value="Scamming">Scamming</option>
-                                <option value="Harassment">Harassment</option>
-                                <option value="Inappropriate Content">Inappropriate Content</option>
-                                <option value="Spam">Spam</option>
-                                <option value="Impersonation">Impersonation</option>
-                                <option value="Other">Other</option>
-                              </select>
-                            </div>
-                            <div className="grid gap-2">
-                              <label htmlFor="report-reason" className="text-sm font-medium">
-                                Reason
-                              </label>
-                              <Textarea
-                                id="report-reason"
-                                placeholder="Please provide details about why you're reporting this user..."
-                                value={reportReason}
-                                onChange={(e) => setReportReason(e.target.value)}
-                                className="min-h-[100px]"
-                              />
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => setReportModalOpen(false)}
-                              disabled={submittingReport}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              type="button"
-                              onClick={handleReportUser}
-                              disabled={submittingReport || !reportReason.trim()}
-                            >
-                              {submittingReport ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Submitting...
-                                </>
-                              ) : (
-                                'Submit Report'
-                              )}
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                      {!isOwnProfile && (
+                        <Button
+                          onClick={handleMessageUser}
+                          size="sm"
+                          className="flex items-center gap-2"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          Message
+                        </Button>
+                      )}
                     </div>
                   </div>
 
                   {/* Stats */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <div className="text-center p-4 bg-card rounded-xl border border-border">
-                      <div className="text-2xl font-bold text-card-foreground mb-1">
-                        {stats.totalTrades}
-                      </div>
-                      <div className="text-sm font-medium text-muted-foreground">Total Trades</div>
-                    </div>
-                    <div className="text-center p-4 bg-card rounded-xl border border-border">
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
-                        {stats.successRate}%
-                      </div>
-                      <div className="text-sm font-medium text-muted-foreground">Success Rate</div>
-                    </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-2 gap-4 mb-6">
                     <div className="text-center p-4 bg-card rounded-xl border border-border">
                       <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
-                        {user.vouch_count}
+                        {profileData.stats.totalVouches}
                       </div>
                       <div className="text-sm font-medium text-muted-foreground">Vouches</div>
                     </div>
@@ -417,15 +330,15 @@ export function ProfileView() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   {user.discord_username && (
                     <div className="flex items-center gap-4 p-4 bg-muted rounded-xl border border-border">
                       <div className="p-3 bg-blue-500 rounded-full">
                         <MessageSquare className="w-6 h-6 text-white" />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-card-foreground">Discord</p>
-                        <p className="text-sm text-muted-foreground">{user.discord_username}</p>
+                        <p className="text-sm text-muted-foreground truncate">{user.discord_username}</p>
                       </div>
                     </div>
                   )}
@@ -435,13 +348,13 @@ export function ProfileView() {
                       <div className="p-3 bg-green-500 rounded-full">
                         <MessageCircle className="w-6 h-6 text-white" />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-card-foreground">Messenger</p>
                         <a
                           href={user.messenger_link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate block"
                         >
                           {user.messenger_link}
                         </a>
@@ -454,13 +367,13 @@ export function ProfileView() {
                       <div className="p-3 bg-purple-500 rounded-full">
                         <Globe className="w-6 h-6 text-white" />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-card-foreground">Website</p>
                         <a
                           href={user.website}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate block"
                         >
                           {user.website}
                         </a>
@@ -473,9 +386,9 @@ export function ProfileView() {
                       <div className="p-3 bg-red-500 rounded-full">
                         <Globe className="w-6 h-6 text-white" />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-card-foreground">Location</p>
-                        <p className="text-sm text-muted-foreground">{user.location}</p>
+                        <p className="text-sm text-muted-foreground truncate">{user.location}</p>
                       </div>
                     </div>
                   )}
@@ -486,6 +399,138 @@ export function ProfileView() {
 
           {/* Sidebar */}
           <div className="space-y-8">
+            {/* Vouches Section */}
+            {(profileData?.vouches && profileData.vouches.length > 0) || (profileData?.middlemanVouches && profileData.middlemanVouches.length > 0) && (
+              <Card className="shadow-xl border-0 bg-card">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl text-card-foreground flex items-center gap-2">
+                    <Award className="w-5 h-5 text-yellow-500" />
+                    Recent Vouches ({profileData.stats.totalVouches})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Trade Vouches */}
+                  {profileData.vouches && profileData.vouches.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold text-muted-foreground border-b border-border pb-2">Trade Vouches</h4>
+                      {profileData.vouches.map((vouch) => (
+                        <div key={vouch.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+                          <Avatar className="w-8 h-8 border border-border">
+                            <AvatarImage
+                              src={getAvatarUrl(vouch.given_by.avatar_url)}
+                              className="object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '';
+                              }}
+                            />
+                            <AvatarFallback className="text-xs bg-muted text-muted-foreground">
+                              {vouch.given_by.username?.[0]?.toUpperCase() || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-semibold text-card-foreground truncate">
+                                {vouch.given_by.username}
+                              </span>
+                              <div className="flex items-center">
+                                {[...Array(5)].map((_, i) => (
+                                  <Award
+                                    key={i}
+                                    className={`w-3 h-3 ${
+                                      i < vouch.rating
+                                        ? 'text-yellow-500 fill-yellow-500'
+                                        : 'text-muted-foreground'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            {vouch.comment && (
+                              <p className="text-sm text-muted-foreground mb-1 line-clamp-2">
+                                {vouch.comment}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(vouch.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Middleman Vouches */}
+                  {profileData.middlemanVouches && profileData.middlemanVouches.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold text-muted-foreground border-b border-border pb-2">Middleman Vouches</h4>
+                      {profileData.middlemanVouches.map((vouch) => (
+                        <div key={vouch.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+                          <Avatar className="w-8 h-8 border border-border">
+                            <AvatarImage
+                              src={getAvatarUrl(vouch.given_by.avatar_url)}
+                              className="object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '';
+                              }}
+                            />
+                            <AvatarFallback className="text-xs bg-muted text-muted-foreground">
+                              {vouch.given_by.username?.[0]?.toUpperCase() || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-semibold text-card-foreground truncate">
+                                {vouch.given_by.username}
+                              </span>
+                              <div className="flex items-center">
+                                {[...Array(5)].map((_, i) => (
+                                  <Award
+                                    key={i}
+                                    className={`w-3 h-3 ${
+                                      i < vouch.rating
+                                        ? 'text-yellow-500 fill-yellow-500'
+                                        : 'text-muted-foreground'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            {vouch.comment && (
+                              <p className="text-sm text-muted-foreground mb-1 line-clamp-2">
+                                {vouch.comment}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(vouch.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Total count message */}
+                  {((profileData.vouches?.length || 0) + (profileData.middlemanVouches?.length || 0)) < profileData.stats.totalVouches && (
+                    <div className="text-center pt-2">
+                      <p className="text-xs text-muted-foreground">
+                        Showing {((profileData.vouches?.length || 0) + (profileData.middlemanVouches?.length || 0))} of {profileData.stats.totalVouches} vouches
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Account Details */}
             <Card className="shadow-xl border-0 bg-card">
               <CardHeader className="pb-4">
@@ -511,29 +556,6 @@ export function ProfileView() {
                   <span className="text-sm font-semibold text-card-foreground">
                     {formatDate(user.createdAt)}
                   </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Trading Stats */}
-            <Card className="shadow-xl border-0 bg-card">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl text-card-foreground">
-                  Trading Statistics
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center p-4 bg-muted rounded-lg">
-                  <div className="text-2xl font-bold text-card-foreground">{stats.totalTrades}</div>
-                  <div className="text-sm text-muted-foreground">Total Trades</div>
-                </div>
-                <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.completedTrades}</div>
-                  <div className="text-sm text-muted-foreground">Completed</div>
-                </div>
-                <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.totalVouches}</div>
-                  <div className="text-sm text-muted-foreground">Vouches Received</div>
                 </div>
               </CardContent>
             </Card>

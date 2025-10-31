@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Alert, AlertDescription } from '../ui/alert';
 import { apiService } from '../../services/api';
+import { alertService } from '../../services/alertService';
 import { toast } from 'sonner';
 import { DataTable } from '../ui/datatable';
 import type { DataTableColumn } from '../ui/datatable';
@@ -205,12 +206,19 @@ export function ForumManagement() {
     }
   }, [loadPosts]);
 
-  const handleAction = useCallback((action: string, row: ForumPost, _index: number) => {
+  const handleAction = useCallback(async (action: string, row: ForumPost, _index: number) => {
     if (action === 'view') {
       console.log('View post:', row);
       toast.info(`Viewing post: ${row.title}`);
     } else if (action === 'delete') {
-      if (confirm(`Are you sure you want to delete "${row.title}"?`)) {
+      const confirmed = await alertService.confirm(
+        'Delete Forum Post',
+        `Are you sure you want to delete "${row.title}"?`,
+        'Delete',
+        'Cancel'
+      );
+      
+      if (confirmed) {
         // Optimistic update: remove the post from local state immediately
         setPosts(prevPosts => prevPosts.filter(p => (p._id || p.post_id) !== (row._id || row.post_id)));
         setDataKey(prev => prev + 1); // Force DataTable remount

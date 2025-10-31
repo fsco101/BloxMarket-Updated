@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { apiService } from '../services/api';
+import { alertService } from '../services/alertService';
 import { 
   MessageSquare, 
   Search, 
@@ -783,7 +784,14 @@ export function Forums() {
   };
 
   const handleDeletePost = async (postId: string, postTitle: string) => {
-    if (!confirm(`Are you sure you want to delete the post "${postTitle}"? This action cannot be undone.`)) {
+    const confirmed = await alertService.confirm(
+      'Delete Post',
+      `Are you sure you want to delete the post "${postTitle}"? This action cannot be undone.`,
+      'Delete',
+      'Cancel'
+    );
+
+    if (!confirmed) {
       return;
     }
 

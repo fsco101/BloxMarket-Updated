@@ -19,10 +19,7 @@ import {
   Shield,
   RefreshCw,
   AlertTriangle,
-  Download,
-  Camera,
-  CameraOff,
-  RotateCcw
+  Download
 } from 'lucide-react';
 
 declare global {
@@ -99,14 +96,6 @@ export function MiddlemanVerification() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dataTableRef = useRef<any>(null);
   const isInitialized = useRef(false);
-
-  // Camera functionality refs and state
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [cameraError, setCameraError] = useState('');
 
   // Helper function to get avatar URL
   const getAvatarUrl = (avatarUrl?: string) => {
@@ -485,13 +474,8 @@ export function MiddlemanVerification() {
           console.error('Error destroying DataTable during cleanup:', error);
         }
       }
-
-      // Cleanup camera
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-      }
     };
-  }, [jQueryReady, loadVerificationRequests, cameraStream]);
+  }, [jQueryReady, loadVerificationRequests]);
 
   const handleViewDocument = async (documentId: string) => {
     try {
@@ -565,88 +549,6 @@ export function MiddlemanVerification() {
       case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
       default: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
     }
-  };
-
-  // Camera control functions
-  const startCamera = async () => {
-    try {
-      setCameraError('');
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: 'user'
-        } 
-      });
-      
-      setCameraStream(stream);
-      setIsCameraActive(true);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      
-      toast.success('Camera started successfully');
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to access camera';
-      setCameraError(errorMessage);
-      toast.error(errorMessage);
-    }
-  };
-
-  const stopCamera = () => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach(track => track.stop());
-      setCameraStream(null);
-      setIsCameraActive(false);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-      
-      toast.success('Camera stopped');
-    }
-  };
-
-  const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) {
-      toast.error('Camera not ready');
-      return;
-    }
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-
-    if (!context) {
-      toast.error('Canvas context not available');
-      return;
-    }
-
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    // Draw current video frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Convert to data URL
-    const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-    
-    // Add to captured photos
-    setCapturedPhotos(prev => [...prev, photoDataUrl]);
-    
-    toast.success('Photo captured successfully');
-  };
-
-  const clearCapturedPhotos = () => {
-    setCapturedPhotos([]);
-    toast.success('Captured photos cleared');
-  };
-
-  const removeCapturedPhoto = (index: number) => {
-    setCapturedPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
   // Show error state
@@ -834,16 +736,8 @@ export function MiddlemanVerification() {
       </Dialog>
 
       {/* Review Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={(open) => {
-        setIsViewDialogOpen(open);
-        if (!open) {
-          // Cleanup camera when dialog closes
-          stopCamera();
-          setCapturedPhotos([]);
-          setCameraError('');
-        }
-      }}>
-        <DialogContent className="max-w-3xl">
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Review Verification Request</DialogTitle>
             <DialogDescription>
@@ -972,6 +866,81 @@ export function MiddlemanVerification() {
                     ))}
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-4">
+                    {/* Applicant's Camera Photo */}
+                    <div className="border rounded-md p-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">Camera Verification Photo</span>
+                        <Badge className="bg-green-100 text-green-800">
+                          <Shield className="w-3 h-3 mr-1" />
+                          Security Proof
+                        </Badge>
+                      </div>
+                      <div className="aspect-square bg-gray-100 rounded-md overflow-hidden mb-2">
+                        <img
+                          src={`http://localhost:5000/uploads/middlemanface/${selectedRequest.user_id?._id || selectedRequest._id}_camera.jpg`}
+                          alt="Camera verification photo"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            // Try alternative naming patterns
+                            const alternativeSrcs = [
+                              `http://localhost:5000/uploads/middlemanface/${selectedRequest.user_id?._id || selectedRequest._id}_face.jpg`,
+                              `http://localhost:5000/uploads/middlemanface/${selectedRequest.username}_camera.jpg`,
+                              `http://localhost:5000/uploads/middlemanface/camera_${selectedRequest._id}.jpg`
+                            ];
+                            
+                            let currentIndex = 0;
+                            
+                            const tryNextSrc = () => {
+                              if (currentIndex < alternativeSrcs.length) {
+                                target.src = alternativeSrcs[currentIndex];
+                                currentIndex++;
+                              } else {
+                                // All sources failed, show placeholder
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  parent.innerHTML = `
+                                    <div class="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500">
+                                      <div class="text-center">
+                                        <Shield className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                                        <p class="text-xs">Camera photo not available</p>
+                                      </div>
+                                    </div>
+                                  `;
+                                }
+                              }
+                            };
+                            
+                            target.onerror = tryNextSrc;
+                            tryNextSrc();
+                          }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                        <Shield className="w-3 h-3" />
+                        <span>Live camera capture for identity verification</span>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="w-full text-xs h-7"
+                        onClick={() => {
+                          // Open camera photo in new tab for detailed review
+                          const img = document.querySelector('img[alt="Camera verification photo"]') as HTMLImageElement;
+                          if (img && img.src && !img.src.includes('placeholder')) {
+                            window.open(img.src, '_blank');
+                          } else {
+                            toast.error('Camera photo not available for viewing');
+                          }
+                        }}
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        View Full Size
+                      </Button>
+                    </div>
+
+                    {/* Other Documents */}
                     {selectedRequest.documents.map((doc, i) => (
                       <div key={i} className="border rounded-md p-2">
                         <div className="flex items-center justify-between mb-2">
@@ -1042,121 +1011,7 @@ export function MiddlemanVerification() {
                 </div>
               )}
 
-              {/* Real-time Photo Capture */}
-              <div>
-                <h4 className="font-semibold mb-3">Live Photo Capture</h4>
-                <div className="border rounded-md p-4 bg-gray-50">
-                  {cameraError && (
-                    <Alert variant="destructive" className="mb-4">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>{cameraError}</AlertDescription>
-                    </Alert>
-                  )}
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Camera Feed */}
-                    <div className="space-y-3">
-                      <div className="aspect-video bg-black rounded-md overflow-hidden relative">
-                        <video
-                          ref={videoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className={`w-full h-full object-cover ${!isCameraActive ? 'hidden' : ''}`}
-                        />
-                        {!isCameraActive && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="text-center text-white">
-                              <Camera className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                              <p className="text-sm">Camera inactive</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex gap-2">
-                        {!isCameraActive ? (
-                          <Button onClick={startCamera} className="flex-1">
-                            <Camera className="w-4 h-4 mr-2" />
-                            Start Camera
-                          </Button>
-                        ) : (
-                          <>
-                            <Button onClick={capturePhoto} variant="outline" className="flex-1">
-                              <Camera className="w-4 h-4 mr-2" />
-                              Capture Photo
-                            </Button>
-                            <Button onClick={stopCamera} variant="destructive">
-                              <CameraOff className="w-4 h-4 mr-2" />
-                              Stop
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Captured Photos */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h5 className="font-medium">Captured Photos ({capturedPhotos.length})</h5>
-                        {capturedPhotos.length > 0 && (
-                          <Button onClick={clearCapturedPhotos} variant="outline" size="sm">
-                            <RotateCcw className="w-3 h-3 mr-1" />
-                            Clear All
-                          </Button>
-                        )}
-                      </div>
-
-                      {capturedPhotos.length === 0 ? (
-                        <div className="aspect-video border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center">
-                          <div className="text-center text-gray-500">
-                            <Camera className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">No photos captured</p>
-                            <p className="text-xs">Use camera to capture photos</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                          {capturedPhotos.map((photo, index) => (
-                            <div key={index} className="relative group">
-                              <img
-                                src={photo}
-                                alt={`Captured ${index + 1}`}
-                                className="w-full aspect-square object-cover rounded-md border"
-                              />
-                              <button
-                                onClick={() => removeCapturedPhoto(index)}
-                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Remove photo"
-                              >
-                                ×
-                              </button>
-                              <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
-                                {index + 1}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                    <div className="flex items-start gap-2">
-                      <Shield className="w-5 h-5 text-amber-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-amber-800">Live Verification</p>
-                        <p className="text-xs text-amber-700 mt-1">
-                          Capture real-time photos of the applicant for additional verification. These photos will be stored alongside the application for review.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Hidden canvas for photo capture */}
-              <canvas ref={canvasRef} className="hidden" />
               
               {selectedRequest.status === 'pending' && (
                 <div className="flex items-center gap-3 pt-4 border-t">

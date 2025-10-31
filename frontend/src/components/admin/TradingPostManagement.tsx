@@ -7,6 +7,7 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { apiService } from '../../services/api';
+import { alertService } from '../../services/alertService';
 import { toast } from 'sonner';
 import { DataTable } from '../ui/datatable';
 import type { DataTableColumn } from '../ui/datatable';
@@ -207,15 +208,22 @@ export function TradingPostManagement() {
     }
   ];
 
-  const handleDataTableAction = useCallback((action: string, row: TradingPost) => {
+  const handleDataTableAction = useCallback(async (action: string, row: TradingPost) => {
     switch (action) {
       case 'view':
         setSelectedPost(row);
         setIsViewDialogOpen(true);
         break;
         
-      case 'archive':
-        if (window.confirm('Are you sure you want to archive this trading post?')) {
+      case 'archive': {
+        const archiveConfirmed = await alertService.confirm(
+          'Archive Trading Post',
+          'Are you sure you want to archive this trading post?',
+          'Archive',
+          'Cancel'
+        );
+        
+        if (archiveConfirmed) {
           apiService.moderateTradingPost(row._id, 'archive')
             .then(() => {
               toast.success('Trading post archived successfully');
@@ -227,9 +235,17 @@ export function TradingPostManagement() {
             });
         }
         break;
+      }
         
-      case 'delete':
-        if (window.confirm('Are you sure you want to permanently delete this trading post? This action cannot be undone.')) {
+      case 'delete': {
+        const deleteConfirmed = await alertService.confirm(
+          'Delete Trading Post',
+          'Are you sure you want to permanently delete this trading post? This action cannot be undone.',
+          'Delete',
+          'Cancel'
+        );
+        
+        if (deleteConfirmed) {
           apiService.deleteTradingPostAdmin(row._id)
             .then(() => {
               toast.success('Trading post deleted successfully');
@@ -251,6 +267,7 @@ export function TradingPostManagement() {
             });
         }
         break;
+      }
         
       default:
         console.warn('Unknown action:', action);

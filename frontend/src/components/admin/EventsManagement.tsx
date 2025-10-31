@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { DataTable } from '../ui/datatable';
 import type { DataTableColumn, DataTableRef } from '../ui/datatable';
 import { apiService } from '../../services/api';
+import { alertService } from '../../services/alertService';
 import { toast } from 'sonner';
 import {
   Calendar,
@@ -111,7 +112,14 @@ export function EventsManagement() {
       toast.info(`Viewing event: ${event.name}`);
       // Add your view logic here
     } else if (action === 'delete') {
-      if (confirm(`Are you sure you want to delete "${event.name}"?`)) {
+      const confirmed = await alertService.confirm(
+        'Delete Event',
+        `Are you sure you want to delete "${event.name}"?`,
+        'Delete',
+        'Cancel'
+      );
+
+      if (confirmed) {
         // Optimistic update: remove the event from local state immediately
         setEvents(prevEvents => prevEvents.filter(e => (e._id || e.id) !== eventId));
         setDataKey(prev => prev + 1); // Force DataTable remount

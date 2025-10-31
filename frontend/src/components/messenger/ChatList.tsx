@@ -4,6 +4,7 @@ import { BootstrapBadge } from '../ui/bootstrap-badge';
 import { BootstrapButton } from '../ui/bootstrap-button';
 import { formatDistanceToNow } from 'date-fns';
 import { apiService } from '../../services/api';
+import { alertService } from '../../services/alertService';
 
 interface Chat {
   chat_id: string;
@@ -74,10 +75,10 @@ export const ChatList: React.FC<ChatListProps> = ({
       setShowClearConfirm(false);
       setContextMenuChat(null);
       // Optionally refresh the chat list or show a success message
-      alert('Conversation cleared successfully');
+      alertService.success('Conversation cleared successfully');
     } catch (error) {
       console.error('Failed to clear conversation:', error);
-      alert('Failed to clear conversation. Please try again.');
+      alertService.error('Failed to clear conversation. Please try again.');
     }
   };
 
@@ -126,13 +127,13 @@ export const ChatList: React.FC<ChatListProps> = ({
             >
               <div className="d-flex align-items-center gap-3">
                 <BootstrapAvatar src={getAvatarUrl(chat.avatar_url)} alt={chat.name} size="lg">
-                  {chat.name.substring(0, 2).toUpperCase()}
+                  {chat.name && typeof chat.name === 'string' ? chat.name.substring(0, 2).toUpperCase() : 'U'}
                 </BootstrapAvatar>
 
                 <div className="flex-1 min-w-0">
                   <div className="d-flex align-items-center justify-content-between">
                     <h3 className="small fw-medium text-dark truncate mb-0">
-                      {chat.name}
+                      {chat.name || 'Unknown Chat'}
                     </h3>
                     {chat.last_message && (
                       <span className="small text-muted">
@@ -212,7 +213,7 @@ export const ChatList: React.FC<ChatListProps> = ({
                 ></button>
               </div>
               <div className="modal-body">
-                <p>Are you sure you want to clear the conversation with <strong>{contextMenuChat.name}</strong>?</p>
+                <p>Are you sure you want to clear the conversation with <strong>{contextMenuChat.name || 'Unknown Chat'}</strong>?</p>
                 <div className="alert alert-warning">
                   <small>
                     <i className="fas fa-exclamation-triangle me-1"></i>

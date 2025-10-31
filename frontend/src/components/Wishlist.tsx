@@ -9,6 +9,7 @@ import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { apiService } from '../services/api';
+import { alertService } from '../services/alertService';
 import { 
   Plus, 
   Search, 
@@ -330,7 +331,8 @@ function WishlistDetailsModal({
   const handleDeleteImage = async (filename: string) => {
     if (!wishlist || !canEdit) return;
     
-    if (!confirm('Are you sure you want to delete this image? This action cannot be undone.')) {
+    const confirmed = await alertService.confirm('Are you sure you want to delete this image? This action cannot be undone.');
+    if (!confirmed) {
       return;
     }
     
@@ -1345,7 +1347,8 @@ export function Wishlist() {
   };
 
   const handleDeleteWishlist = async (wishlistId: string, itemName: string) => {
-    if (!confirm(`Are you sure you want to delete "${itemName}" from your wishlist? This action cannot be undone.`)) {
+    const confirmed = await alertService.confirm(`Are you sure you want to delete "${itemName}" from your wishlist? This action cannot be undone.`);
+    if (!confirmed) {
       return;
     }
 

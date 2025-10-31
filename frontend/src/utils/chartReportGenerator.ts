@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { alertService } from '../services/alertService';
 
 export interface ChartDataPoint {
   name?: string;
@@ -847,28 +848,9 @@ export class ChartReportGenerator {
       }
 
       // Save the PDF
-      const finalFilename = `${filename}-comprehensive-${new Date().toISOString().split('T')[0]}.pdf`;
-      pdf.save(finalFilename);
-
     } catch (error) {
-      console.error('Chart report generation failed:', error);
-
-      // Enhanced error handling
-      if (error instanceof Error) {
-        if (error.message.includes('not found or not rendered')) {
-          alert('Chart is still loading. Please wait a moment and try again.');
-        } else if (error.message.includes('Chart element not found')) {
-          alert('Chart element not found. Please refresh the page and try again.');
-        } else if (error.message.includes('canvas context')) {
-          alert('Unable to process chart. Please try again.');
-        } else if (error.message.includes('All chart capture methods failed')) {
-          alert('Chart capture failed. Try using a different browser or refresh the page.');
-        } else {
-          alert(`Failed to generate PDF report: ${error.message}`);
-        }
-      } else {
-        alert('An unexpected error occurred. Please try again.');
-      }
+      console.error('PDF generation failed:', error);
+      alertService.error('Failed to generate PDF report. Please try again.');
     }
   }
 
@@ -925,7 +907,7 @@ export class ChartReportGenerator {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('SVG export failed:', error);
-      alert('Failed to export chart as SVG. Please try again.');
+      alertService.error('Failed to export chart as SVG. Please try again.');
     }
   }
 }

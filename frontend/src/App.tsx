@@ -155,57 +155,69 @@ export default function App() {
   });
 
   useEffect(() => {
+    let isAuthInitializing = false;
+
     const initAuth = async () => {
-      // Check both storage types for tokens and user data
-      const localToken = localStorage.getItem('bloxmarket-token');
-      const sessionToken = sessionStorage.getItem('bloxmarket-token');
-      const token = localToken || sessionToken;
+      // Prevent multiple concurrent auth initializations
+      if (isAuthInitializing) {
+        console.log('Auth initialization already in progress, skipping...');
+        return;
+      }
       
-      const localUser = localStorage.getItem('bloxmarket-user');
-      const sessionUser = sessionStorage.getItem('bloxmarket-user');
-      const storedUser = localUser || sessionUser;
-      
-      // Determine which storage to use for later operations
-      const isPersistentLogin = !!localToken;
+      isAuthInitializing = true;
 
-      if (token) {
-        // Set token using the appropriate storage type
+      try {
+        // Check both storage types for tokens and user data
+        const localToken = localStorage.getItem('bloxmarket-token');
+        const sessionToken = sessionStorage.getItem('bloxmarket-token');
+        const token = localToken || sessionToken;
+        
+        const localUser = localStorage.getItem('bloxmarket-user');
+        const sessionUser = sessionStorage.getItem('bloxmarket-user');
+        const storedUser = localUser || sessionUser;
+        
+        // Determine which storage to use for later operations
         const isPersistentLogin = !!localToken;
-        apiService.setToken(token, isPersistentLogin);
 
-        if (storedUser) {
-          try {
-            const u = JSON.parse(storedUser);
-            setUser(u);
-            setIsLoggedIn(true);
-          } catch {
-            // Clear from the appropriate storage
-            if (isPersistentLogin) {
-              localStorage.removeItem('bloxmarket-user');
-            } else {
-              sessionStorage.removeItem('bloxmarket-user');
+        if (token) {
+          // Set token using the appropriate storage type
+          apiService.setToken(token, isPersistentLogin);
+
+          if (storedUser) {
+            try {
+              const u = JSON.parse(storedUser);
+              setUser(u);
+              setIsLoggedIn(true);
+            } catch {
+              // Clear from the appropriate storage
+              if (isPersistentLogin) {
+                localStorage.removeItem('bloxmarket-user');
+              } else {
+                sessionStorage.removeItem('bloxmarket-user');
+              }
             }
           }
-        }
 
-        try {
-          const me = await apiService.getCurrentUser();
-          setUser(me);
-          setIsLoggedIn(true);
+          try {
+            const me = await apiService.getCurrentUser() as User;
+            setUser(me);
+            setIsLoggedIn(true);
+            setCurrentPage('landing');
+            
+            // Save to the appropriate storage
+            const storage = isPersistentLogin ? localStorage : sessionStorage;
+            storage.setItem('bloxmarket-user', JSON.stringify(me));
+          } catch (err) {
+            // Keep UI; actual auth errors will dispatch 'auth-expired'
+            console.warn('Token verify failed:', err);
+          }
+        } else {
           setCurrentPage('landing');
-          
-          // Save to the appropriate storage
-          const storage = isPersistentLogin ? localStorage : sessionStorage;
-          storage.setItem('bloxmarket-user', JSON.stringify(me));
-        } catch (err) {
-          // Keep UI; actual auth errors will dispatch 'auth-expired'
-          console.warn('Token verify failed:', err);
         }
-      } else {
-        setCurrentPage('landing');
+      } finally {
+        setIsLoading(false);
+        isAuthInitializing = false;
       }
-
-      setIsLoading(false);
     };
 
     const onExpired = () => handleLogout();
@@ -337,6 +349,10 @@ export default function App() {
         // Handle profile pages with user ID (format: profile-{userId})
         if (currentPage.startsWith('profile-')) {
           return <ProfileView />;
+        }
+        // Handle messages pages with user ID (format: messages-{userId})
+        if (currentPage.startsWith('messages-')) {
+          return <Messenger />;
         }
         return <Dashboard />;
     }

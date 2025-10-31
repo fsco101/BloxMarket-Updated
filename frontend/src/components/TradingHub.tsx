@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogDescription, DialogHeader, D
 import { PostModal } from './ui/post-modal';
 import type { PostModalPost } from './ui/post-modal';
 import { apiService } from '../services/api';
+import { alertService } from '../services/alertService';
 import { toast } from 'sonner';
 import { 
   Plus, 
@@ -1450,7 +1451,7 @@ export function TradingHub() {
   };
 
   const handleDeleteTrade = async (tradeId: string, tradeTitle: string) => {
-    const confirmed = window.confirm(`Are you sure you want to delete the trade "${tradeTitle}"?`);
+    const confirmed = await alertService.confirm(`Are you sure you want to delete the trade "${tradeTitle}"?`);
     if (!confirmed) return;
 
     try {

@@ -10,6 +10,7 @@ import { Progress } from './ui/progress';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { apiService } from '../services/api';
+import { alertService } from '../services/alertService';
 import { useAuth, useApp } from '../App';
 import { toast } from 'sonner';
 import { PostModal } from './ui/post-modal';
@@ -298,60 +299,31 @@ export function EventsGiveaways() {
       // Fix: Extract events array from response object
       const eventsArray = response.events || response || [];
       
-      // Add vote and comment counts to each event
-      const eventsWithCounts = await Promise.all(eventsArray.map(async (event: Event) => {
-        try {
-          const [voteResponse, commentResponse] = await Promise.allSettled([
-            apiService.getEventVotes(event._id),
-            apiService.getEventComments(event._id)
-          ]);
-
-          let upvotes = 0, downvotes = 0, comment_count = 0;
-
-          if (voteResponse.status === 'fulfilled') {
-            upvotes = voteResponse.value.upvotes || 0;
-            downvotes = voteResponse.value.downvotes || 0;
-          }
-
-          if (commentResponse.status === 'fulfilled') {
-            comment_count = commentResponse.value.comments?.length || 0;
-          }
-
-          // Convert participants to interested if backend still uses participants terminology
-          // Define a more specific type for the potentially different API response
-          interface LegacyEventResponse extends Event {
-            participantCount?: number;
-            participants?: Array<{
-              _id: string;
-              username: string;
-              avatar?: string;
-            }>;
-          }
-          
-          const eventWithLegacy = event as LegacyEventResponse;
-          
-          const remappedEvent = {
-            ...event,
-            upvotes,
-            downvotes,
-            comment_count,
-            // Map participantCount to interestedCount if backend still uses old naming
-            interestedCount: event.interestedCount || eventWithLegacy.participantCount || 0,
-            // Map participants array to interested array if backend still uses old naming
-            interested: event.interested || eventWithLegacy.participants || []
-          };
-          
-          return remappedEvent;
-        } catch (error) {
-          console.error('Failed to load counts for event:', event._id, error);
-          return {
-            ...event,
-            upvotes: 0,
-            downvotes: 0,
-            comment_count: 0
-          };
+      // The backend already provides vote and comment counts, so we just need to map the data
+      const eventsWithCounts = eventsArray.map((event: Event) => {
+        // Convert participants to interested if backend still uses participants terminology
+        // Define a more specific type for the potentially different API response
+        interface LegacyEventResponse extends Event {
+          participantCount?: number;
+          participants?: Array<{
+            _id: string;
+            username: string;
+            avatar?: string;
+          }>;
         }
-      }));
+        
+        const eventWithLegacy = event as LegacyEventResponse;
+        
+        const remappedEvent = {
+          ...event,
+          // Map participantCount to interestedCount if backend still uses old naming
+          interestedCount: event.interestedCount || eventWithLegacy.participantCount || 0,
+          // Map participants array to interested array if backend still uses old naming
+          interested: event.interested || eventWithLegacy.participants || []
+        };
+        
+        return remappedEvent;
+      });
 
       setEvents(eventsWithCounts);
     } catch (err) {
@@ -552,7 +524,8 @@ export function EventsGiveaways() {
   };
 
   const handleDeleteEvent = async (eventId: string, eventTitle: string) => {
-    if (!confirm(`Are you sure you want to delete the event "${eventTitle}"? This action cannot be undone.`)) {
+    const confirmed = await alertService.confirm(`Are you sure you want to delete the event "${eventTitle}"? This action cannot be undone.`);
+    if (!confirmed) {
       return;
     }
 
@@ -1601,119 +1574,6 @@ export function EventsGiveaways() {
           isOpen={isDetailsModalOpen}
           onClose={handleCloseDetailsModal}
           onUserClick={handleUserClick}
-          currentUser={user}
-          overlay={
-            <div className="space-y-4">
-              {/* Event-specific content */}
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="capitalize">
-                  {getTypeIcon(selectedEvent.type)}
-                  <span className="ml-1">{selectedEvent.type}</span>
-                </Badge>
-                <Badge className={getStatusColor(selectedEvent.status)}>
-                  {selectedEvent.status}
-                </Badge>
-              </div>
-
-              {/* Prizes */}
-              {selectedEvent.prizes && selectedEvent.prizes.length > 0 && (
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-semibold text-green-700 dark:text-green-300 mb-2">Prizes</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedEvent.prizes.map((prize, i) => (
-                      <Badge key={i} variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
-                        {prize}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Requirements */}
-              {selectedEvent.requirements && selectedEvent.requirements.length > 0 && (
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-2">Requirements</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedEvent.requirements.map((req, i) => (
-                      <Badge key={i} variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                        {req}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Progress */}
-              {selectedEvent.maxParticipants && (
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-semibold mb-2">Interest</h4>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>{selectedEvent.interestedCount || 0} interested</span>
-                    <span>{selectedEvent.maxParticipants} max</span>
-                  </div>
-                  <Progress value={((selectedEvent.interestedCount || 0) / selectedEvent.maxParticipants) * 100} className="h-2" />
-                </div>
-              )}
-
-              {/* Event Info */}
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
-                <div>
-                  <span className="text-muted-foreground">Start Date:</span>
-                  <div className="font-medium">{new Date(selectedEvent.startDate).toLocaleDateString()}</div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">End Date:</span>
-                  <div className="font-medium">{new Date(selectedEvent.endDate).toLocaleDateString()}</div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t">
-                <Button
-                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-700 text-white"
-                  onClick={() => handleJoinEvent(selectedEvent._id, selectedEvent.type)}
-                  disabled={joinLoading === selectedEvent._id || selectedEvent.status === 'ended'}
-                >
-                  {joinLoading === selectedEvent._id ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Marking as interested...
-                    </>
-                  ) : (
-                    <>
-                      {getTypeIcon(selectedEvent.type)}
-                      <span className="ml-2">
-                        {selectedEvent.type === 'giveaway' ? 'Interested in Giveaway' :
-                         selectedEvent.type === 'competition' ? 'Interested in Competition' : 'Interested'}
-                      </span>
-                    </>
-                  )}
-                </Button>
-
-                {isAdminOrModerator && (
-                  <>
-                    <Button variant="outline" onClick={() => handleEditEvent(selectedEvent)}>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleDeleteEvent(selectedEvent._id, selectedEvent.title)}
-                      disabled={deleteLoading === selectedEvent._id}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      {deleteLoading === selectedEvent._id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4 mr-2" />
-                      )}
-                      {deleteLoading === selectedEvent._id ? 'Deleting...' : 'Delete'}
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          }
         />
       )}
 

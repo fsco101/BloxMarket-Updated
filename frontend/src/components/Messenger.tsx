@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../App';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useAuth, useApp } from '../App';
 import { apiService } from '../services/api';
 import { socketService } from '../services/socket';
+import { alertService } from '../services/alertService';
 import { ChatList } from './messenger/ChatList';
 import { ChatWindow } from './messenger/ChatWindow';
 import { CreateChatDialog } from './messenger/CreateChatDialog';
@@ -24,6 +25,31 @@ interface Chat {
   message_count: number;
   created_at: string;
   updated_at: string;
+  created_by?: string;
+}
+
+interface FullChat {
+  chat_id: string;
+  chat_type: 'direct' | 'group';
+  name?: string;
+  avatar_url?: string;
+  description?: string;
+  last_message?: {
+    content: string;
+    sender_username: string;
+    sent_at: string;
+  };
+  unread_count?: number;
+  participants_count?: number;
+  message_count?: number;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  participants?: Array<{
+    user_id: string;
+    username: string;
+    avatar_url?: string;
+  }>;
 }
 
 interface Message {
@@ -58,13 +84,18 @@ interface Message {
 
 export const Messenger: React.FC = () => {
   const { user } = useAuth();
+  const { currentPage } = useApp();
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [showCreateChat, setShowCreateChat] = useState(false);
+  const [navigatingToChat, setNavigatingToChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Extract target user ID from currentPage if it starts with 'messages-'
+  const targetUserId = currentPage.startsWith('messages-') ? currentPage.replace('messages-', '') : null;
 
   // Load user's chats
   useEffect(() => {
@@ -230,8 +261,15 @@ export const Messenger: React.FC = () => {
   const loadChats = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getUserChats({ limit: 50 });
-      setChats(response.chats || []);
+      const response = await apiService.getUserChats({ limit: 50 }) as { chats: Chat[] };
+      // Filter out any undefined or invalid chats
+      const validChats = (response.chats || []).filter(chat => 
+        chat && 
+        chat.chat_id && 
+        chat.name && 
+        typeof chat.name === 'string'
+      );
+      setChats(validChats);
     } catch (error) {
       console.error('Failed to load chats:', error);
     } finally {
@@ -239,11 +277,91 @@ export const Messenger: React.FC = () => {
     }
   };
 
+  // Handle navigation to specific user chat
+  const handleUserChatNavigation = useCallback(async () => {
+    if (!targetUserId || !chats.length || navigatingToChat) return;
+
+    setNavigatingToChat(true);
+
+    // Look for existing direct chat with the target user
+    // For now, we'll check if we can find a direct chat that might be with this user
+    // This is a simplified approach - in a real app, you'd want to check participants
+    const existingChat = chats.find(chat => 
+      chat && 
+      chat.chat_type === 'direct' && 
+      chat.participants_count === 2
+    );
+
+    if (existingChat) {
+      setSelectedChat(existingChat);
+      setNavigatingToChat(false);
+      return;
+    } else {
+      // Create a new direct chat with the target user
+      try {
+        const createResponse = await apiService.createDirectChat(targetUserId) as { chat_id: string; chat_type: string; message: string };
+        
+        // Fetch the full chat details since createDirectChat doesn't return complete chat object
+        const fullChat = await apiService.getChat(createResponse.chat_id) as FullChat;
+        
+        // Create a proper Chat object
+        const chatObject: Chat = {
+          chat_id: fullChat.chat_id,
+          chat_type: fullChat.chat_type,
+          name: fullChat.name || `Chat with ${fullChat.participants?.find((p: { user_id: string; username: string }) => p.user_id !== user?.id)?.username || 'User'}`,
+          avatar_url: fullChat.avatar_url,
+          description: fullChat.description,
+          last_message: fullChat.last_message,
+          unread_count: fullChat.unread_count || 0,
+          participants_count: fullChat.participants_count || fullChat.participants?.length || 0,
+          message_count: fullChat.message_count || 0,
+          created_at: fullChat.created_at,
+          updated_at: fullChat.updated_at,
+          created_by: fullChat.created_by
+        };
+        
+        setChats(prev => {
+          // Check if chat already exists to prevent duplicates
+          const chatExists = prev.some(chat => chat.chat_id === chatObject.chat_id);
+          if (chatExists) {
+            // Just select the existing chat
+            setSelectedChat(chatObject);
+            return prev;
+          }
+          return [chatObject, ...prev];
+        });
+        setSelectedChat(chatObject);
+      } catch (error) {
+        console.error('Failed to create direct chat:', error);
+        alertService.error('Failed to start conversation. Please try again.');
+      } finally {
+        setNavigatingToChat(false);
+      }
+    }
+  }, [targetUserId, chats, user?.id, navigatingToChat]);
+
+  const [shouldNavigate, setShouldNavigate] = useState(false);
+
+  // Load chats and handle user navigation
+  useEffect(() => {
+    if (!loading && chats.length > 0 && targetUserId && !shouldNavigate) {
+      setShouldNavigate(true);
+    }
+  }, [loading, chats.length, targetUserId, shouldNavigate]);
+
+  // Handle navigation when shouldNavigate becomes true
+  useEffect(() => {
+    if (shouldNavigate && targetUserId && !navigatingToChat) {
+      handleUserChatNavigation();
+      setShouldNavigate(false);
+    }
+  }, [shouldNavigate, targetUserId, handleUserChatNavigation, navigatingToChat]);
+
   const loadMessages = async (chatId: string) => {
     try {
       setMessagesLoading(true);
       console.log('Loading messages for chat:', chatId);
-      const response = await apiService.getMessages(chatId, { limit: 50 });
+      const response = await apiService.getMessages(chatId, { limit: 50 }) as { messages: Message[] };
       console.log('Messages response:', response);
       setMessages(response.messages || []);
       console.log('Set messages to:', response.messages || []);
@@ -322,16 +440,6 @@ export const Messenger: React.FC = () => {
             chats={chats}
             selectedChat={selectedChat}
             onChatSelect={handleChatSelect}
-            onChatLeft={(chatId) => {
-              console.log('Messenger: onChatLeft called with chatId:', chatId);
-              console.log('Messenger: Current chats before filter:', chats.map(c => c.chat_id));
-              setChats(prevChats => prevChats.filter(chat => chat.chat_id !== chatId));
-              console.log('Messenger: Chats after filter:', chats.filter(chat => chat.chat_id !== chatId).map(c => c.chat_id));
-              if (selectedChat?.chat_id === chatId) {
-                console.log('Messenger: Clearing selected chat');
-                setSelectedChat(null);
-              }
-            }}
           />
         </div>
 

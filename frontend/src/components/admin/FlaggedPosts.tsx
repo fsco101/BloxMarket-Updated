@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { apiService } from '../../services/api';
+import { alertService } from '../../services/alertService';
 import { toast } from 'sonner';
 import { AlertTriangle, Eye, CheckCircle, Trash2, Download, Search, Filter, ShieldAlert, ShieldX } from 'lucide-react';
 
@@ -159,7 +160,14 @@ export function FlaggedPosts() {
   };
 
   const handleDeleteReport = async (reportId: string) => {
-    if (!confirm('Are you sure you want to delete this report? This action cannot be undone.')) {
+    const confirmed = await alertService.confirm(
+      'Delete Report',
+      'Are you sure you want to delete this report? This action cannot be undone.',
+      'Delete',
+      'Cancel'
+    );
+
+    if (!confirmed) {
       return;
     }
 

@@ -9,11 +9,18 @@ const apiTimestamps = {
   heavy: new Map<string, number>() // Resource-intensive operations
 };
 
-// Minimum wait times between requests (in milliseconds)
+// Request queues for different categories to prevent simultaneous requests
+const requestQueues = {
+  auth: Promise.resolve(),
+  standard: Promise.resolve(),
+  heavy: Promise.resolve()
+};
+
+// Minimum wait times between requests (in milliseconds) - increased for safety
 const minWaitTimes = {
-  auth: 2000, // 2 seconds between auth requests (increased from 1000)
-  standard: 500, // 0.5 seconds between standard requests (increased from 200)
-  heavy: 5000 // 5 seconds between heavy requests (increased from 2000)
+  auth: 3000, // 3 seconds between auth requests (increased)
+  standard: 1000, // 1 second between standard requests (increased)
+  heavy: 8000 // 8 seconds between heavy requests (increased)
 };
 
 /**
@@ -48,6 +55,28 @@ export function shouldThrottle(
 }
 
 /**
+ * Queues a request to ensure it doesn't run simultaneously with other requests in the same category
+ * @param category Type of request: 'auth', 'standard', or 'heavy'
+ * @param requestFn Function that makes the request
+ * @returns Promise that resolves with the request result
+ */
+export async function queueRequest<T>(
+  category: 'auth' | 'standard' | 'heavy',
+  requestFn: () => Promise<T>
+): Promise<T> {
+  // Wait for any previous requests in this category to complete
+  await requestQueues[category];
+  
+  // Execute the request and update the queue
+  const result = await requestFn();
+  
+  // Update the queue to resolve immediately for the next request
+  requestQueues[category] = Promise.resolve();
+  
+  return result;
+}
+
+/**
  * Creates a throttled version of an async function
  * @param func The async function to throttle
  * @param key Unique identifier for the function (e.g., endpoint path)
@@ -67,8 +96,8 @@ export function createThrottledFunction<T extends (...args: unknown[]) => Promis
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
     
-    // Make the request
-    return await func(...args) as ReturnType<T>;
+    // Queue the request to prevent simultaneous execution
+    return queueRequest(category, () => func(...args) as Promise<ReturnType<T>>);
   };
 }
 
@@ -88,10 +117,20 @@ export function getThrottlingStatus(): {
   auth: number;
   standard: number;
   heavy: number;
+  queueStatus: {
+    auth: boolean;
+    standard: boolean;
+    heavy: boolean;
+  };
 } {
   return {
     auth: apiTimestamps.auth.size,
     standard: apiTimestamps.standard.size,
-    heavy: apiTimestamps.heavy.size
+    heavy: apiTimestamps.heavy.size,
+    queueStatus: {
+      auth: requestQueues.auth !== Promise.resolve(),
+      standard: requestQueues.standard !== Promise.resolve(),
+      heavy: requestQueues.heavy !== Promise.resolve()
+    }
   };
 }

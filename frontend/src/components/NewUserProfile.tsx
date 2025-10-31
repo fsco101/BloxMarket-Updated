@@ -53,6 +53,28 @@ interface ProfileData {
     totalVouches: number;
     successRate: number;
   };
+  vouches?: {
+    id: string;
+    rating: number;
+    comment?: string;
+    given_by: {
+      id: string;
+      username: string;
+      avatar_url?: string;
+    };
+    created_at: string;
+  }[];
+  middlemanVouches?: {
+    id: string;
+    rating: number;
+    comment?: string;
+    given_by: {
+      id: string;
+      username: string;
+      avatar_url?: string;
+    };
+    created_at: string;
+  }[];
 }
 
 interface EditFormData {
@@ -102,7 +124,7 @@ export function NewUserProfile() {
           throw new Error('User ID not found');
         }
 
-        const data = await apiService.getUserProfile(userId);
+        const data = await apiService.getUserProfile(userId) as ProfileData;
         setProfileData(data);
 
         // Initialize edit form with current data
@@ -160,7 +182,7 @@ export function NewUserProfile() {
       setSaving(true);
       const toastId = toast.loading('Uploading avatar...');
 
-      const result = await apiService.uploadAvatar(selectedAvatar);
+      const result = await apiService.uploadAvatar(selectedAvatar) as { avatar_url: string };
 
       // Update profile data with new avatar
       setProfileData(prev => prev ? ({
@@ -244,7 +266,7 @@ export function NewUserProfile() {
       try {
         const userId = user?._id || user?.id;
         if (userId && typeof userId === 'string') {
-          const updatedData = await apiService.getUserProfile(userId);
+          const updatedData = await apiService.getUserProfile(userId) as ProfileData;
           setProfileData(updatedData);
         }
       } catch (refetchError) {
@@ -628,35 +650,23 @@ export function NewUserProfile() {
                   </div>
 
                   {/* Stats */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <div className="text-center p-4 bg-card rounded-xl border border-border">
-                      <div className="text-2xl font-bold text-card-foreground mb-1">
-                        {profileData?.stats?.totalTrades || 0}
-                      </div>
-                      <div className="text-sm font-medium text-muted-foreground">Total Trades</div>
-                    </div>
-                    <div className="text-center p-4 bg-card rounded-xl border border-border">
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
-                        {profileData?.stats?.successRate || 0}%
-                      </div>
-                      <div className="text-sm font-medium text-muted-foreground">Success Rate</div>
-                    </div>
-                    <div className="text-center p-4 bg-card rounded-xl border border-border">
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
-                        {profileData?.user?.vouch_count || 0}
-                      </div>
-                      <div className="text-sm font-medium text-muted-foreground">Vouches</div>
-                    </div>
-                    <div className="text-center p-4 bg-card rounded-xl border border-border">
-                      <div className="flex items-center justify-center mb-1">
-                        <Award className="w-6 h-6 text-yellow-500 mr-1" />
-                        <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                          {profileData?.user?.credibility_score || 0}
-                        </span>
-                      </div>
-                      <div className="text-sm font-medium text-muted-foreground">Credibility</div>
-                    </div>
-                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-2 gap-4 mb-6">
+                                    <div className="text-center p-4 bg-card rounded-xl border border-border">
+                                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
+                                        {profileData?.stats?.totalVouches || 0}
+                                      </div>
+                                      <div className="text-sm font-medium text-muted-foreground">Vouches</div>
+                                    </div>
+                                    <div className="text-center p-4 bg-card rounded-xl border border-border">
+                                      <div className="flex items-center justify-center mb-1">
+                                        <Award className="w-6 h-6 text-yellow-500 mr-1" />
+                                        <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                                          {profileData?.user?.credibility_score || 0}
+                                        </span>
+                                      </div>
+                                      <div className="text-sm font-medium text-muted-foreground">Credibility</div>
+                                    </div>
+                                  </div>
                 </div>
               </div>
             </CardContent>
@@ -691,15 +701,15 @@ export function NewUserProfile() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   {profileData?.user?.discord_username && (
                     <div className="flex items-center gap-4 p-4 bg-muted rounded-xl border border-border">
                       <div className="p-3 bg-blue-500 rounded-full">
                         <MessageSquare className="w-6 h-6 text-white" />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-card-foreground">Discord</p>
-                        <p className="text-sm text-muted-foreground">{profileData.user.discord_username}</p>
+                        <p className="text-sm text-muted-foreground truncate">{profileData.user.discord_username}</p>
                       </div>
                     </div>
                   )}
@@ -709,13 +719,13 @@ export function NewUserProfile() {
                       <div className="p-3 bg-green-500 rounded-full">
                         <MessageCircle className="w-6 h-6 text-white" />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-card-foreground">Messenger</p>
                         <a
                           href={profileData.user.messenger_link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate block"
                         >
                           {profileData.user.messenger_link}
                         </a>
@@ -728,13 +738,13 @@ export function NewUserProfile() {
                       <div className="p-3 bg-purple-500 rounded-full">
                         <Globe className="w-6 h-6 text-white" />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-card-foreground">Website</p>
                         <a
                           href={profileData.user.website}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate block"
                         >
                           {profileData.user.website}
                         </a>
@@ -747,9 +757,9 @@ export function NewUserProfile() {
                       <div className="p-3 bg-red-500 rounded-full">
                         <Globe className="w-6 h-6 text-white" />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-card-foreground">Location</p>
-                        <p className="text-sm text-muted-foreground">{profileData.user.location}</p>
+                        <p className="text-sm text-muted-foreground truncate">{profileData.user.location}</p>
                       </div>
                     </div>
                   )}
@@ -758,7 +768,7 @@ export function NewUserProfile() {
                     <div className="p-3 bg-indigo-500 rounded-full">
                       <Calendar className="w-6 h-6 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-card-foreground">Member Since</p>
                       <p className="text-sm text-muted-foreground">
                         {profileData?.user?.createdAt ? new Date(profileData.user.createdAt).toLocaleDateString('en-US', {
@@ -776,6 +786,130 @@ export function NewUserProfile() {
 
           {/* Sidebar - Additional Info */}
           <div className="space-y-8">
+            {/* Vouches Section */}
+            {(profileData?.vouches && profileData.vouches.length > 0) || (profileData?.middlemanVouches && profileData.middlemanVouches.length > 0) && (
+              <Card className="shadow-xl border-0 bg-card">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl text-card-foreground flex items-center gap-2">
+                    <Award className="w-5 h-5 text-yellow-500" />
+                    Recent Vouches ({profileData.stats.totalVouches})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Trade Vouches */}
+                  {profileData.vouches && profileData.vouches.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold text-muted-foreground border-b border-border pb-2">Trade Vouches</h4>
+                      {profileData.vouches.map((vouch) => (
+                        <div key={vouch.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+                          <Avatar className="w-8 h-8">
+                            <AvatarImage
+                              src={getAvatarUrl(vouch.given_by.avatar_url)}
+                              className="object-cover"
+                            />
+                            <AvatarFallback className="text-xs bg-muted text-muted-foreground">
+                              {vouch.given_by.username[0]?.toUpperCase() || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-semibold text-card-foreground truncate">
+                                {vouch.given_by.username}
+                              </span>
+                              <div className="flex items-center">
+                                {[...Array(5)].map((_, i) => (
+                                  <Award
+                                    key={i}
+                                    className={`w-3 h-3 ${
+                                      i < vouch.rating
+                                        ? 'text-yellow-500 fill-yellow-500'
+                                        : 'text-muted-foreground'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            {vouch.comment && (
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {vouch.comment}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(vouch.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Middleman Vouches */}
+                  {profileData.middlemanVouches && profileData.middlemanVouches.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold text-muted-foreground border-b border-border pb-2">Middleman Vouches</h4>
+                      {profileData.middlemanVouches.map((vouch) => (
+                        <div key={vouch.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+                          <Avatar className="w-8 h-8">
+                            <AvatarImage
+                              src={getAvatarUrl(vouch.given_by.avatar_url)}
+                              className="object-cover"
+                            />
+                            <AvatarFallback className="text-xs bg-muted text-muted-foreground">
+                              {vouch.given_by.username[0]?.toUpperCase() || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-semibold text-card-foreground truncate">
+                                {vouch.given_by.username}
+                              </span>
+                              <div className="flex items-center">
+                                {[...Array(5)].map((_, i) => (
+                                  <Award
+                                    key={i}
+                                    className={`w-3 h-3 ${
+                                      i < vouch.rating
+                                        ? 'text-yellow-500 fill-yellow-500'
+                                        : 'text-muted-foreground'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            {vouch.comment && (
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {vouch.comment}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(vouch.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Total count message */}
+                  {((profileData.vouches?.length || 0) + (profileData.middlemanVouches?.length || 0)) < profileData.stats.totalVouches && (
+                    <div className="text-center pt-2">
+                      <span className="text-sm text-muted-foreground">
+                        And {profileData.stats.totalVouches - ((profileData.vouches?.length || 0) + (profileData.middlemanVouches?.length || 0))} more vouches...
+                      </span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Account Details */}
             <Card className="shadow-xl border-0 bg-card">
               <CardHeader className="pb-4">
@@ -801,29 +935,6 @@ export function NewUserProfile() {
                   <span className="text-sm font-semibold text-card-foreground">
                     {profileData?.user?.createdAt ? formatDate(profileData.user.createdAt) : 'Unknown'}
                   </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Trading Stats */}
-            <Card className="shadow-xl border-0 bg-card">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl text-card-foreground">
-                  Trading Statistics
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center p-4 bg-muted rounded-lg">
-                  <div className="text-2xl font-bold text-card-foreground">{profileData?.stats?.totalTrades || 0}</div>
-                  <div className="text-sm text-muted-foreground">Total Trades</div>
-                </div>
-                <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{profileData?.stats?.completedTrades || 0}</div>
-                  <div className="text-sm text-muted-foreground">Completed</div>
-                </div>
-                <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{profileData?.stats?.totalVouches || 0}</div>
-                  <div className="text-sm text-muted-foreground">Vouches Received</div>
                 </div>
               </CardContent>
             </Card>

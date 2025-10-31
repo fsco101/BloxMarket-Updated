@@ -2,10 +2,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { BootstrapAvatar } from '../ui/bootstrap-avatar';
 import { BootstrapButton } from '../ui/bootstrap-button';
 import { BootstrapInput } from '../ui/bootstrap-input';
-import { BootstrapScrollArea } from '../ui/bootstrap-scroll-area';
 import { BootstrapBadge } from '../ui/bootstrap-badge';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane, faEllipsisV, faReply, faImage, faSignOutAlt, faUserPlus, faSearch, faUsers, faCrown } from '@fortawesome/free-solid-svg-icons';
+import { faEllipsisV, faReply, faSignOutAlt, faUserPlus, faSearch, faUsers, faCrown, faInfoCircle, faCheckDouble, faCamera, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +15,7 @@ import { socketService } from '../../services/socket';
 import { useApp } from '../../App';
 import { useAuth } from '../../App';
 import { apiService } from '../../services/api';
+import { alertService } from '../../services/alertService';
 
 interface Chat {
   chat_id: string;
@@ -226,7 +226,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           formData.append('image', file);
           formData.append('chat_id', chat.chat_id);
 
-          const uploadResponse = await apiService.uploadChatImage(chat.chat_id, file);
+          const uploadResponse = await apiService.uploadChatImage(chat.chat_id, file) as { file_url: string; file_name: string; file_size: number };
           return {
             file,
             uploadResponse
@@ -260,7 +260,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       setReplyTo(null);
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      alertService.error('Failed to send message. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -283,20 +283,20 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     // Validate file types (images only)
     const invalidFiles = files.filter(file => !file.type.startsWith('image/'));
     if (invalidFiles.length > 0) {
-      alert('Please select only image files');
+      alertService.error('Please select only image files');
       return;
     }
 
     // Validate file sizes (max 5MB each)
     const oversizedFiles = files.filter(file => file.size > 5 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
-      alert('Each file must be less than 5MB');
+      alertService.error('Each file must be less than 5MB');
       return;
     }
 
     // Limit to maximum 10 images at once
     if (files.length > 10) {
-      alert('You can upload a maximum of 10 images at once');
+      alertService.error('You can upload a maximum of 10 images at once');
       return;
     }
 
@@ -324,7 +324,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       setProfileLoading(true);
       setShowProfileModal(true);
       
-      const data = await apiService.getUserProfile(userId);
+      const data = await apiService.getUserProfile(userId) as ProfileData;
       setProfileData(data);
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -415,10 +415,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       } else {
         console.log('ChatWindow: onChatLeft callback not provided');
       }
-      alert('You have successfully left the group chat.');
+      alertService.success('You have successfully left the group chat.');
     } catch (error) {
       console.error('ChatWindow: Error leaving group chat:', error);
-      alert('Failed to leave group chat. Please try again.');
+      alertService.error('Failed to leave group chat. Please try again.');
     }
   };
 
@@ -473,18 +473,23 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   return (
     <div className="d-flex flex-column h-100">
       {/* Chat Header */}
-      <div className="p-4 border-bottom border-secondary bg-white">
-        <div className="d-flex align-items-center justify-content-between">
-          <div className="d-flex align-items-center gap-3">
-            <BootstrapAvatar src={getAvatarUrl(chat.avatar_url)} alt={chat.name} size="lg">
+      <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <BootstrapAvatar
+              src={getAvatarUrl(chat.avatar_url)}
+              alt={chat.name}
+              size="lg"
+              className="ring-2 ring-gray-100 dark:ring-gray-700"
+            >
               {chat.name.substring(0, 2).toUpperCase()}
             </BootstrapAvatar>
             <div>
-              <h2 className="h5 mb-0 fw-semibold text-dark">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                 {chat.name}
               </h2>
               {chat.chat_type === 'group' && (
-                <p className="mb-0 small text-muted">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {chat.participants_count} members
                 </p>
               )}
@@ -492,30 +497,32 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <BootstrapButton variant="outline-secondary" size="sm">
+              <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 <FontAwesomeIcon icon={faEllipsisV} />
-              </BootstrapButton>
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-48">
               {chat.chat_type === 'group' && (
                 <>
                   <DropdownMenuItem
                     onClick={() => setShowMembersModal(true)}
+                    className="flex items-center gap-2"
                   >
-                    <FontAwesomeIcon icon={faUsers} className="me-2" />
+                    <FontAwesomeIcon icon={faUsers} className="text-gray-400" />
                     View Members
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setShowAddUserModal(true)}
+                    className="flex items-center gap-2"
                   >
-                    <FontAwesomeIcon icon={faUserPlus} className="me-2" />
+                    <FontAwesomeIcon icon={faUserPlus} className="text-gray-400" />
                     Add User
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setShowLeaveModal(true)}
-                    className="text-danger"
+                    className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                   >
-                    <FontAwesomeIcon icon={faSignOutAlt} className="me-2" />
+                    <FontAwesomeIcon icon={faSignOutAlt} />
                     Leave Groupchat
                   </DropdownMenuItem>
                 </>
@@ -526,20 +533,35 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Messages Area */}
-      <BootstrapScrollArea className="flex-1 p-4">
+      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4">
         {loading ? (
-          <div className="d-flex align-items-center justify-content-center h-100">
+          <div className="flex items-center justify-center h-full">
             <div className="spinner-border text-primary" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
           </div>
+        ) : Object.keys(messageGroups).length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-12">
+            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+              <FontAwesomeIcon icon={faInfoCircle} className="text-gray-400 text-2xl" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+              No messages yet
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 max-w-sm">
+              {chat.chat_type === 'group' 
+                ? 'Be the first to start the conversation in this group chat!'
+                : 'Start the conversation by sending a message.'
+              }
+            </p>
+          </div>
         ) : (
-          <div className="gap-4">
+          <div className="space-y-6">
             {Object.entries(messageGroups).map(([date, dateMessages]) => (
               <div key={date}>
                 {/* Date separator */}
-                <div className="d-flex align-items-center justify-content-center my-4">
-                  <div className="bg-secondary text-muted small px-3 py-1 rounded-pill">
+                <div className="flex items-center justify-center my-6">
+                  <div className="bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs px-3 py-1 rounded-full shadow-sm border border-gray-200 dark:border-gray-700">
                     {new Date(date).toLocaleDateString([], {
                       weekday: 'long',
                       month: 'short',
@@ -549,7 +571,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 </div>
 
                 {/* Messages for this date */}
-                <div className="gap-2">
+                <div className="space-y-4">
                   {dateMessages.map((message) => {
                     console.log('Rendering message:', message);
                     // Safety check for message data
@@ -557,117 +579,136 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                       console.log('Message or sender is null/undefined');
                       return null;
                     }
-                    
+
                     // Handle system messages
                     if (message.message_type === 'system') {
                       return (
-                        <div key={message.message_id} className="d-flex justify-content-center my-2">
-                          <div className="bg-light text-muted small px-3 py-2 rounded-pill border">
+                        <div key={message.message_id} className="flex justify-center my-4">
+                          <div className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-4 py-2 rounded-full border border-gray-300 dark:border-gray-600">
+                            <FontAwesomeIcon icon={faInfoCircle} className="mr-2" />
                             {message.content}
                           </div>
                         </div>
                       );
                     }
-                    
-                    const isCurrentUser = currentUser && message.sender.user_id === currentUser.id;
-                    
-                    return (
-                      <div key={message.message_id} className={`group ${isCurrentUser ? 'd-flex justify-content-end' : ''}`}>
-                        {/* Reply indicator */}
-                        {message.reply_to && (
-                          <div className={`${isCurrentUser ? 'me-12' : 'ms-12'} mb-1 p-2 bg-light rounded border-start border-primary`}>
-                            <p className="small text-muted mb-0">
-                              Replying to <span className="fw-medium">{message.reply_to.sender_username}</span>
-                            </p>
-                            <p className="small text-dark mb-0 truncate">
-                              {message.reply_to.content}
-                            </p>
-                          </div>
-                        )}
 
-                        <div className={`d-flex align-items-start gap-3 ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                    const isCurrentUser = currentUser && message.sender.user_id === currentUser.id;
+
+                    return (
+                      <div key={message.message_id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} group`}>
+                        <div className={`flex max-w-xs lg:max-w-md xl:max-w-lg ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                          {/* Avatar for other users */}
                           {!isCurrentUser && (
                             <div
                               onClick={(e) => handleUserProfileClick(message.sender.user_id, e)}
-                              className="cursor-pointer"
-                              style={{ cursor: 'pointer' }}
+                              className="flex-shrink-0 mr-3 cursor-pointer"
                             >
-                              <BootstrapAvatar src={getAvatarUrl(message.sender.avatar_url)} alt={message.sender.username} size="sm">
+                              <BootstrapAvatar
+                                src={getAvatarUrl(message.sender.avatar_url)}
+                                alt={message.sender.username}
+                                size="sm"
+                                className="ring-2 ring-white dark:ring-gray-800 shadow-sm hover:ring-blue-300 dark:hover:ring-blue-600 transition-all duration-200"
+                              >
                                 {message.sender.username.substring(0, 2).toUpperCase()}
                               </BootstrapAvatar>
                             </div>
                           )}
 
-                          <div className={`flex-1 min-w-0 ${isCurrentUser ? 'text-end' : ''}`}>
-                            {!isCurrentUser && (
-                              <div className="d-flex align-items-center gap-2 mb-1">
+                          <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'} max-w-full`}>
+                            {/* Message header for group chats */}
+                            {!isCurrentUser && chat.chat_type === 'group' && (
+                              <div className="flex items-center gap-2 mb-1 ml-1">
                                 <span
-                                  className="small fw-medium text-dark cursor-pointer"
-                                  style={{ cursor: 'pointer' }}
+                                  className="text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
                                   onClick={(e) => handleUserProfileClick(message.sender.user_id, e)}
                                 >
                                   {message.sender.username}
                                 </span>
-                                {chat.chat_type === 'group' && chat.created_by === message.sender.user_id && (
-                                  <BootstrapBadge variant="warning" className="small d-flex align-items-center gap-1">
-                                    <FontAwesomeIcon icon={faCrown} className="small" />
+                                {chat.created_by === message.sender.user_id && (
+                                  <BootstrapBadge variant="warning" className="text-xs px-1.5 py-0.5">
+                                    <FontAwesomeIcon icon={faCrown} className="text-xs mr-1" />
+                                    Admin
                                   </BootstrapBadge>
                                 )}
-                                <span className="small text-muted">
-                                  {formatMessageTime(message.created_at)}
-                                </span>
-                                {message.edited && (
-                                  <span className="small text-muted">
-                                    (edited)
-                                  </span>
-                                )}
                               </div>
                             )}
 
-                            {isCurrentUser && (
-                              <div className="d-flex align-items-center justify-content-end gap-2 mb-1">
-                                {message.edited && (
-                                  <span className="small text-muted">
-                                    (edited)
+                            {/* Reply indicator */}
+                            {message.reply_to && (
+                              <div className={`mb-2 p-3 rounded-lg border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20 max-w-full ${isCurrentUser ? 'mr-1' : 'ml-1'}`}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <FontAwesomeIcon icon={faReply} className="text-blue-500 text-xs" />
+                                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                                    Replying to {message.reply_to.sender_username}
                                   </span>
-                                )}
-                                <span className="small text-muted">
-                                  {formatMessageTime(message.created_at)}
-                                </span>
-                              </div>
-                            )}
-
-                            <div className={`small text-dark p-3 rounded ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'}`}>
-                              {message.message_type === 'image' && message.file_url ? (
-                                <div className="d-flex flex-column align-items-center gap-2">
-                                  <img
-                                    src={getFileUrl(message.file_url)}
-                                    alt={message.file_name || 'chat-image'}
-                                    style={{ maxWidth: '320px', maxHeight: '320px', borderRadius: 8, cursor: 'pointer' }}
-                                    onClick={() => handleImageClick(message)}
-                                    className="hover:opacity-90 transition-opacity"
-                                  />
-                                  {message.content && (
-                                    <div className={`small ${isCurrentUser ? 'text-white' : 'text-dark'}`}>
-                                      {message.content}
-                                    </div>
-                                  )}
                                 </div>
-                              ) : (
-                                message.content
+                                <p className="text-xs text-gray-600 dark:text-gray-400 truncate max-w-xs">
+                                  {message.reply_to.content}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Message bubble */}
+                            <div className={`relative group ${isCurrentUser ? 'ml-12' : 'mr-12'}`}>
+                              <div
+                                className={`px-4 py-3 rounded-2xl shadow-sm max-w-full break-words ${
+                                  isCurrentUser
+                                    ? 'bg-blue-500 text-white rounded-br-md'
+                                    : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-bl-md'
+                                }`}
+                              >
+                                {message.message_type === 'image' && message.file_url ? (
+                                  <div className="space-y-3">
+                                    <img
+                                      src={getFileUrl(message.file_url)}
+                                      alt={message.file_name || 'chat-image'}
+                                      className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity shadow-sm"
+                                      style={{ maxWidth: '280px', maxHeight: '280px' }}
+                                      onClick={() => handleImageClick(message)}
+                                    />
+                                    {message.content && message.content !== '📷 Image' && (
+                                      <p className={`text-sm ${isCurrentUser ? 'text-blue-100' : 'text-gray-700 dark:text-gray-300'}`}>
+                                        {message.content}
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                    {message.content}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Message timestamp and status */}
+                              <div className={`flex items-center gap-1 mt-1 text-xs text-gray-500 dark:text-gray-400 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                                {message.edited && (
+                                  <span className="opacity-75">edited</span>
+                                )}
+                                <span className="opacity-75">
+                                  {formatMessageTime(message.created_at)}
+                                </span>
+                                {isCurrentUser && (
+                                  <FontAwesomeIcon
+                                    icon={faCheckDouble}
+                                    className="text-xs text-blue-400"
+                                  />
+                                )}
+                              </div>
+
+                              {/* Reactions */}
+                              {message.reactions && Array.isArray(message.reactions) && message.reactions.length > 0 && (
+                                <div className={`flex flex-wrap gap-1 mt-2 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                                  {message.reactions.map((reaction, index) => (
+                                    <div
+                                      key={index}
+                                      className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs px-2 py-1 rounded-full border border-gray-200 dark:border-gray-600 shadow-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer"
+                                    >
+                                      {reaction.emoji}
+                                    </div>
+                                  ))}
+                                </div>
                               )}
                             </div>
-
-                            {/* Reactions */}
-                            {message.reactions && Array.isArray(message.reactions) && message.reactions.length > 0 && (
-                              <div className={`d-flex flex-wrap gap-1 mt-2 ${isCurrentUser ? 'justify-content-end' : ''}`}>
-                                {message.reactions.map((reaction, index) => (
-                                  <BootstrapBadge key={index} variant="secondary" className="small">
-                                    {reaction.emoji}
-                                  </BootstrapBadge>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -679,66 +720,67 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             <div ref={messagesEndRef} />
           </div>
         )}
-      </BootstrapScrollArea>
+      </div>
 
       {/* Reply indicator */}
       {replyTo && (
-        <div className="px-4 py-2 bg-primary bg-opacity-10 border-top border-primary">
-          <div className="d-flex align-items-center justify-content-between">
-            <div className="d-flex align-items-center gap-2">
-              <FontAwesomeIcon icon={faReply} className="text-primary" />
-              <span className="small text-dark">
-                Replying to <span className="fw-medium">{replyTo.sender.username}</span>
-              </span>
+        <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <FontAwesomeIcon icon={faReply} className="text-blue-500 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300 block">
+                  Replying to {replyTo.sender.username}
+                </span>
+                <p className="text-sm text-blue-600 dark:text-blue-400 truncate">
+                  {replyTo.content}
+                </p>
+              </div>
             </div>
-            <BootstrapButton
-              variant="outline-primary"
-              size="sm"
+            <button
               onClick={() => setReplyTo(null)}
-              className="border-0"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
             >
               ✕
-            </BootstrapButton>
+            </button>
           </div>
-          <p className="small text-dark mt-1 truncate">
-            {replyTo.content}
-          </p>
         </div>
       )}
 
       {/* Message Input */}
-      <div className="p-4 border-top border-secondary bg-white">
-        <div className="d-flex align-items-center gap-2">
-          <BootstrapInput
-            ref={inputRef}
-            value={newMessage}
-            onChange={(e) => handleInputChange(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type a message..."
-            className="flex-1"
-            noWrapper
-          />
-          <BootstrapButton
-            variant="outline-secondary"
-            size="sm"
+      <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-end gap-3">
+          <div className="flex-1 relative">
+            <BootstrapInput
+              ref={inputRef}
+              value={newMessage}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type a message..."
+              className="py-3 border-gray-300 dark:border-gray-600 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 dark:bg-gray-700"
+              noWrapper
+            />
+          </div>
+          <button
             onClick={handleImageUpload}
+            className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors p-3 rounded-full shadow-md hover:shadow-lg flex items-center justify-center w-12 h-12 flex-shrink-0"
             title="Upload image"
           >
-            <FontAwesomeIcon icon={faImage} />
-          </BootstrapButton>
-          <BootstrapButton
+            <FontAwesomeIcon icon={faCamera} className="text-base" />
+          </button>
+          <button
             onClick={handleSendMessage}
             disabled={(!newMessage.trim() && selectedFiles.length === 0) || isUploading}
-            size="sm"
+            className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white p-3 rounded-full shadow-md hover:shadow-lg transition-colors flex items-center justify-center min-w-[48px] min-h-[48px] flex-shrink-0"
           >
             {isUploading ? (
               <div className="spinner-border spinner-border-sm" role="status">
                 <span className="visually-hidden">Uploading...</span>
               </div>
             ) : (
-              <FontAwesomeIcon icon={faPaperPlane} />
+              <FontAwesomeIcon icon={faArrowRight} className="text-base" />
             )}
-          </BootstrapButton>
+          </button>
         </div>
         {/* Hidden file input */}
         <input
@@ -751,38 +793,38 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         />
         {/* Selected files indicator */}
         {selectedFiles.length > 0 && (
-          <div className="mt-2">
+          <div className="mt-3 space-y-2">
             {selectedFiles.map((file, index) => (
-              <div key={index} className="d-flex align-items-center justify-content-between p-2 bg-light rounded mb-1">
-                <span className="small text-dark">
-                  📷 {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                </span>
-                <BootstrapButton
-                  variant="outline-danger"
-                  size="sm"
+              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FontAwesomeIcon icon={faImage} className="text-blue-500" />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                  </span>
+                </div>
+                <button
                   onClick={() => {
                     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
                   }}
-                  className="border-0"
+                  className="text-red-500 hover:text-red-700 dark:hover:text-red-400 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 >
                   ✕
-                </BootstrapButton>
+                </button>
               </div>
             ))}
-            <div className="d-flex justify-content-between align-items-center mt-2">
-              <span className="small text-muted">
+            <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-600">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
                 {selectedFiles.length} image{selectedFiles.length > 1 ? 's' : ''} selected
               </span>
-              <BootstrapButton
-                variant="outline-secondary"
-                size="sm"
+              <button
                 onClick={() => {
                   setSelectedFiles([]);
                   clearFileInput();
                 }}
+                className="text-xs text-blue-600 hover:text-blue-800 dark:hover:text-blue-400 font-medium"
               >
                 Clear All
-              </BootstrapButton>
+              </button>
             </div>
           </div>
         )}
@@ -1165,7 +1207,7 @@ const AddUserModal: React.FC<{
   const searchUsers = useCallback(async () => {
     try {
       setSearching(true);
-      const response = await apiService.searchUsers(searchQuery);
+      const response = await apiService.searchUsers(searchQuery) as { users: User[] };
       setUsers(response.users || []);
     } catch (error) {
       console.error('Failed to search users:', error);
@@ -1200,10 +1242,10 @@ const AddUserModal: React.FC<{
       setUsers([]);
       setSelectedUser(null);
       onClose();
-      alert('User added successfully!');
+      alertService.success('User added successfully!');
     } catch (error) {
       console.error('Error adding user:', error);
-      alert(error instanceof Error ? error.message : 'Failed to add user. Please try again.');
+      alertService.error(error instanceof Error ? error.message : 'Failed to add user. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -1367,7 +1409,7 @@ const ViewMembersModal: React.FC<{
   const loadMembers = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await apiService.getChat(chatId);
+      const data = await apiService.getChat(chatId) as { participants?: User[]; chat?: { participants?: User[] } };
       // Expecting data.participants or data.chat.participants
       const participants: User[] = data.participants || data.chat?.participants || [];
       console.log('Loaded members:', participants);
@@ -1386,7 +1428,8 @@ const ViewMembersModal: React.FC<{
   }, [isOpen, loadMembers]);
 
   const handleRemove = async (memberId: string) => {
-    if (!confirm('Remove this member from the group?')) return;
+    const confirmed = await alertService.confirm('Remove this member from the group?');
+    if (!confirmed) return;
     try {
       setRemovingId(memberId);
       await apiService.removeParticipant(chatId, memberId);
@@ -1394,7 +1437,7 @@ const ViewMembersModal: React.FC<{
       if (onRemoveParticipant) onRemoveParticipant(memberId);
     } catch (err) {
       console.error('Error removing participant:', err);
-      alert('Failed to remove member.');
+      alertService.error('Failed to remove member.');
     } finally {
       setRemovingId(null);
     }

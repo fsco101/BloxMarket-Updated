@@ -43,8 +43,11 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [previousUnreadCount, setPreviousUnreadCount] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPageState] = useState(1);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -89,7 +92,9 @@ export function NotificationBell() {
   // Fetch notifications when dropdown opens
   useEffect(() => {
     if (dropdownOpen && user) {
-      fetchNotifications();
+      setCurrentPageState(1);
+      setHasMore(true);
+      fetchNotifications(1, false);
     }
   }, [dropdownOpen, user]);
 
@@ -102,10 +107,16 @@ export function NotificationBell() {
     }
   };
 
-  const fetchNotifications = async () => {
-    setLoading(true);
+  const fetchNotifications = async (page: number = 1, append: boolean = false) => {
+    if (page === 1) setLoading(true);
+    else setLoadingMore(true);
+    
     try {
-      const response = await apiService.getNotifications({ limit: 10 });
+      const response = await apiService.getNotifications({ 
+        limit: 10, 
+        page: page 
+      });
+      
       // Transform snake_case to camelCase
       const transformedNotifications: Notification[] = (response.notifications || []).map((notif: BackendNotification) => ({
         _id: notif._id,
@@ -116,11 +127,27 @@ export function NotificationBell() {
         createdAt: notif.createdAt,
         sender: notif.sender
       }));
-      setNotifications(transformedNotifications);
+      
+      if (append) {
+        setNotifications(prev => [...prev, ...transformedNotifications]);
+      } else {
+        setNotifications(transformedNotifications);
+      }
+      
+      // Check if there are more notifications
+      setHasMore(transformedNotifications.length === 10);
+      setCurrentPageState(page);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMoreNotifications = () => {
+    if (!loadingMore && hasMore) {
+      fetchNotifications(currentPage + 1, true);
     }
   };
 
@@ -269,7 +296,7 @@ export function NotificationBell() {
           )}
         </div>
         <DropdownMenuSeparator />
-                <ScrollArea className="h-96 max-h-96 overflow-y-auto">
+                <ScrollArea className="h-80 max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50">
           {loading ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               Loading...
@@ -279,35 +306,50 @@ export function NotificationBell() {
               No notifications yet
             </div>
           ) : (
-            notifications.map((notification) => (
-              <DropdownMenuItem
-                key={notification._id}
-                className={`flex flex-col items-start p-3 cursor-pointer ${
-                  !notification.isRead ? 'bg-accent/50' : ''
-                }`}
-                onClick={() => !notification.isRead && markAsRead(notification._id)}
-              >
-                <div className="flex items-start gap-2 w-full">
-                  <span className="text-lg">{getNotificationIcon(notification.type)}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-sm truncate">
-                        {notification.title}
+            <>
+              {notifications.map((notification) => (
+                <DropdownMenuItem
+                  key={notification._id}
+                  className={`flex flex-col items-start p-3 cursor-pointer ${
+                    !notification.isRead ? 'bg-accent/50' : ''
+                  }`}
+                  onClick={() => !notification.isRead && markAsRead(notification._id)}
+                >
+                  <div className="flex items-start gap-2 w-full">
+                    <span className="text-lg">{getNotificationIcon(notification.type)}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm truncate">
+                          {notification.title}
+                        </p>
+                        {!notification.isRead && (
+                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {notification.message}
                       </p>
-                      {!notification.isRead && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
-                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatTimeAgo(notification.createdAt)}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                      {notification.message}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatTimeAgo(notification.createdAt)}
-                    </p>
                   </div>
+                </DropdownMenuItem>
+              ))}
+              {hasMore && (
+                <div className="p-2 border-t">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={loadMoreNotifications}
+                    disabled={loadingMore}
+                    className="w-full text-xs"
+                  >
+                    {loadingMore ? 'Loading...' : 'See More'}
+                  </Button>
                 </div>
-              </DropdownMenuItem>
-            ))
+              )}
+            </>
           )}
         </ScrollArea>
         {notifications.length > 0 && (
