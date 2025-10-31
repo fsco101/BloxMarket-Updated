@@ -164,20 +164,6 @@ export function Login() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 py-2">
-            <Checkbox
-              id="remember-me"
-              checked={rememberMe}
-              onCheckedChange={(checked) => setRememberMe(checked === true)}
-            />
-            <Label
-              htmlFor="remember-me"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Remember me for 30 days
-            </Label>
-          </div>
-
           <Button
             type="submit"
             className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
@@ -192,12 +178,6 @@ export function Login() {
               'Sign In'
             )}
           </Button>
-
-          <div className="text-center mt-4">
-            <a href="#" className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-              Forgot your password?
-            </a>
-          </div>
         </form>
       </CardContent>
     </Card>
