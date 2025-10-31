@@ -354,10 +354,6 @@ export function FlaggedPosts() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <CardTitle>Reports Management</CardTitle>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                <Download className="w-4 h-4 mr-2" />
-                Export CSV
-              </Button>
               <Button variant="outline" size="sm" onClick={loadReports}>
                 Refresh
               </Button>

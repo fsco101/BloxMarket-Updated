@@ -651,13 +651,6 @@ export function WishlistManagement() {
             Refresh
           </Button>
           
-          <Button
-            variant="outline"
-            onClick={handleExportToCsv}
-          >
-            <FileDown className="w-4 h-4 mr-2" />
-            Export to CSV
-          </Button>
         </div>
       </div>
 
