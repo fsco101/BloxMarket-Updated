@@ -122,6 +122,7 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
       const toastId = toast.loading('Submitting application...');
       
       try {
+        // First, submit the main application
         await apiService.applyForMiddleman({
           experience,
           availability,
@@ -131,17 +132,46 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
           preferred_trade_types: preferredTradeTypes
         }, documents);
         
-        // Upload face images after successful application submission
+        // Update toast to show face image upload progress
+        toast.loading('Uploading face verification images...', { id: toastId });
+        
+        // Upload face images immediately after successful application submission
         if (faceImages.length > 0) {
-          await apiService.uploadFaceImages(faceImages);
+          try {
+            console.log('Uploading face images:', faceImages.length, 'files');
+            const uploadResult = await apiService.uploadFaceImages(faceImages);
+            console.log('Face images uploaded successfully:', uploadResult);
+          } catch (faceError) {
+            console.error('Face image upload failed:', faceError);
+            toast.dismiss(toastId);
+            toast.error('Application submitted but face verification failed. Please contact support.');
+            
+            // Check updated status even if face upload failed
+            const response = await apiService.getApplicationStatus();
+            setApplicationStatus(response as {
+              status: string;
+              submittedAt: string;
+              reviewedAt?: string;
+              rejectionReason?: string;
+            });
+            setIsSubmitting(false);
+            return;
+          }
+        } else {
+          console.warn('No face images to upload');
         }
         
         toast.dismiss(toastId);
-        toast.success('Application submitted successfully!');
+        toast.success('Application and face verification submitted successfully!');
         
         // Check updated status
         const response = await apiService.getApplicationStatus();
-        setApplicationStatus(response);
+        setApplicationStatus(response as {
+          status: string;
+          submittedAt: string;
+          reviewedAt?: string;
+          rejectionReason?: string;
+        });
         
         setIsSubmitting(false);
       } catch (err) {
@@ -427,6 +457,7 @@ export function MiddlemanApplicationForm({ isOpen, onClose }: MiddlemanApplicati
         {showFaceScanner && (
           <MiddlemanFaceScanner
             onComplete={(capturedFaceImages) => {
+              console.log('Face images captured:', capturedFaceImages.length, 'files');
               setFaceImages(capturedFaceImages);
               setFaceImagesUploaded(true);
               setShowFaceScanner(false);

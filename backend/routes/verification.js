@@ -72,4 +72,7 @@ router.delete('/applications/bulk/delete', verificationController.bulkDeleteAppl
 // Access to documents (with security checks in the controller)
 router.get('/documents/:documentId', verificationController.getDocumentById);
 
+// Direct access to face verification images (with security checks)
+router.get('/face-images/:filename', verificationController.getFaceImage);
+
 export default router;

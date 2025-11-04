@@ -8,7 +8,7 @@ const verificationDocumentSchema = new mongoose.Schema({
   },
   document_type: {
     type: String,
-    enum: ['id_card', 'passport', 'driver_license', 'proof_of_address', 'social_media', 'other'],
+    enum: ['id_card', 'passport', 'driver_license', 'proof_of_address', 'social_media', 'face_verification', 'other'],
     required: true
   },
   filename: {

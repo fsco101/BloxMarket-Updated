@@ -485,11 +485,101 @@ export const verificationController = {
   getDocumentById: async (req, res) => {
     try {
       const { documentId } = req.params;
+      console.log('Requesting document:', documentId);
       
       const document = await VerificationDocument.findById(documentId);
       
       if (!document) {
+        console.log('Document not found:', documentId);
         return res.status(404).json({ error: 'Document not found' });
+      }
+      
+      console.log('Document found:', {
+        id: document._id,
+        type: document.document_type,
+        filename: document.filename,
+        originalName: document.original_filename,
+        filePath: document.file_path
+      });
+      
+      // Security check - only admin or document owner can access
+      if (
+        req.user.role !== 'admin' && 
+        req.user.role !== 'moderator' && 
+        document.user_id.toString() !== req.user.userId
+      ) {
+        console.log('Access denied for user:', req.user.userId, 'document owner:', document.user_id);
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      
+      // Handle different document types with proper file paths
+      let filePath;
+      
+      if (document.document_type === 'face_verification') {
+        // For face verification images, use the middlemanface directory
+        filePath = path.join(__dirname, '../uploads/middlemanface', document.filename);
+        console.log('Face verification image path:', filePath);
+      } else if (document.file_path) {
+        // For other documents, use the stored file_path
+        if (path.isAbsolute(document.file_path)) {
+          filePath = document.file_path;
+        } else {
+          filePath = path.join(__dirname, '..', document.file_path);
+        }
+        console.log('Regular document path:', filePath);
+      } else {
+        console.log('No valid file path found for document:', documentId);
+        return res.status(404).json({ error: 'Document file not found' });
+      }
+      
+      // Check if file exists
+      try {
+        await fs.access(filePath);
+        console.log('File exists, serving:', filePath);
+      } catch (fileError) {
+        console.log('File not found on disk:', filePath, fileError.message);
+        return res.status(404).json({ error: 'Document file not found on disk' });
+      }
+      
+      // Set appropriate headers
+      res.set({
+        'Content-Type': document.mime_type || 'application/octet-stream',
+        'Content-Disposition': `inline; filename="${document.original_filename}"`,
+        'Cache-Control': 'private, max-age=3600' // Cache for 1 hour
+      });
+      
+      // Serve file
+      res.sendFile(filePath, (err) => {
+        if (err) {
+          console.error('Error serving file:', err);
+          if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to serve document' });
+          }
+        } else {
+          console.log('File served successfully:', filePath);
+        }
+      });
+    } catch (error) {
+      console.error('Error retrieving document:', error);
+      res.status(500).json({ error: 'Failed to retrieve document' });
+    }
+  },
+  
+  // Get face verification image by filename
+  getFaceImage: async (req, res) => {
+    try {
+      const { filename } = req.params;
+      console.log('Requesting face image:', filename);
+      
+      // Find the document record to verify ownership and permissions
+      const document = await VerificationDocument.findOne({
+        filename: filename,
+        document_type: 'face_verification'
+      });
+      
+      if (!document) {
+        console.log('Face image document not found:', filename);
+        return res.status(404).json({ error: 'Face image not found' });
       }
       
       // Security check - only admin or document owner can access
@@ -498,14 +588,45 @@ export const verificationController = {
         req.user.role !== 'moderator' && 
         document.user_id.toString() !== req.user.userId
       ) {
+        console.log('Access denied for face image:', req.user.userId, 'document owner:', document.user_id);
         return res.status(403).json({ error: 'Access denied' });
       }
       
+      // Construct file path
+      const filePath = path.join(__dirname, '../uploads/middlemanface', filename);
+      console.log('Face image path:', filePath);
+      
+      // Check if file exists
+      try {
+        await fs.access(filePath);
+        console.log('Face image exists, serving:', filePath);
+      } catch (fileError) {
+        console.log('Face image not found on disk:', filePath, fileError.message);
+        return res.status(404).json({ error: 'Face image file not found on disk' });
+      }
+      
+      // Set appropriate headers for image
+      res.set({
+        'Content-Type': document.mime_type || 'image/jpeg',
+        'Content-Disposition': `inline; filename="${document.original_filename}"`,
+        'Cache-Control': 'private, max-age=3600', // Cache for 1 hour
+        'Access-Control-Allow-Origin': process.env.FRONTEND_URL || 'http://localhost:5173'
+      });
+      
       // Serve file
-      res.sendFile(document.file_path);
+      res.sendFile(filePath, (err) => {
+        if (err) {
+          console.error('Error serving face image:', err);
+          if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to serve face image' });
+          }
+        } else {
+          console.log('Face image served successfully:', filePath);
+        }
+      });
     } catch (error) {
-      console.error('Error retrieving document:', error);
-      res.status(500).json({ error: 'Failed to retrieve document' });
+      console.error('Error retrieving face image:', error);
+      res.status(500).json({ error: 'Failed to retrieve face image' });
     }
   },
   
