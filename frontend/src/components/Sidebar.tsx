@@ -127,30 +127,41 @@ export function Sidebar() {
   }, [user, isAdminOrModerator, isLoading]);
 
   return (
-    <div className="w-64 sm:w-72 lg:w-80 h-screen bg-background border-r border-border flex flex-col flex-shrink-0 shadow-lg">
+    // Sticky sidebar container - stays in document flow but sticks to viewport top when scrolling
+    // Uses position: sticky with top: 0 for modern, clean sticky behavior
+    // Width is consistent across all screen sizes for better layout predictability
+    <div className="sticky top-0 w-64 h-screen bg-background border-r border-border flex flex-col flex-shrink-0 shadow-lg z-20">
+      {/* 
+        Sticky Positioning Explanation:
+        - position: sticky keeps the sidebar in the normal document flow
+        - top: 0 makes it stick to the top of the viewport when scrolling
+        - h-screen ensures it takes full viewport height
+        - flex-shrink-0 prevents the sidebar from shrinking in flex layouts
+        - z-20 ensures it stays above content but below modals/overlays
+      */}
 
 
-      {/* User Info */}
-      <div className="p-3 sm:p-4 border-b border-border flex-shrink-0 bg-muted/30">
+      {/* User Profile Section - Fixed height with consistent spacing */}
+      <div className="p-4 border-b border-border flex-shrink-0 bg-muted/30">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="relative">
-              <Avatar className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 ring-2 ring-border shadow-md">
+              <Avatar className="w-10 h-10 ring-2 ring-border shadow-md">
                 <AvatarImage src={getAvatarUrl(user?.avatar_url as string)} className="object-cover" />
                 <AvatarFallback className="bg-gradient-to-br from-primary to-primary text-primary-foreground font-semibold text-sm">
                   {user?.username?.[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               {user && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded-full border-2 border-background shadow-sm"></div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-background shadow-sm"></div>
               )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm text-foreground truncate">
                 {user?.username || 'Guest'}
               </p>
-              <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full"></div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span className="text-xs text-muted-foreground font-medium">
                   {user ? 'Online' : 'Offline'}
                 </span>
@@ -163,9 +174,15 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Navigation - Scrollable */}
-      <nav className="flex-1 p-2 sm:p-3 overflow-y-auto">
-        <div className="space-y-1.5 sm:space-y-2">
+      {/* Navigation Menu - Scrollable content area */}
+      <nav className="flex-1 p-3 overflow-y-auto">
+        {/* 
+          Scrollable Navigation:
+          - flex-1 takes all available space between header and footer
+          - overflow-y-auto enables vertical scrolling when content exceeds height
+          - Consistent padding for clean spacing
+        */}
+        <div className="space-y-2">
           {menuItems.map(({ id, label, icon: Icon }, index) => (
             <Button
               key={id}
@@ -181,10 +198,10 @@ export function Sidebar() {
               <div className={`absolute inset-0 transition-opacity duration-300 ${
                 currentPage === id ? 'bg-gradient-to-r from-primary/20 to-info/20' : 'opacity-0 group-hover:opacity-100 bg-gradient-to-r from-primary/5 to-info/5'
               }`}></div>
-              <Icon className={`w-4 h-4 sm:w-5 sm:h-5 mr-3 transition-all duration-300 relative z-10 ${
+              <Icon className={`w-5 h-5 mr-3 transition-all duration-300 relative z-10 ${
                 currentPage === id ? 'text-white scale-110' : 'text-primary group-hover:scale-110 group-hover:text-info'
               }`} />
-              <span className="font-semibold text-sm sm:text-base relative z-10">{label}</span>
+              <span className="font-semibold text-sm relative z-10">{label}</span>
               {currentPage === id && (
                 <div className="ml-auto w-2 h-2 bg-primary rounded-full animate-pulse shadow-sm relative z-10"></div>
               )}
@@ -205,11 +222,11 @@ export function Sidebar() {
                 <div className={`absolute inset-0 transition-opacity duration-300 ${
                   isProfilePage ? 'bg-gradient-to-r from-success/20 to-green-500/20' : 'opacity-0 group-hover:opacity-100 bg-gradient-to-r from-success/5 to-green-500/5'
                 }`}></div>
-                <User className={`w-4 h-4 sm:w-5 sm:h-5 mr-3 transition-all duration-300 relative z-10 ${
+                <User className={`w-5 h-5 mr-3 transition-all duration-300 relative z-10 ${
                   isProfilePage ? 'text-white scale-110' : 'text-success group-hover:scale-110 group-hover:text-green-600'
                 }`} />
-                <span className="font-semibold text-sm sm:text-base relative z-10">Profile</span>
-                <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 ml-auto transition-all duration-300 relative z-10 ${
+                <span className="font-semibold text-sm relative z-10">Profile</span>
+                <ChevronDown className={`w-4 h-4 ml-auto transition-all duration-300 relative z-10 ${
                   isProfilePage ? 'text-white rotate-180' : 'group-hover:rotate-180'
                 }`} />
                 {isProfilePage && (
@@ -217,19 +234,19 @@ export function Sidebar() {
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56 sm:w-64 p-2 bg-card/95 backdrop-blur-sm border border-border shadow-xl rounded-xl">
+            <DropdownMenuContent align="start" className="w-56">
               {profileMenuItems.map(({ id, label, icon: Icon }) => (
                 <DropdownMenuItem
                   key={id}
                   onClick={() => handleProfileMenuClick(id)}
-                  className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-all duration-200 hover:bg-accent hover:shadow-md ${
-                    currentPage === id ? 'bg-accent text-accent-foreground shadow-md border border-border' : 'text-foreground hover:scale-[1.02]'
+                  className={`${
+                    currentPage === id ? 'bg-accent text-accent-foreground shadow-md' : ''
                   }`}
                 >
-                  <Icon className={`w-4 h-4 transition-all duration-200 ${
-                    currentPage === id ? 'text-success scale-110' : 'text-muted group-hover:scale-105'
+                  <Icon className={`w-4 h-4 ${
+                    currentPage === id ? 'text-success scale-110' : 'text-muted-foreground'
                   }`} />
-                  <span className="font-medium text-sm sm:text-base">{label}</span>
+                  <span className="font-medium text-sm">{label}</span>
                   {currentPage === id && (
                     <div className="ml-auto w-2 h-2 bg-success rounded-full animate-pulse"></div>
                   )}
@@ -238,7 +255,7 @@ export function Sidebar() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Admin Dropdown Menu - Simplified condition */}
+          {/* Admin Dropdown Menu - Clean condition check */}
           {isAdminOrModerator && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -253,11 +270,11 @@ export function Sidebar() {
                   <div className={`absolute inset-0 transition-opacity duration-300 ${
                     currentPage === 'admin' ? 'bg-gradient-to-r from-warning/20 to-orange-500/20' : 'opacity-0 group-hover:opacity-100 bg-gradient-to-r from-warning/5 to-orange-500/5'
                   }`}></div>
-                  <Settings className={`w-4 h-4 sm:w-5 sm:h-5 mr-3 transition-all duration-300 relative z-10 ${
+                  <Settings className={`w-5 h-5 mr-3 transition-all duration-300 relative z-10 ${
                     currentPage === 'admin' ? 'text-white scale-110' : 'text-warning group-hover:scale-110 group-hover:text-orange-600'
                   }`} />
-                  <span className="font-semibold text-sm sm:text-base relative z-10">Admin Panel</span>
-                  <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 ml-auto transition-all duration-300 relative z-10 ${
+                  <span className="font-semibold text-sm relative z-10">Admin Panel</span>
+                  <ChevronDown className={`w-4 h-4 ml-auto transition-all duration-300 relative z-10 ${
                     currentPage === 'admin' ? 'text-white rotate-180' : 'group-hover:rotate-180'
                   }`} />
                   {currentPage === 'admin' && (
@@ -265,19 +282,19 @@ export function Sidebar() {
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56 sm:w-64 p-2 bg-card/95 backdrop-blur-sm border border-border shadow-xl rounded-xl">
+              <DropdownMenuContent align="start" className="w-56">
                 {adminMenuItems.map(({ id, label, icon: Icon }) => (
                   <DropdownMenuItem
                     key={id}
                     onClick={() => handleAdminMenuClick(id)}
-                    className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-all duration-200 hover:bg-accent hover:shadow-md ${
-                      id === 'admin' && currentPage === 'admin' ? 'bg-accent text-accent-foreground shadow-md border border-border' : 'text-foreground hover:scale-[1.02]'
+                    className={`${
+                      id === 'admin' && currentPage === 'admin' ? 'bg-accent text-accent-foreground shadow-md' : ''
                     }`}
                   >
-                    <Icon className={`w-4 h-4 transition-all duration-200 ${
-                      id === 'admin' && currentPage === 'admin' ? 'text-warning scale-110' : 'text-muted group-hover:scale-105'
+                    <Icon className={`w-4 h-4 ${
+                      id === 'admin' && currentPage === 'admin' ? 'text-warning scale-110' : 'text-muted-foreground'
                     }`} />
-                    <span className="font-medium text-sm sm:text-base">{label}</span>
+                    <span className="font-medium text-sm">{label}</span>
                     {id === 'admin' && currentPage === 'admin' && (
                       <div className="ml-auto w-2 h-2 bg-warning rounded-full animate-pulse"></div>
                     )}
@@ -290,8 +307,15 @@ export function Sidebar() {
         </div>
       </nav>
 
-      {/* Footer */}
-      <div className="p-3 sm:p-4 border-t border-border space-y-3 sm:space-y-4 flex-shrink-0 bg-muted/10">
+      {/* Sidebar Footer - Fixed height bottom section */}
+      <div className="p-4 border-t border-border space-y-3 flex-shrink-0 bg-muted/10">
+        {/* 
+          Footer Section:
+          - flex-shrink-0 prevents this section from compressing
+          - Fixed spacing for consistent layout
+          - Always visible at bottom of sidebar
+        */}
+        
         {/* Theme Toggle */}
         <div className="flex items-center justify-between p-3 rounded-xl bg-card backdrop-blur-sm border border-border shadow-md hover:shadow-lg transition-all duration-300">
           <div className="flex items-center gap-3">
@@ -300,7 +324,7 @@ export function Sidebar() {
             </div>
             <div>
               <span className="text-sm font-semibold text-foreground">Dark Mode</span>
-              <p className="text-xs text-muted-foreground hidden sm:block">
+              <p className="text-xs text-muted-foreground">
                 {isDark ? 'Switch to light' : 'Switch to dark'}
               </p>
             </div>
@@ -312,15 +336,15 @@ export function Sidebar() {
           />
         </div>
 
-        {/* Logout */}
+        {/* Logout Button */}
         <Button
           variant="ghost"
           className="w-full justify-start transition-all duration-300 group relative overflow-hidden bg-card hover:bg-accent border border-border hover:border-destructive/50 hover:shadow-md text-foreground"
           onClick={logout}
         >
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-danger/5 to-red-500/5 transition-opacity duration-300"></div>
-          <LogOut className="w-4 h-4 sm:w-5 sm:h-5 mr-3 transition-all duration-300 relative z-10 text-danger group-hover:scale-110 group-hover:translate-x-1" />
-          <span className="font-semibold text-sm sm:text-base relative z-10">Logout</span>
+          <LogOut className="w-5 h-5 mr-3 transition-all duration-300 relative z-10 text-danger group-hover:scale-110 group-hover:translate-x-1" />
+          <span className="font-semibold text-sm relative z-10">Logout</span>
         </Button>
       </div>
     </div>

@@ -296,61 +296,63 @@ export function NotificationBell() {
           )}
         </div>
         <DropdownMenuSeparator />
-                <ScrollArea className="h-80 max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50">
-          {loading ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
-              Loading...
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
-              No notifications yet
-            </div>
-          ) : (
-            <>
-              {notifications.map((notification) => (
-                <DropdownMenuItem
-                  key={notification._id}
-                  className={`flex flex-col items-start p-3 cursor-pointer ${
-                    !notification.isRead ? 'bg-accent/50' : ''
-                  }`}
-                  onClick={() => !notification.isRead && markAsRead(notification._id)}
-                >
-                  <div className="flex items-start gap-2 w-full">
-                    <span className="text-lg">{getNotificationIcon(notification.type)}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium text-sm truncate">
-                          {notification.title}
-                        </p>
-                        {!notification.isRead && (
-                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatTimeAgo(notification.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                </DropdownMenuItem>
-              ))}
-              {hasMore && (
-                <div className="p-2 border-t">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={loadMoreNotifications}
-                    disabled={loadingMore}
-                    className="w-full text-xs"
+        <ScrollArea className="h-80 max-h-80">
+          <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500 glass-dark">
+            {loading ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                Loading...
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                No notifications yet
+              </div>
+            ) : (
+              <>
+                {notifications.map((notification) => (
+                  <DropdownMenuItem
+                    key={notification._id}
+                    className={`flex flex-col items-start p-3 cursor-pointer ${
+                      !notification.isRead ? 'bg-accent/50' : ''
+                    }`}
+                    onClick={() => !notification.isRead && markAsRead(notification._id)}
                   >
-                    {loadingMore ? 'Loading...' : 'See More'}
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+                    <div className="flex items-start gap-2 w-full">
+                      <span className="text-lg">{getNotificationIcon(notification.type)}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-sm truncate">
+                            {notification.title}
+                          </p>
+                          {!notification.isRead && (
+                            <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatTimeAgo(notification.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+                {hasMore && (
+                  <div className="p-2 border-t">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={loadMoreNotifications}
+                      disabled={loadingMore}
+                      className="w-full text-xs"
+                    >
+                      {loadingMore ? 'Loading...' : 'See More'}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </ScrollArea>
         {notifications.length > 0 && (
           <>

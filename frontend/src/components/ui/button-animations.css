@@ -1,0 +1,237 @@
+/* 
+  Enhanced Button Component Animations
+  Add these CSS animations to your global styles (index.css or globals.css) to support the enhanced button variants
+*/
+
+/* Ripple effect animation */
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Gradient background animation */
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Shimmer effect animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Floating animations */
+@keyframes float-subtle {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes float-active {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* Pulse variations */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Loading shine effect */
+@keyframes loading-shine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Glow pulse effect */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+  }
+}
+
+/* Morphing border radius */
+@keyframes morph-border {
+  0%, 100% {
+    border-radius: 0.5rem;
+  }
+  25% {
+    border-radius: 1rem;
+  }
+  50% {
+    border-radius: 1.5rem;
+  }
+  75% {
+    border-radius: 1rem;
+  }
+}
+
+/* Rainbow hue rotation */
+@keyframes rainbow-hue {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+/* Utility classes for enhanced animations */
+.bg-size-200 {
+  background-size: 200% 200%;
+}
+
+.bg-size-300 {
+  background-size: 300% 300%;
+}
+
+.animate-gradient-x {
+  animation: gradient-x 3s ease infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+}
+
+.animate-float-subtle {
+  animation: float-subtle 3s ease-in-out infinite;
+}
+
+.animate-float-active {
+  animation: float-active 1s ease-in-out infinite;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+.animate-loading-shine {
+  animation: loading-shine 1.5s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-morph-border {
+  animation: morph-border 3s ease-in-out infinite;
+}
+
+.animate-rainbow-hue {
+  animation: rainbow-hue 3s linear infinite;
+}
+
+/* Enhanced focus states for accessibility */
+.focus-ring-enhanced:focus-visible {
+  outline: 2px solid theme('colors.ring');
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px theme('colors.ring' / 0.1);
+}
+
+/* Custom scrollbar for button containers (if needed) */
+.button-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.button-container::-webkit-scrollbar-track {
+  background: theme('colors.muted');
+  border-radius: 3px;
+}
+
+.button-container::-webkit-scrollbar-thumb {
+  background: theme('colors.muted-foreground' / 0.3);
+  border-radius: 3px;
+}
+
+.button-container::-webkit-scrollbar-thumb:hover {
+  background: theme('colors.muted-foreground' / 0.5);
+}
+
+/* Responsive design helpers */
+@media (max-width: 640px) {
+  .btn-responsive {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+    min-height: 2rem;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .btn-responsive {
+    font-size: 1rem;
+    padding: 0.625rem 1rem;
+    min-height: 2.5rem;
+  }
+}
+
+@media (min-width: 1025px) {
+  .btn-responsive {
+    font-size: 1.125rem;
+    padding: 0.75rem 1.25rem;
+    min-height: 3rem;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .btn-high-contrast {
+    border: 2px solid currentColor !important;
+    background: transparent !important;
+  }
+  
+  .btn-high-contrast:hover {
+    background: currentColor !important;
+    color: white !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .btn-reduced-motion,
+  .btn-reduced-motion * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .btn-print {
+    background: white !important;
+    color: black !important;
+    border: 1px solid black !important;
+    box-shadow: none !important;
+  }
+}

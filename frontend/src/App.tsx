@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, Component } from 'react';
+import './lib/fontawesome'; // Import FontAwesome setup
 import { PostModal } from './components/ui/post-modal';
 import type { PostModalPost } from './components/ui/post-modal';
 import type { ErrorInfo, ReactNode } from 'react';
@@ -361,12 +362,25 @@ export default function App() {
   // Show loading screen while checking authentication
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4 shadow-lg animate-pulse">
-            <span className="text-white font-bold text-2xl">BM</span>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+        {/* Animated background particles */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500 rounded-full opacity-20 animate-pulse"></div>
+          <div className="absolute top-40 right-20 w-96 h-96 bg-blue-500 rounded-full opacity-10 animate-float"></div>
+          <div className="absolute bottom-20 left-1/3 w-64 h-64 bg-pink-500 rounded-full opacity-15 animate-bounce delay-700"></div>
+        </div>
+        
+        <div className="text-center relative z-10 animate-fadeInUp">
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 rounded-3xl mb-6 shadow-2xl animate-pulse-glow relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 rounded-3xl animate-rainbow opacity-80"></div>
+            <span className="text-white font-bold text-3xl relative z-10 animate-glowing">BM</span>
           </div>
-          <p className="text-muted-foreground">Loading...</p>
+          <div className="mb-4">
+            <div className="inline-block h-2 w-32 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full animate-pulse">
+              <div className="h-full w-1/3 bg-white rounded-full animate-shimmer"></div>
+            </div>
+          </div>
+          <p className="text-slate-300 text-lg font-medium animate-typewriter">Initializing BloxMarket...</p>
         </div>
       </div>
     );
@@ -378,10 +392,21 @@ export default function App() {
         <ThemeContext.Provider value={{ isDark, toggleTheme }}>
           <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading, isLoggingOut }}>
             <AppContext.Provider value={{ currentPage, setCurrentPage }}>
-              <div className="min-h-screen bg-slate-900 text-foreground flex flex-col">
+              <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-foreground flex flex-col relative overflow-hidden">
+                {/* Animated background elements */}
+                <div className="absolute inset-0 overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-full">
+                    <div className="absolute top-10 left-10 w-64 h-64 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full animate-float"></div>
+                    <div className="absolute top-32 right-16 w-48 h-48 bg-gradient-to-br from-pink-500/10 to-red-500/10 rounded-full animate-float delay-1000"></div>
+                    <div className="absolute bottom-20 left-1/4 w-72 h-72 bg-gradient-to-br from-green-500/10 to-teal-500/10 rounded-full animate-float delay-2000"></div>
+                  </div>
+                </div>
+                
                 <Header />
-                <main className="flex-1">
-                  {currentPage === 'auth' ? <AuthPage /> : <LandingPage />}
+                <main className="flex-1 relative z-10 glass">
+                  <div className="animate-fadeInUp">
+                    {currentPage === 'auth' ? <AuthPage /> : <LandingPage />}
+                  </div>
                 </main>
                 <Footer />
               </div>
@@ -399,14 +424,38 @@ export default function App() {
       <ThemeContext.Provider value={{ isDark, toggleTheme }}>
         <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading, isLoggingOut }}>
           <AppContext.Provider value={{ currentPage, setCurrentPage }}>
-            <div className="min-h-screen bg-slate-900 text-foreground flex flex-col">
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-foreground flex flex-col relative overflow-hidden">
+              {/* Dynamic background particles */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-20 left-10 w-96 h-96 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-full animate-float"></div>
+                <div className="absolute top-40 right-20 w-64 h-64 bg-gradient-to-br from-pink-500/5 to-red-500/5 rounded-full animate-float delay-1000"></div>
+                <div className="absolute bottom-32 left-1/3 w-80 h-80 bg-gradient-to-br from-green-500/5 to-teal-500/5 rounded-full animate-float delay-2000"></div>
+                <div className="absolute top-1/2 right-1/4 w-48 h-48 bg-gradient-to-br from-yellow-500/5 to-orange-500/5 rounded-full animate-float delay-3000"></div>
+              </div>
+              
               <Header />
-              <div className="flex flex-1 overflow-hidden">
-                <Sidebar />
-                <main className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500" style={{ marginLeft: 'px', marginTop: '64px' }}>
-                  <ErrorBoundary>
-                    {renderCurrentPage()}
-                  </ErrorBoundary>
+              {/* Main layout container with flex for sidebar and content */}
+              <div className="flex h-screen pt-16">
+                {/* Sticky Sidebar - stays in document flow but sticks to top when scrolling */}
+                <aside className="animate-slideInLeft flex-shrink-0">
+                  <Sidebar />
+                </aside>
+                {/* Main content area with separate scrollbar - only this section scrolls */}
+                <main className="flex-1 overflow-hidden relative">
+                  {/* 
+                    Scrollable content container:
+                    - h-full ensures it takes full height of main area
+                    - overflow-y-auto creates vertical scrollbar when content exceeds height
+                    - overflow-x-hidden prevents horizontal scrollbar
+                    - Custom scrollbar styling for consistency with design
+                  */}
+                  <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500 glass-dark">
+                    <div className="animate-fadeIn">
+                      <ErrorBoundary>
+                        {renderCurrentPage()}
+                      </ErrorBoundary>
+                    </div>
+                  </div>
                 </main>
               </div>
               <Footer />
@@ -417,30 +466,32 @@ export default function App() {
               <GlobalLoader />
               <GlobalLoadingSetup />
 
-              {/* Legacy Rate Limit Error Notification */}
+              {/* Enhanced Rate Limit Error Notification */}
               {rateLimitNotification.visible && (
-                <div className="fixed bottom-4 right-4 z-50 bg-red-500 text-white p-4 rounded-lg shadow-lg max-w-md">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium">{rateLimitNotification.message}</p>
-                    </div>
-                    <div className="ml-auto pl-3">
-                      <div className="-mx-1.5 -my-1.5">
-                        <button
-                          type="button"
-                          className="inline-flex rounded-md p-1.5 text-white hover:bg-red-600 focus:outline-none"
-                          onClick={() => setRateLimitNotification(prev => ({ ...prev, visible: false }))}
-                        >
-                          <span className="sr-only">Dismiss</span>
-                          <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                        </button>
+                <div className="fixed bottom-4 right-4 z-50 animate-bounceIn">
+                  <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white p-4 rounded-2xl shadow-2xl max-w-md glass backdrop-blur-lg border border-red-400/30">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 animate-pulse">
+                        <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-semibold">{rateLimitNotification.message}</p>
+                      </div>
+                      <div className="ml-auto pl-3">
+                        <div className="-mx-1.5 -my-1.5">
+                          <button
+                            type="button"
+                            className="inline-flex rounded-xl p-2 text-white hover:bg-red-600/20 focus:outline-none transition-all duration-300 hover:scale-110"
+                            onClick={() => setRateLimitNotification(prev => ({ ...prev, visible: false }))}
+                          >
+                            <span className="sr-only">Dismiss</span>
+                            <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

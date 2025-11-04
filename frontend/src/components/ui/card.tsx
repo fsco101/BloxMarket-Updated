@@ -2,14 +2,43 @@ import * as React from "react";
 
 import { cn } from "./utils";
 
-function Card({ className, hover = true, ...props }: React.ComponentProps<"div"> & { hover?: boolean }) {
+function Card({ className, hover = true, variant = "default", glow = false, ...props }: React.ComponentProps<"div"> & { 
+  hover?: boolean; 
+  variant?: "default" | "glass" | "glassDark" | "neon" | "gradient" | "floating" | "morphing"; 
+  glow?: boolean;
+}) {
+  const getVariantClasses = () => {
+    switch (variant) {
+      case "glass":
+        return "bg-white/10 backdrop-blur-xl border border-white/20 text-white shadow-2xl";
+      case "glassDark":
+        return "bg-black/10 backdrop-blur-xl border border-black/20 text-black shadow-2xl";
+      case "neon":
+        return "bg-transparent border-2 border-cyan-400 text-cyan-400 shadow-lg shadow-cyan-400/25 animate-pulse";
+      case "gradient":
+        return "bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white shadow-2xl";
+      case "floating":
+        return "bg-card text-card-foreground border border-border shadow-2xl animate-float";
+      case "morphing":
+        return "bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-2xl animate-morphing";
+      default:
+        return "bg-card text-card-foreground border border-border shadow-xl";
+    }
+  };
+
   return (
     <div
       data-slot="card"
       className={cn(
-        "bg-card text-card-foreground border border-border rounded-lg shadow-sm",
-        "transition-all duration-300 ease-in-out",
-        hover && "hover:shadow-xl hover:shadow-primary/20 hover:-translate-y-1 hover:border-primary/40 hover:scale-[1.02]",
+        "rounded-2xl transition-all duration-500 ease-out relative overflow-hidden",
+        getVariantClasses(),
+        hover && "hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02] cursor-pointer",
+        hover && variant === "default" && "hover:shadow-blue-500/20 hover:border-blue-500/40",
+        hover && variant === "glass" && "hover:bg-white/20 hover:border-white/30",
+        hover && variant === "glassDark" && "hover:bg-black/20 hover:border-black/30",
+        hover && variant === "neon" && "hover:shadow-cyan-400/50 hover:border-cyan-300",
+        hover && variant === "gradient" && "hover:shadow-purple-500/30",
+        glow && "animate-pulse-glow",
         className,
       )}
       {...props}
@@ -22,7 +51,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-header"
       className={cn(
-        "flex flex-col space-y-1.5 p-6",
+        "flex flex-col space-y-2 p-6 pb-4 relative",
         className,
       )}
       {...props}
