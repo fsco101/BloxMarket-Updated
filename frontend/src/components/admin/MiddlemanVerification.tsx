@@ -154,6 +154,9 @@ export function MiddlemanVerification() {
       setLoading(true);
       setError('');
       
+      // Ensure any existing DataTable is destroyed
+      destroyDataTable();
+      
       console.log('Loading verification requests...');
       
       const response = await apiService.getMiddlemanVerificationDataTable({
@@ -224,6 +227,34 @@ export function MiddlemanVerification() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const destroyDataTable = useCallback(() => {
+    if (!window.$ || !window.$.fn || !window.$.fn.DataTable) {
+      return;
+    }
+
+    const $ = window.$;
+    try {
+      if (tableRef.current) {
+        // First remove event handlers
+        $(tableRef.current).off();
+        
+        // Then check if it's a DataTable and destroy it
+        if ($.fn.DataTable.isDataTable(tableRef.current)) {
+          const dt = $(tableRef.current).DataTable();
+          dt.destroy();
+          // Clear the table content
+          $(tableRef.current).empty();
+        }
+      }
+      
+      // Always reset refs even if table element is not available
+      dataTableRef.current = null;
+      isInitialized.current = false;
+    } catch (error) {
+      console.warn('Error destroying DataTable:', error);
+    }
+  }, []);
+
   const initializeDataTable = useCallback((requestData: VerificationRequest[]) => {
     if (!window.$ || !window.$.fn || !window.$.fn.DataTable) {
       console.error('jQuery or DataTables not available');
@@ -242,17 +273,7 @@ export function MiddlemanVerification() {
     
     try {
       // Destroy existing instance if exists
-      if (dataTableRef.current) {
-        try {
-          $(tableRef.current).off();
-          if ($.fn.DataTable.isDataTable(tableRef.current)) {
-            dataTableRef.current.destroy();
-          }
-        } catch (destroyError) {
-          console.warn('Error destroying existing DataTable:', destroyError);
-        }
-        dataTableRef.current = null;
-      }
+      destroyDataTable();
 
       // Initialize new DataTable
       dataTableRef.current = $(tableRef.current).DataTable({
@@ -415,9 +436,10 @@ export function MiddlemanVerification() {
             // Event handlers
       $(tableRef.current).off(); // Remove old handlers
       
-      $(tableRef.current).on('click', '.view-btn', function(e) {
+      $(tableRef.current).on('click', '.view-btn', function(this: HTMLElement, e: JQuery.ClickEvent) {
         e.preventDefault();
-        const requestId = $(this).data('request-id');
+        const $btn = $(this);
+        const requestId = $btn.data('request-id') as string;
         const request = requestData.find((r: VerificationRequest) => r && r._id === requestId);
         if (request) {
           setSelectedRequest(request);
@@ -425,15 +447,17 @@ export function MiddlemanVerification() {
         }
       });
 
-      $(tableRef.current).on('click', '.approve-btn', function(e) {
+      $(tableRef.current).on('click', '.approve-btn', function(this: HTMLElement, e: JQuery.ClickEvent) {
         e.preventDefault();
-        const requestId = $(this).data('request-id');
+        const $btn = $(this);
+        const requestId = $btn.data('request-id') as string;
         handleApprove(requestId);
       });
 
-      $(tableRef.current).on('click', '.reject-btn', function(e) {
+      $(tableRef.current).on('click', '.reject-btn', function(this: HTMLElement, e: JQuery.ClickEvent) {
         e.preventDefault();
-        const requestId = $(this).data('request-id');
+        const $btn = $(this);
+        const requestId = $btn.data('request-id') as string;
         const request = requestData.find((r: VerificationRequest) => r && r._id === requestId);
         if (request) openRejectDialog(request);
       });
@@ -460,22 +484,9 @@ export function MiddlemanVerification() {
     
     // Cleanup function
     return () => {
-      const tableElement = tableRef.current; // eslint-disable-line react-hooks/exhaustive-deps
-      if (dataTableRef.current && window.$ && window.$.fn && window.$.fn.DataTable) {
-        try {
-          const $ = window.$;
-          if (tableElement && $.fn.DataTable.isDataTable(tableElement)) {
-            $(tableElement).off(); // Remove event handlers first
-            dataTableRef.current.destroy();
-          }
-          dataTableRef.current = null;
-          isInitialized.current = false;
-        } catch (error) {
-          console.error('Error destroying DataTable during cleanup:', error);
-        }
-      }
+      destroyDataTable();
     };
-  }, [jQueryReady, loadVerificationRequests]);
+  }, [jQueryReady, loadVerificationRequests, destroyDataTable]);
 
   const handleViewDocument = async (documentId: string) => {
     try {
@@ -509,9 +520,16 @@ export function MiddlemanVerification() {
   const handleApprove = async (applicationId: string) => {
     try {
       setActionLoading(applicationId);
+      // Destroy DataTable before making changes
+      destroyDataTable();
+      
       await apiService.approveMiddlemanApplication(applicationId);
       toast.success('Application approved successfully');
-      loadVerificationRequests();
+      
+      // Add a small delay before reloading to ensure DOM is ready
+      setTimeout(() => {
+        loadVerificationRequests();
+      }, 100);
     } catch (error) {
       console.error('Error approving application:', error);
       toast.error('Failed to approve application');
@@ -523,9 +541,17 @@ export function MiddlemanVerification() {
   const handleReject = async (applicationId: string, reason: string) => {
     try {
       setActionLoading(applicationId);
+      // Destroy DataTable before making changes
+      destroyDataTable();
+      
       await apiService.rejectMiddlemanApplication(applicationId, reason);
       toast.success('Application rejected');
-      loadVerificationRequests();
+      
+      // Add a small delay before reloading to ensure DOM is ready
+      setTimeout(() => {
+        loadVerificationRequests();
+      }, 100);
+      
       setRejectDialogOpen(false);
       setRejectionReason('');
     } catch (error) {
@@ -857,82 +883,8 @@ export function MiddlemanVerification() {
                       </Badge>
                     ))}
                   </div>
-                  <div className="mt-4 grid grid-cols-2 gap-4">
-                    {/* Applicant's Camera Photo */}
-                    <div className="border rounded-md p-2">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">Camera Verification Photo</span>
-                        <Badge className="bg-green-100 text-green-800">
-                          <Shield className="w-3 h-3 mr-1" />
-                          Security Proof
-                        </Badge>
-                      </div>
-                      <div className="aspect-square bg-gray-100 rounded-md overflow-hidden mb-2">
-                        <img
-                          src={`http://localhost:5000/uploads/middlemanface/${selectedRequest.user_id?._id || selectedRequest._id}_camera.jpg`}
-                          alt="Camera verification photo"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            // Try alternative naming patterns
-                            const alternativeSrcs = [
-                              `http://localhost:5000/uploads/middlemanface/${selectedRequest.user_id?._id || selectedRequest._id}_face.jpg`,
-                              `http://localhost:5000/uploads/middlemanface/${selectedRequest.username}_camera.jpg`,
-                              `http://localhost:5000/uploads/middlemanface/camera_${selectedRequest._id}.jpg`
-                            ];
-                            
-                            let currentIndex = 0;
-                            
-                            const tryNextSrc = () => {
-                              if (currentIndex < alternativeSrcs.length) {
-                                target.src = alternativeSrcs[currentIndex];
-                                currentIndex++;
-                              } else {
-                                // All sources failed, show placeholder
-                                target.style.display = 'none';
-                                const parent = target.parentElement;
-                                if (parent) {
-                                  parent.innerHTML = `
-                                    <div class="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500">
-                                      <div class="text-center">
-                                        <Shield className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                                        <p class="text-xs">Camera photo not available</p>
-                                      </div>
-                                    </div>
-                                  `;
-                                }
-                              }
-                            };
-                            
-                            target.onerror = tryNextSrc;
-                            tryNextSrc();
-                          }}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                        <Shield className="w-3 h-3" />
-                        <span>Live camera capture for identity verification</span>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="w-full text-xs h-7"
-                        onClick={() => {
-                          // Open camera photo in new tab for detailed review
-                          const img = document.querySelector('img[alt="Camera verification photo"]') as HTMLImageElement;
-                          if (img && img.src && !img.src.includes('placeholder')) {
-                            window.open(img.src, '_blank');
-                          } else {
-                            toast.error('Camera photo not available for viewing');
-                          }
-                        }}
-                      >
-                        <Eye className="w-3 h-3 mr-1" />
-                        View Full Size
-                      </Button>
-                    </div>
-
-                    {/* Other Documents */}
+                  <div className="mt-4 grid grid-cols-1 gap-4">
+                    {/* Documents */}
                     {selectedRequest.documents.map((doc, i) => (
                       <div key={i} className="border rounded-md p-2">
                         <div className="flex items-center justify-between mb-2">
