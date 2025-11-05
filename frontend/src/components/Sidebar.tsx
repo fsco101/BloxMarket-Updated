@@ -316,7 +316,7 @@ export function Sidebar() {
           - Always visible at bottom of sidebar
         */}
         
-        {/* Theme Toggle */}
+        {/* Theme Toggle
         <div className="flex items-center justify-between p-3 rounded-xl bg-card backdrop-blur-sm border border-border shadow-md hover:shadow-lg transition-all duration-300">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-accent shadow-sm">
@@ -334,7 +334,7 @@ export function Sidebar() {
             onCheckedChange={toggleTheme}
             className="form-check-input form-switch"
           />
-        </div>
+        </div> */}
 
         {/* Logout Button */}
         <Button

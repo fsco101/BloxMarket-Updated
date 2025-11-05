@@ -28,18 +28,23 @@ export function AuthPage() {
       {/* Enhanced Overlay for better text readability */}
       <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-gray-800/50 to-gray-900/60 dark:from-gray-900/70 dark:via-gray-800/60 dark:to-gray-900/70" />      {/* Content */}
       <div className="relative w-full max-w-md z-10">
-        {/* Theme Toggle */}
+        {/* Theme Toggle
         <div className="flex justify-end mb-4">
           <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-lg p-2">
             {isDark ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             <Switch checked={isDark} onCheckedChange={toggleTheme} />
           </div>
-        </div>
+        </div> */}
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4 shadow-lg">
-            <span className="text-white font-bold text-2xl">BM</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg overflow-hidden">
+            <img 
+              src="/logo.jpg" 
+              alt="BloxMarket Logo" 
+              className="w-full h-full object-contain"
+              style={{objectFit: 'contain'}}
+            />
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             BloxMarket

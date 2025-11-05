@@ -24,6 +24,7 @@ import { Messenger } from './components/Messenger';
 import { Toaster } from './components/Toaster';
 import { RateLimitListener } from './components/RateLimitListener';
 import { GlobalLoadingProvider } from './contexts/GlobalLoadingContext';
+import { toast } from 'sonner';
 import GlobalLoader from './components/GlobalLoader';
 import GlobalLoadingSetup from './components/GlobalLoadingSetup';
 import { Footer } from './components/ui/footer';
@@ -308,6 +309,21 @@ export default function App() {
     await new Promise(resolve => setTimeout(resolve, 800));
     
     handleLogout();
+    
+    // Show success notification
+    toast.success('Successfully logged out! See you next time! 👋', {
+      duration: 3000,
+      position: 'top-center',
+      style: {
+        background: '#10b981',
+        color: 'white',
+        border: 'none',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: '500'
+      }
+    });
+    
     setIsLoggingOut(false);
   };
 
@@ -371,9 +387,14 @@ export default function App() {
         </div>
         
         <div className="text-center relative z-10 animate-fadeInUp">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 rounded-3xl mb-6 shadow-2xl animate-pulse-glow relative">
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl mb-6 shadow-2xl animate-pulse-glow relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 rounded-3xl animate-rainbow opacity-80"></div>
-            <span className="text-white font-bold text-3xl relative z-10 animate-glowing">BM</span>
+            <img 
+              src="/logo.jpg" 
+              alt="BloxMarket Logo" 
+              className="w-full h-full object-contain relative z-10 animate-glowing"
+              style={{objectFit: 'contain'}}
+            />
           </div>
           <div className="mb-4">
             <div className="inline-block h-2 w-32 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full animate-pulse">

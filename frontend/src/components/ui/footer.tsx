@@ -10,8 +10,13 @@ export function Footer() {
           {/* Brand */}
           <div className="col-lg-6 col-md-12">
             <div className="d-flex align-items-start gap-3 mb-3">
-              <div className="bg-primary rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style={{width: '40px', height: '40px'}}>
-                <span className="text-white fw-bold fs-5">BM</span>
+              <div className="rounded-3 overflow-hidden flex-shrink-0" style={{width: '40px', height: '40px'}}>
+                <img 
+                  src="/logo.jpg" 
+                  alt="BloxMarket Logo" 
+                  className="w-100 h-100"
+                  style={{objectFit: 'contain'}}
+                />
               </div>
               <div>
                 <h5 className="text-white mb-1 fw-bold">BloxMarket</h5>

@@ -278,7 +278,7 @@ function ReportModal({ isOpen, onClose, onSubmit, loading }: ReportModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Flag className="w-5 h-5 text-red-500" />
@@ -289,7 +289,8 @@ function ReportModal({ isOpen, onClose, onSubmit, loading }: ReportModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="overflow-y-auto max-h-[calc(90vh-140px)] px-1">
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="report-reason">Reason *</Label>
             <Select value={reason} onValueChange={setReason}>
@@ -336,6 +337,7 @@ function ReportModal({ isOpen, onClose, onSubmit, loading }: ReportModalProps) {
             </Button>
           </div>
         </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -878,7 +880,7 @@ export function Forums() {
                 New Post
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh]">
               <DialogHeader>
                 <DialogTitle>Create New Post</DialogTitle>
                 <DialogDescription>
@@ -886,7 +888,8 @@ export function Forums() {
                 </DialogDescription>
               </DialogHeader>
               
-              <form onSubmit={handleCreatePost} className="space-y-4">
+              <div className="overflow-y-auto max-h-[calc(90vh-140px)] px-1">
+                <form onSubmit={handleCreatePost} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="post-title">Title *</Label>
                   <Input
@@ -1033,12 +1036,13 @@ export function Forums() {
                   </Button>
                 </div>
               </form>
+              </div>
             </DialogContent>
           </Dialog>
           
           {/* Edit Post Dialog */}
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90vh]">
               <DialogHeader>
                 <DialogTitle>Edit Post</DialogTitle>
                 <DialogDescription>
@@ -1046,7 +1050,8 @@ export function Forums() {
                 </DialogDescription>
               </DialogHeader>
               
-              <form onSubmit={handleUpdatePost} className="space-y-4">
+              <div className="overflow-y-auto max-h-[calc(90vh-140px)] px-1">
+                <form onSubmit={handleUpdatePost} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-post-title">Title *</Label>
                   <Input
@@ -1202,6 +1207,7 @@ export function Forums() {
                   </Button>
                 </div>
               </form>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
@@ -1209,41 +1215,44 @@ export function Forums() {
 
       {/* Filters */}
       <div className="border-b border-border p-4 bg-muted/30">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 flex-1">
-            <Search className="w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search posts, tags, or content..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-md"
-            />
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Search posts, tags, or content..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 flex-1 min-w-0"
+                size="lg"
+              />
+            </div>
           </div>
-          
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map(category => (
-                <SelectItem key={category.value} value={category.value}>
-                  {category.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="activity">Latest Activity</SelectItem>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="popular">Most Popular</SelectItem>
-              <SelectItem value="replies">Most Replies</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger size="lg">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(category => (
+                  <SelectItem key={category.value} value={category.value}>
+                    {category.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger size="lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="activity">Latest Activity</SelectItem>
+                <SelectItem value="newest">Newest</SelectItem>
+                <SelectItem value="popular">Most Popular</SelectItem>
+                <SelectItem value="replies">Most Replies</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 

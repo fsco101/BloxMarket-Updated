@@ -56,14 +56,12 @@ interface DialogImperativeHandle {
 }
 
 interface DialogContentProps extends React.ComponentProps<typeof DialogPrimitive.Content> {
-  scrollMode?: ScrollMode;
   scrollBehavior?: "smooth" | "auto";
 }
 
 function DialogContent({
   className,
   children,
-  scrollMode = "modal",
   scrollBehavior = "smooth",
   ...props
 }: DialogContentProps) {
@@ -98,14 +96,10 @@ function DialogContent({
   const base =
     "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100vw-2rem)] translate-x-[-50%] translate-y-[-50%] gap-0 rounded-xl border border-border shadow-2xl duration-300 p-0";
 
-  // Dynamic height calculation based on content and viewport
-  const heightClass = scrollMode === "modal"
-    ? "max-h-[calc(100vh-4rem)] h-auto"
-    : "max-h-[calc(100vh-4rem)]";
+  // Dynamic height calculation based on content and viewport - ensure proper scrolling
+  const heightClass = "max-h-[calc(100vh-4rem)] min-h-[200px]";
 
-  const overflowClass = scrollMode === "modal"
-    ? "overflow-hidden"
-    : "overflow-hidden";
+  const overflowClass = "overflow-hidden";
 
   return (
     <DialogPortal data-slot="dialog-portal">
@@ -118,20 +112,22 @@ function DialogContent({
         <div
           ref={contentRef}
           className={cn(
-            "flex flex-col relative",
-            scrollMode === "modal" ? "overflow-y-auto max-h-full scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent" : "max-h-full",
-            `scroll-smooth`
+            "flex flex-col relative h-full min-h-0",
+            "overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400",
+            "scroll-smooth"
           )}
           style={{
             scrollbarWidth: 'thin',
-            scrollbarColor: 'rgb(203 213 225) transparent'
+            scrollbarColor: 'rgb(156 163 175) transparent'
           }}
         >
           <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 z-20 rounded-sm opacity-70 transition-all hover:opacity-100 hover:bg-accent focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-5 p-2 bg-background/80 backdrop-blur-sm">
             <XIcon />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
-          {children}
+          <div className="flex flex-col h-full min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400 scroll-smooth">
+            {children}
+          </div>
         </div>
       </DialogPrimitive.Content>
     </DialogPortal>
@@ -143,7 +139,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-header"
       className={cn(
-        "flex flex-col gap-2.5 text-left px-8 pt-8 pb-4 border-b border-border/50",
+        "flex flex-col gap-2.5 text-left px-8 pt-8 pb-4 border-b border-border/50 flex-shrink-0",
         className
       )}
       {...props}
@@ -156,9 +152,13 @@ function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-body"
       className={cn(
-        "flex-1 overflow-y-auto px-8 py-6",
+        "flex-1 overflow-y-auto px-8 py-6 min-h-0 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400 scroll-smooth",
         className
       )}
+      style={{
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'rgb(156 163 175) transparent'
+      }}
       {...props}
     />
   );
@@ -169,7 +169,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-3 sm:flex-row sm:justify-end px-8 py-6 border-t border-border/50 shrink-0 bg-muted/30 rounded-b-xl",
+        "flex flex-col-reverse gap-3 sm:flex-row sm:justify-end px-8 py-6 border-t border-border/50 flex-shrink-0 bg-muted/30 rounded-b-xl",
         className,
       )}
       {...props}

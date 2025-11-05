@@ -15,18 +15,17 @@ import { ContentCard, UniversalCardHeader, UniversalCardContent } from './ui/uni
 import { useApp } from '../App';
 
 import { 
-  MessageSquare, 
-  Flag, 
-  TrendingUp, 
-  Search,
-  Filter,
+  Search, 
+  TrendingUp,
   Gift,
+  MessageSquare, 
+  ArrowUp,
+  ArrowDown,
   Loader2,
   AlertCircle,
   Eye,
   ImageIcon,
-  ArrowUp,
-  ArrowDown
+  Flag
 } from 'lucide-react';
 
 // Type definitions
@@ -727,28 +726,32 @@ export function Dashboard() {
             <h1 className="text-2xl font-bold">Home Feed</h1>
             <p className="text-muted-foreground">Latest trades, giveaways, and community updates</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Search className="w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search posts..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-64"
-              />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Search posts..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 flex-1 min-w-0"
+                  size="lg"
+                />
+              </div>
             </div>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-32">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="trade">Trades</SelectItem>
-                <SelectItem value="forum">Forum</SelectItem>
-                <SelectItem value="event">Events</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger size="lg">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="trade">Trades</SelectItem>
+                  <SelectItem value="forum">Forum</SelectItem>
+                  <SelectItem value="event">Events</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>

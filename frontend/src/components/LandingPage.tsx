@@ -33,19 +33,24 @@ export function LandingPage() {
       
       {/* Content */}
       <div className="relative z-10 w-full max-w-6xl mx-auto px-4 py-12">
-        {/* Theme Toggle */}
+        {/* Theme Toggle
         <div className="flex justify-end mb-8">
           <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg p-2 border border-white/20">
             {isDark ? <Moon className="w-4 h-4 text-white" /> : <Sun className="w-4 h-4 text-white" />}
             <Switch checked={isDark} onCheckedChange={toggleTheme} />
           </div>
-        </div>
+        </div> */}
 
         {/* Hero Section */}
         <div className="text-center text-white">
           {/* Logo */}
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl mb-6 shadow-2xl">
-            <span className="text-white font-bold text-3xl">BM</span>
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl mb-6 shadow-2xl overflow-hidden">
+            <img 
+              src="/logo.jpg" 
+              alt="BloxMarket Logo" 
+              className="w-full h-full object-contain"
+              style={{objectFit: 'contain'}}
+            />
           </div>
 
           {/* Main Heading with float and glow animation */}

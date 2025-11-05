@@ -1284,28 +1284,32 @@ export function EventsGiveaways() {
 
       {/* Filters */}
       <div className="border-b border-border p-4 bg-muted/30">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 flex-1">
-            <Search className="w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search events and giveaways..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-md"
-            />
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Search events and giveaways..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 flex-1 min-w-0"
+                size="lg"
+              />
+            </div>
           </div>
-          
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Events</SelectItem>
-              <SelectItem value="giveaway">Giveaways</SelectItem>
-              <SelectItem value="competition">Competitions</SelectItem>
-              <SelectItem value="event">Community Events</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger size="lg">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Events</SelectItem>
+                <SelectItem value="giveaway">Giveaways</SelectItem>
+                <SelectItem value="competition">Competitions</SelectItem>
+                <SelectItem value="event">Community Events</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 

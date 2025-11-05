@@ -114,7 +114,7 @@ export function PageLayout({
                 placeholder={searchPlaceholder}
                 value={searchValue}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value)}
-                className="pl-10 bg-background/70 backdrop-blur-sm border-border/60 shadow-sm hover:shadow-md focus:shadow-lg transition-all duration-200 max-w-sm"
+                className="pl-10 bg-background/70 backdrop-blur-sm border-border/60 shadow-sm hover:shadow-md focus:shadow-lg transition-all duration-200 flex-1 min-w-0 max-w-3xl"
                 size="default"
               />
             </div>

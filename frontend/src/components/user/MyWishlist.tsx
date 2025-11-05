@@ -621,13 +621,14 @@ export function MyWishlist() {
                   placeholder="Search your wishlist..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 flex-1 min-w-0"
+                  size="lg"
                 />
               </div>
             </div>
             <div className="flex gap-2">
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger size="lg">
                   <SelectValue placeholder="Filter by category" />
                 </SelectTrigger>
                 <SelectContent>

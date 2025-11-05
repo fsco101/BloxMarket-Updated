@@ -625,7 +625,7 @@ export function MyForumPosts() {
                   placeholder="Search your posts..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 flex-1 min-w-0"
                 />
               </div>
             </div>
