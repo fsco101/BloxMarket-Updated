@@ -19,6 +19,32 @@ import {
   Eye,
   Download
 } from 'lucide-react';
+
+// Type definitions for API responses
+interface BaseUser {
+  createdAt?: string;
+  created_at?: string;
+}
+
+interface UserResponse {
+  users?: BaseUser[];
+}
+
+interface BaseTrade {
+  created_at?: string;
+  createdAt?: string;
+}
+
+interface BasePost {
+  createdAt?: string;
+  created_at?: string;
+}
+
+interface BaseReport {
+  status?: string;
+  updatedAt?: string;
+  updated_at?: string;
+}
 import { ChartReportGenerator, type ChartDataPoint } from '../utils/chartReportGenerator';
 import {
   AreaChart,
@@ -113,6 +139,31 @@ export function AdminPanel() {
     color: string;
   }>>([]);
 
+  // Helper function to handle chart downloads with error handling
+  const handleChartDownload = async (chartId: string, filename: string, chartData: ChartDataPoint[], dataKey: string = 'value', nameKey: string = 'name') => {
+    try {
+      await ChartReportGenerator.downloadChartReport({
+        chartId,
+        filename,
+        chartData,
+        dataKey,
+        nameKey,
+        title: `${filename.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Report`,
+        timePeriod: `${timePeriodConfig[timePeriod].label} View`,
+        dataSource: 'BloxMarket Admin Dashboard',
+        generatedBy: `${user?.username || 'Admin'} Dashboard`
+      });
+    } catch (error) {
+      console.error('Chart download failed:', error);
+      // Show user-friendly error message
+      if (error instanceof Error) {
+        alert(`Failed to download chart: ${error.message}`);
+      } else {
+        alert('Failed to download chart. Please try again.');
+      }
+    }
+  };
+
   const isAdminOrModerator = user?.role === 'admin' || user?.role === 'moderator';
 
   // Time period configuration
@@ -129,8 +180,8 @@ export function AdminPanel() {
 
       // Get recent user registrations (last 24 hours)
       try {
-        const usersResponse = await apiService.request('/admin/users?limit=1000');
-        const recentUsers = usersResponse.users?.filter((user: { createdAt?: string; created_at?: string }) => {
+        const usersResponse = await apiService.request('/admin/users?limit=1000') as UserResponse;
+        const recentUsers = usersResponse.users?.filter((user: BaseUser) => {
           const userDate = new Date(user.createdAt || user.created_at || '');
           const oneDayAgo = new Date();
           oneDayAgo.setDate(oneDayAgo.getDate() - 1);
@@ -155,8 +206,8 @@ export function AdminPanel() {
 
       // Get recent trades (last 24 hours)
       try {
-        const tradesResponse = await apiService.getTrades({ limit: 1000 });
-        const recentTrades = tradesResponse.filter((trade: { created_at?: string; createdAt?: string }) => {
+        const tradesResponse = await apiService.getTrades({ limit: 1000 }) as BaseTrade[];
+        const recentTrades = tradesResponse.filter((trade: BaseTrade) => {
           const tradeDate = new Date(trade.created_at || trade.createdAt || '');
           const oneDayAgo = new Date();
           oneDayAgo.setDate(oneDayAgo.getDate() - 1);
@@ -181,8 +232,8 @@ export function AdminPanel() {
 
       // Get recent forum posts (last 24 hours)
       try {
-        const forumResponse = await apiService.getForumPosts({ limit: 1000 });
-        const recentPosts = forumResponse.filter((post: { createdAt?: string; created_at?: string }) => {
+        const forumResponse = await apiService.getForumPosts({ limit: 1000 }) as BasePost[];
+        const recentPosts = forumResponse.filter((post: BasePost) => {
           const postDate = new Date(post.createdAt || post.created_at || '');
           const oneDayAgo = new Date();
           oneDayAgo.setDate(oneDayAgo.getDate() - 1);
@@ -207,8 +258,8 @@ export function AdminPanel() {
 
       // Get recent reports resolved (last 24 hours)
       try {
-        const reportsResponse = await apiService.getReports({ limit: 1000 });
-        const recentResolved = reportsResponse.filter((report: { status?: string; updatedAt?: string; updated_at?: string }) => {
+        const reportsResponse = await apiService.getReports({ limit: 1000 }) as BaseReport[];
+        const recentResolved = reportsResponse.filter((report: BaseReport) => {
           if (report.status !== 'resolved') return false;
           const resolvedDate = new Date(report.updatedAt || report.updated_at || '');
           const oneDayAgo = new Date();
@@ -261,8 +312,8 @@ export function AdminPanel() {
         apiService.getAdminAnalytics(days)
       ]);
       
-      setAdminStats(stats);
-      setAnalyticsData(analytics);
+      setAdminStats(stats as AdminStats);
+      setAnalyticsData(analytics as AnalyticsData);
 
       // Load recent activity data
       await loadRecentActivity();
@@ -632,13 +683,7 @@ export function AdminPanel() {
                   ))}
                   <button
                     className="btn btn-sm btn-outline-secondary"
-                    onClick={() => ChartReportGenerator.downloadChartReport({
-                      chartId: 'activity-chart',
-                      filename: 'platform-activity',
-                      chartData: chartData as ChartDataPoint[],
-                      dataKey: 'users',
-                      nameKey: 'name'
-                    })}
+                    onClick={() => handleChartDownload('activity-chart', 'platform-activity', chartData as ChartDataPoint[], 'users', 'name')}
                     title="Download Chart"
                   >
                     <i className="fas fa-download"></i>
@@ -673,13 +718,7 @@ export function AdminPanel() {
                 </h5>
                 <button
                   className="btn btn-sm btn-outline-secondary"
-                  onClick={() => ChartReportGenerator.downloadChartReport({
-                    chartId: 'user-status-chart',
-                    filename: 'user-status-distribution',
-                    chartData: pieData as ChartDataPoint[],
-                    dataKey: 'value',
-                    nameKey: 'name'
-                  })}
+                  onClick={() => handleChartDownload('user-status-chart', 'user-status-distribution', pieData as ChartDataPoint[], 'value', 'name')}
                   title="Download Chart"
                 >
                   <i className="fas fa-download"></i>
@@ -736,13 +775,7 @@ export function AdminPanel() {
                 </h5>
                 <button
                   className="btn btn-sm btn-outline-secondary"
-                  onClick={() => ChartReportGenerator.downloadChartReport({
-                    chartId: 'wishlist-chart',
-                    filename: 'popular-wishlists',
-                    chartData: wishlistData as ChartDataPoint[],
-                    dataKey: 'popularity',
-                    nameKey: 'name'
-                  })}
+                  onClick={() => handleChartDownload('wishlist-chart', 'popular-wishlists', wishlistData as ChartDataPoint[], 'popularity', 'name')}
                   title="Download Chart"
                 >
                   <i className="fas fa-download"></i>
@@ -773,13 +806,7 @@ export function AdminPanel() {
                 </h5>
                 <button
                   className="btn btn-sm btn-outline-secondary"
-                  onClick={() => ChartReportGenerator.downloadChartReport({
-                    chartId: 'event-chart',
-                    filename: 'event-participants',
-                    chartData: eventData as ChartDataPoint[],
-                    dataKey: 'participants',
-                    nameKey: 'name'
-                  })}
+                  onClick={() => handleChartDownload('event-chart', 'event-participants', eventData as ChartDataPoint[], 'participants', 'name')}
                   title="Download Chart"
                 >
                   <i className="fas fa-download"></i>
@@ -825,13 +852,7 @@ export function AdminPanel() {
                   </div>
                   <button
                     className="btn btn-sm btn-outline-secondary"
-                    onClick={() => ChartReportGenerator.downloadChartReport({
-                      chartId: 'reports-chart',
-                      filename: 'reports-issues',
-                      chartData: chartData as ChartDataPoint[],
-                      dataKey: 'reports',
-                      nameKey: 'name'
-                    })}
+                    onClick={() => handleChartDownload('reports-chart', 'reports-issues', chartData as ChartDataPoint[], 'reports', 'name')}
                     title="Download Chart"
                   >
                     <i className="fas fa-download"></i>

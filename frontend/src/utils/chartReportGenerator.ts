@@ -80,8 +80,12 @@ export class ChartReportGenerator {
           // Additional check: ensure the element has content
           const svgElement = element.querySelector('svg');
           if (svgElement && svgElement.getBoundingClientRect().width > 0) {
-            resolve(element);
-            return;
+            // For Recharts, also check if the chart has actual content
+            const hasContent = svgElement.querySelector('path, rect, circle, line') !== null;
+            if (hasContent) {
+              resolve(element);
+              return;
+            }
           }
         }
 
@@ -748,8 +752,24 @@ export class ChartReportGenerator {
     } = options;
 
     try {
+      // Show loading indicator
+      alertService.info('Generating chart report...');
+
       // Wait for chart to be fully rendered before proceeding
-      const chartElement = await this.waitForChartRender(chartId);
+      let chartElement: HTMLElement;
+      try {
+        chartElement = await this.waitForChartRender(chartId);
+      } catch (waitError) {
+        // If we can't find the chart, but we have chart data, proceed anyway
+        if (options.chartData && options.chartData.length > 0) {
+          console.warn('Chart element not found, but proceeding with provided data:', waitError);
+          // Create a simple fallback report with just data
+          await this.generateDataOnlyReport(options);
+          return;
+        } else {
+          throw new Error(`Chart not ready: ${waitError instanceof Error ? waitError.message : String(waitError)}`);
+        }
+      }
 
       // Extract all data we need
       const statistics = this.extractChartStatistics(chartElement, options);
@@ -804,7 +824,6 @@ export class ChartReportGenerator {
         const legend = this.getChartLegend(filename);
         if (legend.length > 0) {
           // Check if legend fits on current page
-          const pageHeight = pdf.internal.pageSize.getHeight();
           const estimatedLegendHeight = legend.length * 16 + 25; // Rough estimate
           if (currentY + estimatedLegendHeight > pageHeight - 30) {
             pdf.addPage();
@@ -833,6 +852,7 @@ export class ChartReportGenerator {
       // Add data table if we have data
       if (includeDataTable && dataTable.length > 0) {
         // Check if we need a new page
+        const pageHeight = pdf.internal.pageSize.getHeight();
         if (currentY > pageHeight - 100) {
           pdf.addPage();
           currentY = 25;
@@ -848,10 +868,69 @@ export class ChartReportGenerator {
       }
 
       // Save the PDF
+      pdf.save(`${filename}-${new Date().toISOString().split('T')[0]}.pdf`);
+      
+      // Show success message
+      alertService.success('Chart report downloaded successfully!');
     } catch (error) {
       console.error('PDF generation failed:', error);
-      alertService.error('Failed to generate PDF report. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alertService.error(`Failed to generate PDF report: ${errorMessage}`);
     }
+  }
+
+  // Generate a data-only report when chart element is not available
+  private static async generateDataOnlyReport(options: ChartDownloadOptions): Promise<void> {
+    const { filename, title, chartData, timePeriod, dataSource, generatedBy } = options;
+    
+    if (!chartData || chartData.length === 0) {
+      throw new Error('No chart data available for report generation');
+    }
+
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const reportTitle = title || this.formatChartTitle(filename);
+    this.addReportHeader(pdf, reportTitle);
+
+    // Add metadata
+    const metadata = this.getChartMetadata(filename, {
+      ...options,
+      timePeriod: timePeriod || 'Current Period',
+      dataSource: dataSource || 'BloxMarket Database',
+      generatedBy: generatedBy || 'Admin Dashboard'
+    });
+    metadata.dataPoints = chartData.length;
+
+    let currentY = this.addMetadataSection(pdf, metadata, 75);
+
+    // Add data table
+    const dataTableRows: DataTableRow[] = chartData.map((item, index) => ({
+      label: (item.name || item.label || `Item ${index + 1}`).toString(),
+      value: Number(item.value || item[options.dataKey || 'value'] || 0)
+    }));
+
+    // Calculate percentages
+    const total = dataTableRows.reduce((sum, row) => sum + row.value, 0);
+    dataTableRows.forEach(row => {
+      row.percentage = total > 0 ? (row.value / total) * 100 : 0;
+    });
+
+    currentY = this.addDataTableSection(pdf, dataTableRows, currentY);
+
+    // Add note about missing chart
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'italic');
+    pdf.setTextColor(100, 100, 100);
+    pdf.text('Note: Chart visualization could not be captured, but data is included above.', 20, currentY + 10);
+
+    this.addReportFooter(pdf);
+    pdf.save(`${filename}-data-${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    alertService.success('Data report downloaded successfully!');
   }
 
   // Convenience method for quick chart downloads
