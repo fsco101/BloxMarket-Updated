@@ -186,17 +186,17 @@ connectToDatabase();
 // Remove this custom CORS middleware as we're using the cors package above
 
 // Apply standard rate limiter to all routes by default
-app.use(standardLimiter);
+// app.use(standardLimiter); // DISABLED FOR LOCALHOST DEVELOPMENT
 
 // Routes with specific rate limiting
-app.use('/api/auth', authLimiter, authRoutes); // Stricter rate limiting for auth routes
+app.use('/api/auth', authRoutes); // Rate limiting disabled for localhost
 app.use('/api/trades', tradeRoutes);
 app.use('/api/forum', forumRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/admin', sensitiveOpLimiter, adminRoutes); // Stricter limit for admin operations
+app.use('/api/admin', adminRoutes); // Rate limiting disabled for localhost
 app.use('/api/uploads', uploadsRoutes);
-app.use('/api/verification', sensitiveOpLimiter, verificationRoutes); // Stricter for verification
+app.use('/api/verification', verificationRoutes); // Rate limiting disabled for localhost
 app.use('/api/reports', reportRoutes); // Add report routes
 app.use('/api/admin/datatables', userDatatableRoutes);
 app.use('/api/wishlists', wishlistRoutes); // Add this line
@@ -208,22 +208,22 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/chats', chatRoutes);
 
 // Custom rate limiter for datatable endpoints (which can be resource-intensive)
-const datatableLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 200, // 200 requests per 5 minutes (increased from 50)
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many datatable requests, please try again later.' },
-});
+// const datatableLimiter = rateLimit({
+//   windowMs: 5 * 60 * 1000, // 5 minutes
+//   max: 200, // 200 requests per 5 minutes (increased from 50)
+//   standardHeaders: true,
+//   legacyHeaders: false,
+//   message: { error: 'Too many datatable requests, please try again later.' },
+// }); // DISABLED FOR LOCALHOST DEVELOPMENT
 
-// Admin DataTable Routes with specific rate limiting
-app.use('/api/admin/datatables/users', datatableLimiter, userDatatableRoutes);
-app.use('/api/admin/datatables/events', datatableLimiter, eventsDatatableRoutes);
-app.use('/api/admin/datatables/forum', datatableLimiter, forumDatatableRoutes);
-app.use('/api/admin/datatables/trading-posts', datatableLimiter, tradingPostDatatableRoutes);
-app.use('/api/admin/datatables/wishlists', datatableLimiter, wishlistDatatableRoutes);
-app.use('/api/admin/datatables/reports', datatableLimiter, reportsDatatableRoutes);
-app.use('/api/admin/datatables/verification', datatableLimiter, middlemanVerificationDatatableRoutes);
+// Admin DataTable Routes with rate limiting disabled for localhost
+app.use('/api/admin/datatables/users', userDatatableRoutes);
+app.use('/api/admin/datatables/events', eventsDatatableRoutes);
+app.use('/api/admin/datatables/forum', forumDatatableRoutes);
+app.use('/api/admin/datatables/trading-posts', tradingPostDatatableRoutes);
+app.use('/api/admin/datatables/wishlists', wishlistDatatableRoutes);
+app.use('/api/admin/datatables/reports', reportsDatatableRoutes);
+app.use('/api/admin/datatables/verification', middlemanVerificationDatatableRoutes);
 
 // Socket.IO middleware for authentication
 io.use((socket, next) => {

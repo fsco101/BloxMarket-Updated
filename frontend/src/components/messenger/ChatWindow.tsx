@@ -4,7 +4,7 @@ import { BootstrapButton } from '../ui/bootstrap-button';
 import { BootstrapInput } from '../ui/bootstrap-input';
 import { BootstrapBadge } from '../ui/bootstrap-badge';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEllipsisV, faReply, faSignOutAlt, faUserPlus, faSearch, faUsers, faCrown, faInfoCircle, faCheckDouble, faCamera, faArrowRight } from '@fortawesome/free-solid-svg-icons';
+import { faEllipsisV, faReply, faSignOutAlt, faUserPlus, faSearch, faUsers, faCrown, faInfoCircle, faCheckDouble, faCamera, faArrowRight, faImage } from '@fortawesome/free-solid-svg-icons';
 import {
   DropdownMenu,
   DropdownMenuContent,
