@@ -93,6 +93,44 @@ export const chatController = {
     }
   },
 
+  // Get total unread messages count across all user's chats
+  getTotalUnreadCount: async (req, res) => {
+    try {
+      const userId = req.user.userId;
+
+      // Find all chats where user is an active participant
+      const chats = await Chat.find({
+        participants: {
+          $elemMatch: {
+            user_id: userId,
+            is_active: true
+          }
+        },
+        is_active: true
+      })
+        .select('unread_counts')
+        .lean();
+
+      // Calculate total unread count for this user
+      let totalUnreadCount = 0;
+      chats.forEach(chat => {
+        const userUnreadData = chat.unread_counts?.find(u => u.user_id.toString() === userId.toString());
+        if (userUnreadData) {
+          totalUnreadCount += userUnreadData.count || 0;
+        }
+      });
+
+      res.json({
+        totalUnreadCount,
+        chatCount: chats.length
+      });
+
+    } catch (error) {
+      console.error('Get total unread count error:', error);
+      res.status(500).json({ error: 'Failed to get unread count' });
+    }
+  },
+
   // Get chat details
   getChatById: async (req, res) => {
     try {

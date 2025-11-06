@@ -24,11 +24,13 @@ import { Messenger } from './components/Messenger';
 import { Toaster } from './components/Toaster';
 import { RateLimitListener } from './components/RateLimitListener';
 import { GlobalLoadingProvider } from './contexts/GlobalLoadingContext';
+import { ChatNotificationProvider } from './contexts/ChatNotificationContext';
 import { toast } from 'sonner';
 import GlobalLoader from './components/GlobalLoader';
 import GlobalLoadingSetup from './components/GlobalLoadingSetup';
 import { Footer } from './components/ui/footer';
 import { Header } from './components/ui/header';
+import BloxMascot from './components/ui/BloxMascot';
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
@@ -412,7 +414,8 @@ export default function App() {
       <GlobalLoadingProvider>
         <ThemeContext.Provider value={{ isDark, toggleTheme }}>
           <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading, isLoggingOut }}>
-            <AppContext.Provider value={{ currentPage, setCurrentPage }}>
+            <ChatNotificationProvider>
+              <AppContext.Provider value={{ currentPage, setCurrentPage }}>
               <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-foreground flex flex-col relative overflow-hidden">
                 {/* Animated background elements */}
                 <div className="absolute inset-0 overflow-hidden">
@@ -433,7 +436,11 @@ export default function App() {
               </div>
               <GlobalLoader />
               <GlobalLoadingSetup />
+              
+              {/* Mascot Character for non-logged-in users */}
+              <BloxMascot />
             </AppContext.Provider>
+            </ChatNotificationProvider>
           </AuthContext.Provider>
         </ThemeContext.Provider>
       </GlobalLoadingProvider>
@@ -444,7 +451,8 @@ export default function App() {
     <GlobalLoadingProvider>
       <ThemeContext.Provider value={{ isDark, toggleTheme }}>
         <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading, isLoggingOut }}>
-          <AppContext.Provider value={{ currentPage, setCurrentPage }}>
+          <ChatNotificationProvider>
+            <AppContext.Provider value={{ currentPage, setCurrentPage }}>
             <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-foreground flex flex-col relative overflow-hidden">
               {/* Dynamic background particles */}
               <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -486,6 +494,9 @@ export default function App() {
               <RateLimitListener />
               <GlobalLoader />
               <GlobalLoadingSetup />
+              
+              {/* Mascot Character */}
+              <BloxMascot />
 
               {/* Enhanced Rate Limit Error Notification */}
               {rateLimitNotification.visible && (
@@ -520,6 +531,7 @@ export default function App() {
               )}
             </div>
           </AppContext.Provider>
+          </ChatNotificationProvider>
         </AuthContext.Provider>
       </ThemeContext.Provider>
     </GlobalLoadingProvider>

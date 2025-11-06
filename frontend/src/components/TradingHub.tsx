@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { useAuth, useApp } from '../App';
 import { formatDistanceToNow } from 'date-fns';
+import { sendMascotMessage } from '../utils/mascotHelpers';
 
 const toISO = (v: unknown): string => {
   try {
@@ -1632,6 +1633,9 @@ export function TradingHub() {
       toast.success('Trade created successfully! 🎉', {
         description: 'Your trade has been posted and is now visible to other users.'
       });
+      
+      // Trigger mascot celebration
+      sendMascotMessage('Amazing trade post! Hope you find what you\'re looking for! 🎯', 'celebrating');
     } catch (err) {
       console.error('Failed to create trade:', err);
       let errorMessage = 'Failed to create trade';

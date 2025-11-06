@@ -720,11 +720,11 @@ export function Dashboard() {
   return (
     <div className="flex-1 overflow-hidden">
       {/* Header */}
-      <div className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-6">
+      <div className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Home Feed</h1>
-            <p className="text-muted-foreground">Latest trades, giveaways, and community updates</p>
+            <h1 className="text-3xl font-bold">Home Feed</h1>
+            <p className="text-muted-foreground text-lg">Latest trades, giveaways, and community updates</p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
             <div className="flex-1">
@@ -757,26 +757,23 @@ export function Dashboard() {
       </div>
 
       {/* Stats Bar */}
-      <div className="bg-muted/30 border-b border-border p-4">
-        <div className="flex items-center justify-center gap-8 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span>{stats.activeTraders.toLocaleString()} Active Traders</span>
+      <div className="bg-muted/30 border-b border-border p-6">
+        <div className="flex items-center justify-center gap-12 text-base">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" /><span>{stats.activeTraders.toLocaleString()}Active Traders</span>
           </div>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-blue-500" />
-            <span>{stats.activeTrades} Active Trades</span>
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-5 h-5 text-blue-500" /><span>{stats.activeTrades}Active Trades</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Gift className="w-4 h-4 text-purple-500" />
-            <span>{stats.liveEvents} Live Events</span>
+          <div className="flex items-center gap-3">
+            <Gift className="w-5 h-5 text-purple-500" /><span>{stats.liveEvents}Live Events</span>
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
+        <div className="max-w-6xl mx-auto p-8 space-y-8">
           {filteredPosts.map((post) => (
             <ContentCard
               key={post.id}
@@ -785,7 +782,7 @@ export function Dashboard() {
             >
               <UniversalCardHeader
                 avatar={
-                  <Avatar className="w-10 h-10">
+                  <Avatar className="w-14 h-14">
                     <AvatarImage
                       src={getAvatarUrl(post.user.avatar_url)}
                       className="object-cover"
@@ -794,7 +791,7 @@ export function Dashboard() {
                         target.src = '';
                       }}
                     />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-lg">
                       {post.user.username[0]?.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -819,45 +816,67 @@ export function Dashboard() {
                 description={`${post.title}\n\n${post.description}`}
                 images={
                   post.images && post.images.length > 0 ? (
-                    <div className="mb-3" onClick={(e) => e.stopPropagation()}>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {post.images.slice(0, 3).map((image, imageIndex) => (
-                          <div 
-                            key={imageIndex} 
-                            className="aspect-square overflow-hidden rounded-lg border cursor-pointer hover:shadow-md transition-shadow group"
-                            onClick={() => handlePostClick(post)}
-                          >
-                            <div className="relative w-full h-full">
-                              <ImageDisplay
-                                src={image.url}
-                                alt={`${post.type} image ${imageIndex + 1}`}
-                                className="w-full h-full"
-                              />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                <Eye className="w-5 h-5 text-white" />
+                    <div className="mb-4" onClick={(e) => e.stopPropagation()}>
+                      {post.images.length === 1 ? (
+                        // Single image - expand to full width with larger height but max size constraint
+                        <div 
+                          className="w-full h-64 md:h-80 max-h-80 overflow-hidden rounded-lg border cursor-pointer hover:shadow-md transition-shadow group"
+                          onClick={() => handlePostClick(post)}
+                        >
+                          <div className="relative w-full h-full">
+                            <ImageDisplay
+                              src={post.images[0].url}
+                              alt={`${post.type} image`}
+                              className="w-full h-full"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                              <Eye className="w-8 h-8 text-white" />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        // Multiple images - use grid layout with max height constraint
+                        <div className="max-h-80 overflow-hidden">
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            {post.images.slice(0, 3).map((image, imageIndex) => (
+                              <div 
+                                key={imageIndex} 
+                                className="aspect-square overflow-hidden rounded-lg border cursor-pointer hover:shadow-md transition-shadow group"
+                                onClick={() => handlePostClick(post)}
+                              >
+                                <div className="relative w-full h-full">
+                                  <ImageDisplay
+                                    src={image.url}
+                                    alt={`${post.type} image ${imageIndex + 1}`}
+                                    className="w-full h-full"
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                    <Eye className="w-6 h-6 text-white" />
+                                  </div>
+                                </div>
                               </div>
-                            </div>
+                            ))}
+                            {post.images.length > 3 && (
+                              <div 
+                                className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg border flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
+                                onClick={() => handlePostClick(post)}
+                              >
+                                <div className="text-center text-gray-500 dark:text-gray-400">
+                                  <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+                                  <span className="text-sm">+{post.images.length - 3} more</span>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        ))}
-                        {post.images.length > 3 && (
-                          <div 
-                            className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg border flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
-                            onClick={() => handlePostClick(post)}
-                          >
-                            <div className="text-center text-gray-500 dark:text-gray-400">
-                              <ImageIcon className="w-6 h-6 mx-auto mb-1" />
-                              <span className="text-xs">+{post.images.length - 3} more</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   ) : undefined
                 }
                 metadata={[
-                  { icon: <ArrowUp className="w-4 h-4 text-green-600" />, label: "upvotes", value: post.upvotes || 0 },
-                  { icon: <ArrowDown className="w-4 h-4 text-red-600" />, label: "downvotes", value: post.downvotes || 0 },
-                  { icon: <MessageSquare className="w-4 h-4" />, label: "comments", value: post.comments }
+                  { icon: <ArrowUp className="w-5 h-5 text-green-600" />, label: "upvotes", value: post.upvotes || 0 },
+                  { icon: <ArrowDown className="w-5 h-5 text-red-600" />, label: "downvotes", value: post.downvotes || 0 },
+                  { icon: <MessageSquare className="w-5 h-5" />, label: "comments", value: post.comments }
                 ]}
                 tags={[
                   ...(post.type === 'trade' && post.items ? post.items.map((item, i) => (

@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import { Badge } from './ui/badge';
 import { 
   Home, 
   ArrowLeftRight, 
@@ -34,11 +35,13 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
+import { useChatNotifications } from '../hooks/useChatNotifications';
 
 export function Sidebar() {
   const { currentPage, setCurrentPage } = useApp();
   const { user, logout, isLoading } = useAuth(); // was `loading`
   const { isDark, toggleTheme } = useTheme();
+  const { totalUnreadCount } = useChatNotifications();
   
   // Simplified admin status check - directly from user object
   const isAdminOrModerator = user?.role === 'admin' || user?.role === 'moderator';
@@ -202,6 +205,17 @@ export function Sidebar() {
                 currentPage === id ? 'text-white scale-110' : 'text-primary group-hover:scale-110 group-hover:text-info'
               }`} />
               <span className="font-semibold text-sm relative z-10">{label}</span>
+              
+              {/* Unread count badge for Messages */}
+              {id === 'messenger' && totalUnreadCount > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs relative z-10 animate-pulse"
+                >
+                  {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+                </Badge>
+              )}
+              
               {currentPage === id && (
                 <div className="ml-auto w-2 h-2 bg-primary rounded-full animate-pulse shadow-sm relative z-10"></div>
               )}

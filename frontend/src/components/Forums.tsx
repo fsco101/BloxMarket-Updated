@@ -38,6 +38,7 @@ import { toast } from 'sonner';
 import { useAuth, useApp } from '../App';
 import { PostModal } from './ui/post-modal';
 import type { PostModalPost } from './ui/post-modal';
+import { sendMascotMessage } from '../utils/mascotHelpers';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarUrl?: string) => {
@@ -365,6 +366,7 @@ export function Forums() {
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const [newPost, setNewPost] = useState({
@@ -685,6 +687,9 @@ export function Forums() {
       toast.success('Post created successfully! 🎉', {
         description: 'Your post has been published and is now visible to the community.'
       });
+      
+      // Trigger mascot celebration
+      sendMascotMessage('Great post! The community will love it! 🎊', 'celebrating');
     } catch (err: unknown) {
       console.error('Failed to create forum post:', err);
       let errorMessage = 'Failed to create post';
@@ -863,14 +868,14 @@ export function Forums() {
   return (
     <div className="flex-1 overflow-hidden">
       {/* Header */}
-      <div className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-6">
+      <div className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <MessageSquare className="w-7 h-7 text-blue-500" />
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <MessageSquare className="w-8 h-8 text-blue-500" />
               Community Forums
             </h1>
-            <p className="text-muted-foreground">Discuss trading, share tips, and connect with the community</p>
+            <p className="text-muted-foreground text-lg">Discuss trading, share tips, and connect with the community</p>
           </div>
           
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -1214,7 +1219,7 @@ export function Forums() {
       </div>
 
       {/* Filters */}
-      <div className="border-b border-border p-4 bg-muted/30">
+      <div className="border-b border-border p-6 bg-muted/30">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -1257,19 +1262,19 @@ export function Forums() {
       </div>
 
       {/* Stats */}
-      <div className="bg-background p-4 border-b border-border">
-        <div className="flex items-center justify-center gap-8 text-sm">
-          <div className="flex items-center gap-2">
-            <MessageCircle className="w-4 h-4 text-blue-500" />
+      <div className="bg-background p-6 border-b border-border">
+        <div className="flex items-center justify-center gap-12 text-base">
+          <div className="flex items-center gap-3">
+            <MessageCircle className="w-5 h-5 text-blue-500" />
             <span>{sortedPosts.length} Posts Found</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-green-500" />
+          <div className="flex items-center gap-3">
+            <Users className="w-5 h-5 text-green-500" />
             <span>Page {currentPage}</span>
           </div>
           {loading && (
-            <div className="flex items-center gap-2">
-              <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
               <span>Loading...</span>
             </div>
           )}
@@ -1278,7 +1283,7 @@ export function Forums() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto p-6 space-y-4">
+        <div className="max-w-6xl mx-auto p-8 space-y-6">
           {loading && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin" />
@@ -1295,22 +1300,22 @@ export function Forums() {
           
           {!loading && !error && sortedPosts.map((post: ForumPost) => (
             <Card key={post.post_id} className="hover:shadow-lg transition-all duration-200 cursor-pointer">
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-4">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3" onClick={() => handlePostClick(post)}>
-                    <Avatar className="w-12 h-12">
+                  <div className="flex items-start gap-4" onClick={() => handlePostClick(post)}>
+                    <Avatar className="w-16 h-16">
                       <AvatarImage src={getAvatarUrl(post.avatar_url)} />
-                      <AvatarFallback>{post.username?.[0] || 'U'}</AvatarFallback>
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-lg">{post.username?.[0] || 'U'}</AvatarFallback>
                     </Avatar>
                     
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-lg hover:text-blue-600 transition-colors">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-xl hover:text-blue-600 transition-colors">
                           {post.title}
                         </h3>
                       </div>
                       
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-3">
                         <span 
                           className="font-medium text-sm cursor-pointer hover:text-blue-600 transition-colors"
                           onClick={(e) => {
@@ -1322,50 +1327,72 @@ export function Forums() {
                         </span>
                       </div>
                       
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                      <p className="text-base text-muted-foreground line-clamp-2 mb-4">
                         {post.content}
                       </p>
                       
                       {/* Images */}
                       {post.images && post.images.length > 0 && (
-                        <div className="mb-3" onClick={(e) => e.stopPropagation()}>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {post.images.slice(0, 3).map((image: any, imageIndex: number) => (
-                              <div 
-                                key={imageIndex} 
-                                className="aspect-square overflow-hidden rounded-lg border cursor-pointer hover:shadow-md transition-shadow group"
-                                onClick={() => handleForumImageClick(post.images!, imageIndex)}
-                              >
-                                <div className="relative w-full h-full">
-                                  <ImageDisplay
-                                    src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/uploads/forum/${image.filename}`}
-                                    alt={image.originalName || `Image ${imageIndex + 1}`}
-                                    className="w-full h-full"
-                                  />
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                    <Eye className="w-5 h-5 text-white" />
+                        <div className="mb-4" onClick={(e) => e.stopPropagation()}>
+                          {post.images.length === 1 ? (
+                            // Single image - expand to full width with larger height but max size constraint
+                            <div 
+                              className="w-full h-64 md:h-80 max-h-80 overflow-hidden rounded-lg border cursor-pointer hover:shadow-md transition-shadow group"
+                              onClick={() => handleForumImageClick(post.images!, 0)}
+                            >
+                              <div className="relative w-full h-full">
+                                <ImageDisplay
+                                  src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/uploads/forum/${post.images[0].filename}`}
+                                  alt={post.images[0].originalName || 'Forum image'}
+                                  className="w-full h-full"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                  <Eye className="w-8 h-8 text-white" />
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            // Multiple images - use grid layout with max height constraint
+                            <div className="max-h-80 overflow-hidden">
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                {post.images.slice(0, 3).map((image: any, imageIndex: number) => (
+                                  <div 
+                                    key={imageIndex} 
+                                    className="aspect-square overflow-hidden rounded-lg border cursor-pointer hover:shadow-md transition-shadow group"
+                                    onClick={() => handleForumImageClick(post.images!, imageIndex)}
+                                  >
+                                    <div className="relative w-full h-full">
+                                      <ImageDisplay
+                                        src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/uploads/forum/${image.filename}`}
+                                        alt={image.originalName || `Image ${imageIndex + 1}`}
+                                        className="w-full h-full"
+                                      />
+                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                        <Eye className="w-5 h-5 text-white" />
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
+                                ))}
+                                {post.images.length > 3 && (
+                                  <div 
+                                    className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg border flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
+                                    onClick={() => handleForumImageClick(post.images!, 3)}
+                                  >
+                                    <div className="text-center text-gray-500 dark:text-gray-400">
+                                      <ImageIcon className="w-6 h-6 mx-auto mb-1" />
+                                      <span className="text-xs">+{post.images.length - 3} more</span>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            ))}
-                            {post.images.length > 3 && (
-                              <div 
-                                className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg border flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
-                                onClick={() => handleForumImageClick(post.images!, 3)}
-                              >
-                                <div className="text-center text-gray-500 dark:text-gray-400">
-                                  <ImageIcon className="w-6 h-6 mx-auto mb-1" />
-                                  <span className="text-xs">+{post.images.length - 3} more</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       )}
                       
                       {/* Category */}
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        <Badge variant="outline" className="text-xs capitalize">
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        <Badge variant="outline" className="text-sm capitalize">
                           {post.category?.replace('_', ' ')}
                         </Badge>
                       </div>
@@ -1381,27 +1408,27 @@ export function Forums() {
                 </div>
               </CardHeader>
 
-              <CardContent>
+              <CardContent className="pt-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-8 text-base text-muted-foreground">
                     <div className="flex items-center gap-1">
-                      <Eye className="w-4 h-4" />
+                      <Eye className="w-5 h-5" />
                       <span>ID: {post.post_id.slice(-6)}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <MessageSquare className="w-4 h-4" />
+                      <MessageSquare className="w-5 h-5" />
                       <span>{post.commentCount || 0} replies</span>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950">
-                        <ArrowUp className="w-4 h-4" />
+                      <Button variant="ghost" size="sm" className="h-10 px-3 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950">
+                        <ArrowUp className="w-5 h-5" />
                         <span className="ml-1">{post.upvotes}</span>
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950">
-                        <ArrowDown className="w-4 h-4" />
+                      <Button variant="ghost" size="sm" className="h-10 px-3 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950">
+                        <ArrowDown className="w-5 h-5" />
                         <span className="ml-1">{post.downvotes}</span>
                       </Button>
                     </div>

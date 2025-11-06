@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BootstrapAvatar } from '../ui/bootstrap-avatar';
 import { BootstrapBadge } from '../ui/bootstrap-badge';
 import { BootstrapButton } from '../ui/bootstrap-button';
@@ -38,6 +38,20 @@ export const ChatList: React.FC<ChatListProps> = ({
   const [contextMenuChat, setContextMenuChat] = useState<Chat | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [previousTotalUnread, setPreviousTotalUnread] = useState(0);
+
+  // Track changes in total unread count and dispatch events
+  useEffect(() => {
+    const currentTotalUnread = chats.reduce((total, chat) => total + chat.unread_count, 0);
+    
+    if (currentTotalUnread !== previousTotalUnread && previousTotalUnread !== 0) {
+      // Dispatch chat unread update event for the context to listen to
+      window.dispatchEvent(new CustomEvent('chat-message-received'));
+    }
+    
+    setPreviousTotalUnread(currentTotalUnread);
+  }, [chats, previousTotalUnread]);
+
   // Helper function to construct correct avatar URL
   const getAvatarUrl = (avatarUrl: string | undefined) => {
     if (!avatarUrl) return undefined;

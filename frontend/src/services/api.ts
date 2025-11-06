@@ -2465,6 +2465,10 @@ class ApiService {
     return this.request(`/chats?${queryString}`);
   }
 
+  async getTotalUnreadChatCount() {
+    return this.request('/chats/unread/count');
+  }
+
   async getChat(chatId: string) {
     return this.request(`/chats/${chatId}`);
   }

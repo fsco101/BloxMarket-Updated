@@ -128,20 +128,30 @@ export const Messenger: React.FC = () => {
         return [...prev, message];
       });
 
-      // Update chat's last message
-      setChats(prev => prev.map(chat =>
-        chat.chat_id === message.chat_id
-          ? {
-              ...chat,
-              last_message: {
-                content: message.content,
-                sender_username: message.sender.username,
-                sent_at: message.created_at
-              },
-              updated_at: message.created_at
-            }
-          : chat
-      ));
+      // Update chat's last message and increment unread count if not current chat or not focused
+      setChats(prev => prev.map(chat => {
+        if (chat.chat_id === message.chat_id) {
+          const isCurrentChat = selectedChat?.chat_id === chat.chat_id;
+          const shouldIncrementUnread = !isCurrentChat && message.sender.user_id !== user?.id;
+          
+          return {
+            ...chat,
+            last_message: {
+              content: message.content,
+              sender_username: message.sender.username,
+              sent_at: message.created_at
+            },
+            unread_count: shouldIncrementUnread ? chat.unread_count + 1 : chat.unread_count,
+            updated_at: message.created_at
+          };
+        }
+        return chat;
+      }));
+
+      // Dispatch chat message received event for global notification system
+      if (message.sender.user_id !== user?.id) {
+        window.dispatchEvent(new CustomEvent('chat-message-received'));
+      }
     };
 
     const handleMessageEdited = (data: unknown) => {
@@ -242,7 +252,7 @@ export const Messenger: React.FC = () => {
       socketService.off('reaction_removed', handleReactionRemoved);
       socketService.off('user_left_group', handleUserLeftGroup);
     };
-  }, [selectedChat]);
+  }, [selectedChat, user?.id]);
 
   // Update selectedChat when chats change (e.g., when someone leaves a group)
   useEffect(() => {
@@ -383,6 +393,18 @@ export const Messenger: React.FC = () => {
 
   const handleChatSelect = (chat: Chat) => {
     setSelectedChat(chat);
+    
+    // Clear unread count for the selected chat
+    if (chat.unread_count > 0) {
+      setChats(prev => prev.map(c =>
+        c.chat_id === chat.chat_id
+          ? { ...c, unread_count: 0 }
+          : c
+      ));
+      
+      // Dispatch event to update global unread count
+      window.dispatchEvent(new CustomEvent('chat-message-received'));
+    }
   };
 
   // Load messages when selectedChat changes
