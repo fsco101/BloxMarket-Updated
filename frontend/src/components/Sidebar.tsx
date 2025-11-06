@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useApp, useAuth, useTheme } from '../App';
+import { useEffect } from 'react';
+import { useApp, useAuth } from '../App';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
-import { Switch } from './ui/switch';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Badge } from './ui/badge';
@@ -21,11 +19,8 @@ import {
   User, 
   Settings,
   LogOut,
-  Moon,
-  Sun,
   ChevronDown,
   Users,
-  Flag,
   AlertTriangle,
   UserCheck,
   ShoppingCart,
@@ -40,7 +35,6 @@ import { useChatNotifications } from '../hooks/useChatNotifications';
 export function Sidebar() {
   const { currentPage, setCurrentPage } = useApp();
   const { user, logout, isLoading } = useAuth(); // was `loading`
-  const { isDark, toggleTheme } = useTheme();
   const { totalUnreadCount } = useChatNotifications();
   
   // Simplified admin status check - directly from user object
@@ -119,15 +113,14 @@ export function Sidebar() {
     console.log('Sidebar Debug:', {
       user: user,
       userRole: user?.role,
-      userObject: JSON.stringify(user, null, 2),
       isAdminOrModerator: isAdminOrModerator,
       loading: isLoading,
-      localStorage: {
-        token: !!localStorage.getItem('bloxmarket-token'),
-        storedUser: !!localStorage.getItem('bloxmarket-user')
-      }
+      totalUnreadCount: totalUnreadCount,
+      totalUnreadCountType: typeof totalUnreadCount,
+      totalUnreadCountIsZero: totalUnreadCount === 0,
+      totalUnreadCountGreaterThanZero: totalUnreadCount > 0,
     });
-  }, [user, isAdminOrModerator, isLoading]);
+  }, [user, isAdminOrModerator, isLoading, totalUnreadCount]);
 
   return (
     // Sticky sidebar container - stays in document flow but sticks to viewport top when scrolling
@@ -194,6 +187,10 @@ export function Sidebar() {
                 currentPage === id
                   ? 'bg-gradient-to-r from-primary to-info text-white shadow-lg border-0 hover:shadow-xl hover:scale-[1.02]'
                   : 'bg-card hover:bg-accent border border-border hover:border-primary/50 hover:shadow-md text-foreground'
+              } ${
+                id === 'messenger' && totalUnreadCount > 0 && currentPage !== 'messenger'
+                  ? 'animate-bounce border-blue-500/50 shadow-blue-500/25 shadow-lg'
+                  : ''
               }`}
               style={{ animationDelay: `${index * 50}ms` }}
               onClick={() => setCurrentPage(id)}
@@ -203,13 +200,17 @@ export function Sidebar() {
               }`}></div>
               <Icon className={`w-5 h-5 mr-3 transition-all duration-300 relative z-10 ${
                 currentPage === id ? 'text-white scale-110' : 'text-primary group-hover:scale-110 group-hover:text-info'
+              } ${
+                id === 'messenger' && totalUnreadCount > 0 && currentPage !== 'messenger'
+                  ? 'animate-pulse text-blue-500'
+                  : ''
               }`} />
               <span className="font-semibold text-sm relative z-10">{label}</span>
               
-              {/* Unread count badge for Messages */}
+              {/* Unread count badge for Messages - only show when count > 0 */}
               {id === 'messenger' && totalUnreadCount > 0 && (
                 <Badge 
-                  variant="destructive" 
+                  variant="destructive"
                   className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs relative z-10 animate-pulse"
                 >
                   {totalUnreadCount > 99 ? '99+' : totalUnreadCount}

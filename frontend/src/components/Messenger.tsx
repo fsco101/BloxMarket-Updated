@@ -3,6 +3,7 @@ import { useAuth, useApp } from '../App';
 import { apiService } from '../services/api';
 import { socketService } from '../services/socket';
 import { alertService } from '../services/alertService';
+import { useChatNotifications } from '../hooks/useChatNotifications';
 import { ChatList } from './messenger/ChatList';
 import { ChatWindow } from './messenger/ChatWindow';
 import { CreateChatDialog } from './messenger/CreateChatDialog';
@@ -85,6 +86,7 @@ interface Message {
 export const Messenger: React.FC = () => {
   const { user } = useAuth();
   const { currentPage } = useApp();
+  const { refreshUnreadCount } = useChatNotifications();
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -97,10 +99,11 @@ export const Messenger: React.FC = () => {
   // Extract target user ID from currentPage if it starts with 'messages-'
   const targetUserId = currentPage.startsWith('messages-') ? currentPage.replace('messages-', '') : null;
 
-  // Load user's chats
+  // Load user's chats and refresh unread count
   useEffect(() => {
     loadChats();
-  }, []);
+    refreshUnreadCount();
+  }, [refreshUnreadCount]);
 
   // Connect to socket when component mounts
   useEffect(() => {
@@ -402,8 +405,13 @@ export const Messenger: React.FC = () => {
           : c
       ));
       
-      // Dispatch event to update global unread count
+      // Dispatch event to update global unread count and refresh from server after a delay
       window.dispatchEvent(new CustomEvent('chat-message-received'));
+      
+      // Add delay to allow backend to process the read status
+      setTimeout(() => {
+        refreshUnreadCount();
+      }, 1000);
     }
   };
 

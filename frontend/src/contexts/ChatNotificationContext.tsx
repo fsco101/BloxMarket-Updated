@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../App';
 import { apiService } from '../services/api';
-import { ChatNotificationContext, type ChatNotificationContextType } from './ChatNotificationContext';
+import { socketService } from '../services/socket';
+import { ChatNotificationContext, type ChatNotificationContextType } from './ChatNotificationContextTypes';
 
 interface UnreadCountResponse {
   totalUnreadCount: number;
   chatCount: number;
+}
+
+interface WebSocketNotificationData {
+  increment?: number;
+  chatId?: string;
+  userId?: string;
 }
 
 interface ChatNotificationProviderProps {
@@ -47,16 +54,53 @@ export const ChatNotificationProvider: React.FC<ChatNotificationProviderProps> =
     if (user) {
       refreshUnreadCount();
       
-      // Set up polling for unread count updates every 30 seconds
+      // Set up polling for unread count updates every 30 seconds (reduce frequency)
       const pollInterval = setInterval(refreshUnreadCount, 30000);
+
+      // Set up WebSocket listeners for real-time updates
+      const handleNewMessage = (data: unknown) => {
+        console.log('New message received via WebSocket:', data);
+        // Only refresh if we're not currently on the messenger page to avoid conflicts
+        const currentPath = window.location.pathname;
+        if (!currentPath.includes('/messenger')) {
+          refreshUnreadCount();
+        }
+      };
+
+      const handleMessageNotification = (data: unknown) => {
+        console.log('Message notification received via WebSocket:', data);
+        const notificationData = data as WebSocketNotificationData;
+        // Update unread count based on notification
+        if (notificationData.increment) {
+          incrementUnreadCount(notificationData.increment);
+        } else {
+          // For message notifications, increment by 1
+          incrementUnreadCount(1);
+        }
+      };
+
+      // Connect to WebSocket if not already connected
+      const token = localStorage.getItem('bloxmarket-token') || sessionStorage.getItem('bloxmarket-token');
+      if (token && !socketService.isConnected) {
+        socketService.connect(token);
+      }
+
+      // Set up WebSocket event listeners
+      socketService.on('new_message', handleNewMessage);
+      socketService.on('message_notification', handleMessageNotification);
       
       return () => {
         clearInterval(pollInterval);
+        // Clean up WebSocket listeners
+        socketService.off('new_message', handleNewMessage);
+        socketService.off('message_notification', handleMessageNotification);
       };
     } else {
       setTotalUnreadCount(0);
+      // Disconnect WebSocket when user logs out
+      socketService.disconnect();
     }
-  }, [user, refreshUnreadCount]);
+  }, [user, refreshUnreadCount, incrementUnreadCount]);
 
   // Listen for custom events from socket or other components
   useEffect(() => {
@@ -98,3 +142,6 @@ export const ChatNotificationProvider: React.FC<ChatNotificationProviderProps> =
     </ChatNotificationContext.Provider>
   );
 };
+
+// Re-export the context and types for convenience
+export { ChatNotificationContext, type ChatNotificationContextType } from './ChatNotificationContextTypes';

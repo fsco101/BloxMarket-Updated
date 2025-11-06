@@ -11,18 +11,24 @@ class SocketService {
 
   connect(token: string) {
     if (this.socket?.connected) {
+      console.log('Socket already connected');
       return;
     }
 
+    console.log('Connecting to WebSocket...');
     const serverUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    console.log('🔗 Server URL:', serverUrl);
+    console.log('🔑 Token provided:', !!token);
 
     this.socket = io(serverUrl, {
       auth: {
         token
       },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'], // Try polling first, then websocket
       timeout: 20000,
-      forceNew: true
+      forceNew: true,
+      upgrade: true,
+      rememberUpgrade: false
     });
 
     this.setupEventListeners();
@@ -41,18 +47,21 @@ class SocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('Connected to server');
+      console.log('✅ WebSocket connected to server');
+      console.log('🆔 Socket ID:', this.socket?.id);
+      console.log('🚀 Transport:', this.socket?.io.engine.transport.name);
       this.reconnectAttempts = 0;
       this.emit('connected');
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('Disconnected from server:', reason);
+      console.log('❌ WebSocket disconnected from server:', reason);
       this.emit('disconnected', reason);
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
+      console.error('❌ WebSocket connection error:', error);
+      console.error('🔍 Error message:', error.message);
       this.emit('connection_error', error);
     });
 
@@ -79,6 +88,7 @@ class SocketService {
 
     // Notification events
     this.socket.on('message_notification', (data) => {
+      console.log('🔔 Message notification received:', data);
       this.emit('message_notification', data);
     });
 

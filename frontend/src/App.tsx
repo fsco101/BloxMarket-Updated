@@ -23,6 +23,8 @@ import { NotificationsPage } from './components/NotificationsPage';
 import { Messenger } from './components/Messenger';
 import { Toaster } from './components/Toaster';
 import { RateLimitListener } from './components/RateLimitListener';
+import { ChatNotificationManager } from './components/ChatNotificationManager';
+import { socketService } from './services/socket';
 import { GlobalLoadingProvider } from './contexts/GlobalLoadingContext';
 import { ChatNotificationProvider } from './contexts/ChatNotificationContext';
 import { toast } from 'sonner';
@@ -187,6 +189,11 @@ export default function App() {
           // Set token using the appropriate storage type
           apiService.setToken(token, isPersistentLogin);
 
+          // Initialize WebSocket connection
+          if (!socketService.isConnected) {
+            socketService.connect(token);
+          }
+
           if (storedUser) {
             try {
               const u = JSON.parse(storedUser);
@@ -207,6 +214,11 @@ export default function App() {
             setUser(me);
             setIsLoggedIn(true);
             setCurrentPage('landing');
+            
+            // Ensure WebSocket is connected after successful user verification
+            if (!socketService.isConnected) {
+              socketService.connect(token);
+            }
             
             // Save to the appropriate storage
             const storage = isPersistentLogin ? localStorage : sessionStorage;
@@ -243,15 +255,22 @@ export default function App() {
         setRateLimitNotification(prev => ({ ...prev, visible: false }));
       }, retryAfter * 1000);
     };
+
+    // Handle navigation to messenger from chat notifications
+    const onNavigateToMessenger = () => {
+      setCurrentPage('messenger');
+    };
     
     window.addEventListener('auth-expired', onExpired);
     window.addEventListener('rate-limit-exceeded', onRateLimitExceeded);
+    window.addEventListener('navigate-to-messenger', onNavigateToMessenger);
     
     initAuth();
     
     return () => {
       window.removeEventListener('auth-expired', onExpired);
       window.removeEventListener('rate-limit-exceeded', onRateLimitExceeded);
+      window.removeEventListener('navigate-to-messenger', onNavigateToMessenger);
     };
   }, []);
 
@@ -266,6 +285,10 @@ export default function App() {
 
   const handleLogout = () => {
     console.log('Logging out user');
+    
+    // Disconnect WebSocket
+    socketService.disconnect();
+    
     setUser(null);
     setIsLoggedIn(false);
     setCurrentPage('landing');
@@ -436,6 +459,7 @@ export default function App() {
               </div>
               <GlobalLoader />
               <GlobalLoadingSetup />
+              <ChatNotificationManager />
               
               {/* Mascot Character for non-logged-in users */}
               <BloxMascot />
@@ -492,6 +516,7 @@ export default function App() {
               {/* Enhanced Toast notifications */}
               <Toaster />
               <RateLimitListener />
+              <ChatNotificationManager />
               <GlobalLoader />
               <GlobalLoadingSetup />
               

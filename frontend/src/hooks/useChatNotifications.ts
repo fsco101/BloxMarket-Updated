@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { ChatNotificationContext } from '../contexts/ChatNotificationContext.ts';
+import { ChatNotificationContext } from '../contexts/ChatNotificationContext';
 
 export const useChatNotifications = () => {
   const context = useContext(ChatNotificationContext);

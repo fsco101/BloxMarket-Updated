@@ -244,21 +244,25 @@ io.use((socket, next) => {
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
-  console.log(`User ${socket.username} connected with socket ID: ${socket.id}`);
+  console.log(`🟢 User ${socket.username} (ID: ${socket.userId}) connected with socket ID: ${socket.id}`);
 
   // Join user's personal room for direct messaging
-  socket.join(`user_${socket.userId}`);
+  const userRoom = `user_${socket.userId}`;
+  socket.join(userRoom);
+  console.log(`👤 User ${socket.username} joined personal room: ${userRoom}`);
 
   // Handle joining chat rooms
   socket.on('join_chat', (chatId) => {
-    socket.join(`chat_${chatId}`);
-    console.log(`User ${socket.username} joined chat ${chatId}`);
+    const chatRoom = `chat_${chatId}`;
+    socket.join(chatRoom);
+    console.log(`💬 User ${socket.username} joined chat room: ${chatRoom}`);
   });
 
   // Handle leaving chat rooms
   socket.on('leave_chat', (chatId) => {
-    socket.leave(`chat_${chatId}`);
-    console.log(`User ${socket.username} left chat ${chatId}`);
+    const chatRoom = `chat_${chatId}`;
+    socket.leave(chatRoom);
+    console.log(`🚪 User ${socket.username} left chat room: ${chatRoom}`);
   });
 
   // Handle typing indicators
@@ -282,7 +286,7 @@ io.on('connection', (socket) => {
 
   // Handle disconnections
   socket.on('disconnect', () => {
-    console.log(`User ${socket.username} disconnected`);
+    console.log(`🔴 User ${socket.username} (ID: ${socket.userId}) disconnected`);
   });
 });
 

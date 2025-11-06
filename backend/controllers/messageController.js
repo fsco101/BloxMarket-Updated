@@ -206,15 +206,27 @@ export const messageController = {
       // Increment unread counts for other participants
       const otherParticipants = chat.participants.filter(p => !p.user_id.equals(userId) && p.is_active);
       if (otherParticipants.length > 0) {
-        const unreadUpdates = {};
-        otherParticipants.forEach(participant => {
-          unreadUpdates[`unread_counts.${participant.user_id}`] = 1;
-        });
+        // Get fresh chat data to work with current unread_counts
+        const currentChat = await Chat.findById(chatId);
         
-        await Chat.findOneAndUpdate(
-          { _id: chatId },
-          { $inc: unreadUpdates }
-        );
+        // Update unread counts for each participant
+        for (const participant of otherParticipants) {
+          const participantId = participant.user_id.toString();
+          
+          // Check if unread count entry exists for this user
+          const existingUnreadIndex = currentChat.unread_counts.findIndex(u => u.user_id.toString() === participantId);
+          
+          if (existingUnreadIndex >= 0) {
+            // Increment existing count
+            currentChat.unread_counts[existingUnreadIndex].count += 1;
+          } else {
+            // Create new unread count entry for this user
+            currentChat.unread_counts.push({ user_id: participant.user_id, count: 1 });
+          }
+        }
+        
+        // Save the updated chat
+        await currentChat.save();
       }
 
       // Populate sender info
@@ -238,11 +250,21 @@ export const messageController = {
       };
 
       // Emit real-time message to all chat participants
+      console.log(`Emitting new_message to chat_${chatId}`);
       io.to(`chat_${chatId}`).emit('new_message', responseData);
 
       // Also emit to individual users for notifications
       otherParticipants.forEach(participant => {
-        io.to(`user_${participant.user_id}`).emit('message_notification', {
+        const participantId = participant.user_id.toString();
+        const roomName = `user_${participantId}`;
+        console.log(`🔔 Emitting message_notification to ${roomName} for user ${participantId}`);
+        console.log(`🔍 Participant info:`, {
+          user_id: participantId,
+          role: participant.role,
+          is_active: participant.is_active
+        });
+        
+        io.to(roomName).emit('message_notification', {
           chat_id: chatId,
           chat_type: chat.chat_type,
           chat_name: chat.chat_type === 'direct' ? savedMessage.sender_id.username : chat.name,
