@@ -165,7 +165,7 @@ function ImageViewer({
       )}
 
       {/* Thumbnail Strip - Only show if multiple images */}
-      {hasMultipleImages && (
+      {/* {hasMultipleImages && (
         <div className="absolute bottom-6 left-6 right-6 flex justify-center gap-2">
           <div className="flex gap-2 bg-black/50 rounded-lg p-2 max-w-full overflow-x-auto">
             {images.map((image, index) => (
@@ -189,7 +189,7 @@ function ImageViewer({
             ))}
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

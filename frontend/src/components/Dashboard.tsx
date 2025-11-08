@@ -796,8 +796,8 @@ export function Dashboard() {
                     </AvatarFallback>
                   </Avatar>
                 }
-                title={post.user.username}
-                subtitle={`@${post.user.robloxUsername || post.user.username}`}
+                title={post.title}
+                subtitle={`@${post.user.robloxUsername || post.user.username} • ${post.user.username}`}
                 badges={[
                   ...(post.user.verified ? [<Badge key="verified" variant="secondary" className="text-xs bg-blue-100 text-blue-700">✓ Verified</Badge>] : []),
                   ...(post.user.moderator ? [<Badge key="mod" variant="secondary" className="text-xs bg-red-100 text-red-700">MOD</Badge>] : [])
@@ -813,7 +813,7 @@ export function Dashboard() {
               />
 
               <UniversalCardContent
-                description={`${post.title}\n\n${post.description}`}
+                description={post.description}
                 images={
                   post.images && post.images.length > 0 ? (
                     <div className="mb-4" onClick={(e) => e.stopPropagation()}>
