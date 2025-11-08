@@ -760,13 +760,16 @@ export function Dashboard() {
       <div className="bg-muted/30 border-b border-border p-6">
         <div className="flex items-center justify-center gap-12 text-base">
           <div className="flex items-center gap-3">
-            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" /><span>{stats.activeTraders.toLocaleString()}Active Traders</span>
+            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+            <span>{stats.activeTraders.toLocaleString()}Active Traders</span>
           </div>
           <div className="flex items-center gap-3">
-            <TrendingUp className="w-5 h-5 text-blue-500" /><span>{stats.activeTrades}Active Trades</span>
+            <  TrendingUp className="w-5 h-5 text-blue-500" />
+            <span>{stats.activeTrades}Active Trades</span>
           </div>
           <div className="flex items-center gap-3">
-            <Gift className="w-5 h-5 text-purple-500" /><span>{stats.liveEvents}Live Events</span>
+            <  Gift className="w-5 h-5 text-purple-500" />
+            <span>{stats.liveEvents}Live Events</span>
           </div>
         </div>
       </div>
