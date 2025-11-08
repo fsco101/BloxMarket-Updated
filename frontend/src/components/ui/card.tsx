@@ -10,17 +10,17 @@ function Card({ className, hover = true, variant = "default", glow = false, ...p
   const getVariantClasses = () => {
     switch (variant) {
       case "glass":
-        return "bg-white/10 backdrop-blur-xl border border-white/20 text-white shadow-2xl";
+        return "bg-background/10 backdrop-blur-xl border border-border/20 text-foreground shadow-2xl";
       case "glassDark":
-        return "bg-black/10 backdrop-blur-xl border border-black/20 text-black shadow-2xl";
+        return "bg-background/90 backdrop-blur-xl border border-border/20 text-foreground shadow-2xl";
       case "neon":
-        return "bg-transparent border-2 border-cyan-400 text-cyan-400 shadow-lg shadow-cyan-400/25 animate-pulse";
+        return "bg-transparent border-2 border-primary text-primary shadow-lg shadow-primary/25 animate-pulse";
       case "gradient":
-        return "bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white shadow-2xl";
+        return "bg-gradient-to-br from-primary via-accent to-secondary text-primary-foreground shadow-2xl";
       case "floating":
         return "bg-card text-card-foreground border border-border shadow-2xl animate-float";
       case "morphing":
-        return "bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-2xl animate-morphing";
+        return "bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-2xl animate-morphing";
       default:
         return "bg-card text-card-foreground border border-border shadow-xl";
     }

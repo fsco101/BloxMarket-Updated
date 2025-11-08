@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "./utils";
 
 const inputVariants = cva(
-  "file:text-foreground placeholder:text-muted-foreground/70 selection:bg-primary selection:text-primary-foreground border-input flex w-full min-w-0 rounded-lg border border-border/50 bg-background shadow-sm transition-all duration-200 outline-none file:inline-flex file:border-0 file:bg-transparent file:font-medium disabled:pointer-events-none disabled:opacity-50 form-control focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:shadow-md focus-visible:bg-background hover:border-border hover:shadow-sm aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "file:text-foreground placeholder:text-muted-foreground/70 selection:bg-primary selection:text-primary-foreground border-input flex w-full min-w-0 rounded-lg border bg-background shadow-sm transition-spring outline-none file:inline-flex file:border-0 file:bg-transparent file:font-medium disabled:pointer-events-none disabled:opacity-50 form-control focus-ring hover-lift relative group",
   {
     variants: {
       size: {
@@ -15,10 +15,12 @@ const inputVariants = cva(
         xl: "h-14 px-5 py-4 text-lg file:h-10 file:text-base rounded-xl",
       },
       variant: {
-        default: "bg-background border-border/50",
-        filled: "bg-muted/50 border-transparent hover:bg-muted/70 focus-visible:bg-background focus-visible:border-ring/50",
-        ghost: "bg-transparent border-transparent hover:bg-muted/50 focus-visible:bg-background focus-visible:border-ring/50",
-        flushed: "bg-transparent border-0 border-b-2 border-border rounded-none px-0 focus-visible:border-b-ring focus-visible:ring-0",
+        default: "bg-background border-border/50 hover:border-border/70 focus:border-ring focus:shadow-lg focus:shadow-ring/20 hover-glow",
+        filled: "bg-muted/30 border-transparent hover:bg-muted/50 focus:bg-background focus:border-ring/50 focus:shadow-lg focus:shadow-ring/10",
+        ghost: "bg-transparent border-transparent hover:bg-muted/30 focus:bg-background/50 focus:border-ring/50 focus:shadow-md",
+        flushed: "bg-transparent border-0 border-b-2 border-border rounded-none px-0 focus:border-b-ring focus:shadow-none hover:border-b-border/70 transition-colors",
+        glass: "bg-white/10 backdrop-blur-md border border-white/20 text-foreground placeholder:text-white/70 focus:bg-white/20 focus:border-white/40 focus:shadow-xl focus:shadow-white/10",
+        neon: "bg-transparent border-2 border-primary/50 focus:border-primary focus:shadow-lg focus:shadow-primary/30 hover:border-primary/70 animate-pulse-subtle",
       }
     },
     defaultVariants: {

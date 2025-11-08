@@ -10,8 +10,8 @@ class AlertService {
       popup: 'rounded-lg shadow-xl',
       confirmButton: 'px-4 py-2 rounded-md font-medium',
       cancelButton: 'px-4 py-2 rounded-md font-medium',
-      title: 'text-lg font-semibold text-gray-900 dark:text-gray-100',
-      htmlContainer: 'text-gray-700 dark:text-gray-300',
+      title: 'text-lg font-semibold text-gray-900',
+      htmlContainer: 'text-gray-700',
     },
     showClass: {
       popup: 'animate__animated animate__fadeIn animate__faster'

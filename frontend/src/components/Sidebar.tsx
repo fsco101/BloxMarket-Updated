@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 import { useApp, useAuth } from '../App';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
@@ -27,15 +28,19 @@ import {
   BarChart3,
   FileText,
   Package,
-  MessageCircle
+  MessageCircle,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
+import { Switch } from './ui/switch';
 import { useChatNotifications } from '../hooks/useChatNotifications';
 
 export function Sidebar() {
   const { currentPage, setCurrentPage } = useApp();
   const { user, logout, isLoading } = useAuth(); // was `loading`
   const { totalUnreadCount } = useChatNotifications();
+  const { isDark, toggleTheme } = useTheme();
   
   // Simplified admin status check - directly from user object
   const isAdminOrModerator = user?.role === 'admin' || user?.role === 'moderator';
@@ -183,42 +188,42 @@ export function Sidebar() {
             <Button
               key={id}
               variant={currentPage === id ? "secondary" : "ghost"}
-              className={`w-full justify-start transition-all duration-300 group relative overflow-hidden ${
+              className={`w-full justify-start transition-smooth group relative overflow-hidden hover-lift click-scale ${
                 currentPage === id
-                  ? 'bg-gradient-to-r from-primary to-info text-white shadow-lg border-0 hover:shadow-xl hover:scale-[1.02]'
-                  : 'bg-card hover:bg-accent border border-border hover:border-primary/50 hover:shadow-md text-foreground'
+                  ? 'bg-gradient-to-r from-primary to-info text-white shadow-lg border-0 hover:shadow-xl hover:scale-[1.02] animate-scaleIn'
+                  : 'bg-card hover:bg-accent border border-border hover:border-primary/50 hover:shadow-md text-foreground hover-glow'
               } ${
                 id === 'messenger' && totalUnreadCount > 0 && currentPage !== 'messenger'
-                  ? 'animate-bounce border-blue-500/50 shadow-blue-500/25 shadow-lg'
+                  ? 'animate-pulse border-blue-500/50 shadow-blue-500/25 shadow-lg hover-scale'
                   : ''
               }`}
               style={{ animationDelay: `${index * 50}ms` }}
               onClick={() => setCurrentPage(id)}
             >
-              <div className={`absolute inset-0 transition-opacity duration-300 ${
-                currentPage === id ? 'bg-gradient-to-r from-primary/20 to-info/20' : 'opacity-0 group-hover:opacity-100 bg-gradient-to-r from-primary/5 to-info/5'
+              <div className={`absolute inset-0 transition-all duration-300 ${
+                currentPage === id ? 'bg-gradient-to-r from-primary/20 to-info/20 opacity-100' : 'opacity-0 group-hover:opacity-100 bg-gradient-to-r from-primary/5 to-info/5'
               }`}></div>
-              <Icon className={`w-5 h-5 mr-3 transition-all duration-300 relative z-10 ${
-                currentPage === id ? 'text-white scale-110' : 'text-primary group-hover:scale-110 group-hover:text-info'
+              <Icon className={`w-5 h-5 mr-3 transition-spring relative z-10 ${
+                currentPage === id ? 'text-white scale-110 animate-glow' : 'text-primary group-hover:scale-110 group-hover:text-info group-hover:animate-wiggle'
               } ${
                 id === 'messenger' && totalUnreadCount > 0 && currentPage !== 'messenger'
-                  ? 'animate-pulse text-blue-500'
+                  ? 'animate-heartbeat text-blue-500'
                   : ''
               }`} />
-              <span className="font-semibold text-sm relative z-10">{label}</span>
+              <span className="font-semibold text-sm relative z-10 transition-smooth">{label}</span>
               
-              {/* Unread count badge for Messages - only show when count > 0 */}
+              {/* Enhanced unread count badge for Messages */}
               {id === 'messenger' && totalUnreadCount > 0 && (
                 <Badge 
                   variant="destructive"
-                  className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs relative z-10 animate-pulse"
+                  className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs relative z-10 animate-bounceIn hover-scale"
                 >
                   {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
                 </Badge>
               )}
               
               {currentPage === id && (
-                <div className="ml-auto w-2 h-2 bg-primary rounded-full animate-pulse shadow-sm relative z-10"></div>
+                <div className="ml-auto w-2 h-2 bg-primary rounded-full animate-pulse-glow shadow-sm relative z-10"></div>
               )}
             </Button>
           ))}
@@ -323,7 +328,7 @@ export function Sidebar() {
       </nav>
 
       {/* Sidebar Footer - Fixed height bottom section */}
-      <div className="p-4 border-t border-border space-y-3 flex-shrink-0 bg-muted/10">
+  <div className="p-4 border-t border-border space-y-4 flex-shrink-0 bg-muted/10">
         {/* 
           Footer Section:
           - flex-shrink-0 prevents this section from compressing
@@ -331,15 +336,15 @@ export function Sidebar() {
           - Always visible at bottom of sidebar
         */}
         
-        {/* Theme Toggle
-        <div className="flex items-center justify-between p-3 rounded-xl bg-card backdrop-blur-sm border border-border shadow-md hover:shadow-lg transition-all duration-300">
+        {/* Enhanced Theme Toggle Block
+        <div className="flex items-center justify-between p-3 rounded-xl bg-card backdrop-blur-sm border border-border shadow-md hover:shadow-lg transition-spring group hover-lift">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-accent shadow-sm">
-              {isDark ? <Moon className="w-4 h-4 text-info" /> : <Sun className="w-4 h-4 text-warning" />}
+            <div className="p-2 rounded-lg bg-muted flex items-center justify-center shadow-sm transition-spring group-hover:bg-accent hover-scale">
+              {isDark ? <Moon className="w-4 h-4 text-info transition-spring group-hover:animate-wiggle" /> : <Sun className="w-4 h-4 text-warning transition-spring group-hover:animate-wiggle" />}
             </div>
             <div>
-              <span className="text-sm font-semibold text-foreground">Dark Mode</span>
-              <p className="text-xs text-muted-foreground">
+              <span className="text-sm font-semibold text-foreground transition-smooth">{isDark ? 'Dark Mode' : 'Light Mode'}</span>
+              <p className="text-xs text-muted-foreground transition-smooth">
                 {isDark ? 'Switch to light' : 'Switch to dark'}
               </p>
             </div>
@@ -347,19 +352,20 @@ export function Sidebar() {
           <Switch
             checked={isDark}
             onCheckedChange={toggleTheme}
-            className="form-check-input form-switch"
+            aria-label={isDark ? 'Enable light mode' : 'Enable dark mode'}
+            className="transition-spring hover-scale"
           />
         </div> */}
 
-        {/* Logout Button */}
+        {/* Enhanced Logout Button */}
         <Button
           variant="ghost"
-          className="w-full justify-start transition-all duration-300 group relative overflow-hidden bg-card hover:bg-accent border border-border hover:border-destructive/50 hover:shadow-md text-foreground"
+          className="w-full justify-start transition-spring group relative overflow-hidden bg-card hover:bg-accent border border-border hover:border-destructive/50 hover:shadow-md text-foreground hover-lift click-scale"
           onClick={logout}
         >
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-danger/5 to-red-500/5 transition-opacity duration-300"></div>
-          <LogOut className="w-5 h-5 mr-3 transition-all duration-300 relative z-10 text-danger group-hover:scale-110 group-hover:translate-x-1" />
-          <span className="font-semibold text-sm relative z-10">Logout</span>
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-red-500/5 to-red-600/5 transition-all duration-300"></div>
+          <LogOut className="w-5 h-5 mr-3 transition-spring relative z-10 text-red-500 group-hover:scale-110 group-hover:translate-x-1 group-hover:animate-wiggle" />
+          <span className="font-semibold text-sm relative z-10 transition-smooth">Logout</span>
         </Button>
       </div>
     </div>

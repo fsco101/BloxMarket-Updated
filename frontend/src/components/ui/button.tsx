@@ -98,14 +98,14 @@ import { cn } from "./utils";
 */
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-300 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:outline-destructive aria-invalid:outline-2 active:scale-[0.96] transform hover:scale-[1.02] shadow-sm hover:shadow-lg backdrop-blur-sm border-0 relative overflow-hidden group",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:outline-destructive aria-invalid:outline-2 active:scale-[0.96] transform hover:scale-[1.02] shadow-sm hover:shadow-lg backdrop-blur-sm border-0 relative overflow-hidden group",
   {
     variants: {
       variant: {
-        // Enhanced Primary Variants
-        default: "bg-gradient-to-r from-blue-600 via-blue-700 to-purple-600 text-white hover:from-blue-700 hover:via-blue-800 hover:to-purple-700 shadow-lg hover:shadow-xl hover:shadow-blue-500/30 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:via-transparent before:to-white/10 before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300",
+        // Enhanced Primary Variants with theme variables
+        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg hover:shadow-xl hover:shadow-primary/30 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:via-transparent before:to-white/10 before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300",
         
-        destructive: "bg-gradient-to-r from-red-500 via-red-600 to-pink-500 text-white hover:from-red-600 hover:via-red-700 hover:to-pink-600 shadow-lg hover:shadow-xl hover:shadow-red-500/30 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:via-transparent before:to-white/10 before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-lg hover:shadow-xl hover:shadow-destructive/30",
         
         success: "bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 shadow-lg hover:shadow-xl hover:shadow-green-500/30 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:via-transparent before:to-white/10 before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300",
         
@@ -114,18 +114,18 @@ const buttonVariants = cva(
         info: "bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 text-white hover:from-cyan-600 hover:via-blue-600 hover:to-indigo-600 shadow-lg hover:shadow-xl hover:shadow-cyan-500/30 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/20 before:via-transparent before:to-white/10 before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300",
         
         // Enhanced Outline Variants
-        outline: "border-2 bg-background/70 backdrop-blur-md text-foreground hover:bg-accent/50 hover:text-accent-foreground border-border hover:border-primary/60 hover:shadow-lg hover:shadow-primary/10 dark:bg-background/30 dark:border-border/60 dark:hover:bg-accent/30 before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300",
+        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         
         "outline-destructive": "border-2 bg-background/70 backdrop-blur-md text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/40 hover:border-destructive/80 hover:shadow-lg hover:shadow-destructive/20 before:absolute before:inset-0 before:bg-gradient-to-r before:from-destructive/10 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300",
         
         "outline-success": "border-2 bg-background/70 backdrop-blur-md text-green-600 hover:bg-green-50 hover:text-green-700 border-green-300 hover:border-green-500 hover:shadow-lg hover:shadow-green-500/20 dark:text-green-400 dark:hover:bg-green-950/30 dark:border-green-700 before:absolute before:inset-0 before:bg-gradient-to-r before:from-green-500/10 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300",
         
         // Enhanced Ghost & Link Variants
-        ghost: "bg-transparent hover:bg-accent/60 hover:text-accent-foreground backdrop-blur-sm rounded-xl hover:scale-105 hover:shadow-md transition-all duration-300 before:absolute before:inset-0 before:bg-gradient-to-r before:from-accent/20 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
         
-        secondary: "bg-gradient-to-r from-slate-600 via-slate-700 to-gray-600 text-white hover:from-slate-700 hover:via-slate-800 hover:to-gray-700 shadow-lg hover:shadow-xl hover:shadow-slate-500/25 before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/15 before:via-transparent before:to-white/10 before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/90 shadow-lg hover:shadow-xl hover:shadow-secondary/30",
         
-        link: "text-primary underline-offset-4 hover:underline decoration-2 hover:text-primary/80 hover:decoration-primary/60 transition-all duration-300 bg-transparent hover:bg-primary/5 px-2 py-1 rounded-md",
+        link: "text-primary underline-offset-4 hover:underline",
         
         // Premium Glass Morphism Variants
         glass: "bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/20 hover:border-white/40 shadow-2xl hover:shadow-3xl hover:shadow-white/10 before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/20 before:via-transparent before:to-white/5 before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-500",

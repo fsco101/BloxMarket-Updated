@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, Component } from 'react';
 import './lib/fontawesome'; // Import FontAwesome setup
+import { ThemeProvider } from './contexts/ThemeContext';
+import './styles/theme.css';
 import { PostModal } from './components/ui/post-modal';
 import type { PostModalPost } from './components/ui/post-modal';
 import type { ErrorInfo, ReactNode } from 'react';
@@ -87,17 +89,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 }
 
-// Theme Context
-const ThemeContext = createContext<{
-  isDark: boolean;
-  toggleTheme: () => void;
-}>({
-  isDark: false,
-  toggleTheme: () => {}
-});
-
-export const useTheme = () => useContext(ThemeContext);
-
 // Auth Context
 interface User {
   id: string;
@@ -138,11 +129,6 @@ const AppContext = createContext<{
 export const useApp = () => useContext(AppContext);
 
 export default function App() {
-  // Load theme preference from localStorage, default to false (light mode)
-  const [isDark, setIsDark] = useState(() => {
-    const savedTheme = localStorage.getItem('bloxmarket-theme');
-    return savedTheme === 'dark';
-  });
   const [currentPage, setCurrentPage] = useState('landing');
   const [user, setUser] = useState<User | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -274,15 +260,6 @@ export default function App() {
     };
   }, []);
 
-  // Apply theme class to document element when theme changes
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDark]);
-
   const handleLogout = () => {
     console.log('Logging out user');
     
@@ -304,12 +281,6 @@ export default function App() {
     
     // Use the enhanced clearToken method to clear token from both storage locations
     apiService.clearToken();
-  };
-
-  const toggleTheme = () => {
-    const newIsDark = !isDark;
-    setIsDark(newIsDark);
-    localStorage.setItem('bloxmarket-theme', newIsDark ? 'dark' : 'light');
   };
 
   const login = (userData: User, rememberMe: boolean = true) => {
@@ -404,26 +375,26 @@ export default function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
-        {/* Animated background particles */}
+        {/* Enhanced animated background particles */}
         <div className="absolute inset-0">
-          <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500 rounded-full opacity-20 animate-pulse"></div>
-          <div className="absolute top-40 right-20 w-96 h-96 bg-blue-500 rounded-full opacity-10 animate-float"></div>
-          <div className="absolute bottom-20 left-1/3 w-64 h-64 bg-pink-500 rounded-full opacity-15 animate-bounce delay-700"></div>
+          <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500 rounded-full opacity-20 animate-pulse-glow animate-float"></div>
+          <div className="absolute top-40 right-20 w-96 h-96 bg-blue-500 rounded-full opacity-10 animate-float" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute bottom-20 left-1/3 w-64 h-64 bg-pink-500 rounded-full opacity-15 animate-bounceIn" style={{ animationDelay: '0.7s' }}></div>
         </div>
         
         <div className="text-center relative z-10 animate-fadeInUp">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl mb-6 shadow-2xl animate-pulse-glow relative overflow-hidden">
+          <div className="inline-flex items-center justify-center w-32 h-32 rounded-3xl mb-6 shadow-2xl animate-pulse-glow relative overflow-hidden hover-lift">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 rounded-3xl animate-rainbow opacity-80"></div>
             <img 
-              src="/logo.jpg" 
+              src="/NEWLOGO1.gif" 
               alt="BloxMarket Logo" 
-              className="w-full h-full object-contain relative z-10 animate-glowing"
+              className="w-full h-full object-contain relative z-10 animate-glow transition-smooth"
               style={{objectFit: 'contain'}}
             />
           </div>
           <div className="mb-4">
-            <div className="inline-block h-2 w-32 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full animate-pulse">
-              <div className="h-full w-1/3 bg-white rounded-full animate-shimmer"></div>
+            <div className="inline-block h-2 w-32 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full animate-pulse relative overflow-hidden">
+              <div className="h-full w-1/3 bg-white rounded-full animate-shimmer loading-shimmer"></div>
             </div>
           </div>
           <p className="text-slate-300 text-lg font-medium animate-typewriter">Initializing BloxMarket...</p>
@@ -435,7 +406,7 @@ export default function App() {
   if (!isLoggedIn) {
     return (
       <GlobalLoadingProvider>
-        <ThemeContext.Provider value={{ isDark, toggleTheme }}>
+        <ThemeProvider>
           <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading, isLoggingOut }}>
             <ChatNotificationProvider>
               <AppContext.Provider value={{ currentPage, setCurrentPage }}>
@@ -450,7 +421,8 @@ export default function App() {
                 </div>
                 
                 <Header />
-                <main className="flex-1 relative z-10 glass">
+                {/* Offset main content by header height (h-16) to prevent overlap */}
+                <main className="flex-1 relative z-10 glass pt-16 transition-smooth">
                   <div className="animate-fadeInUp">
                     {currentPage === 'auth' ? <AuthPage /> : <LandingPage />}
                   </div>
@@ -463,31 +435,31 @@ export default function App() {
               
               {/* Mascot Character for non-logged-in users */}
               <BloxMascot />
-            </AppContext.Provider>
-            </ChatNotificationProvider>
-          </AuthContext.Provider>
-        </ThemeContext.Provider>
+              </AppContext.Provider>
+              </ChatNotificationProvider>
+            </AuthContext.Provider>
+        </ThemeProvider>
       </GlobalLoadingProvider>
     );
   }
 
   return (
     <GlobalLoadingProvider>
-      <ThemeContext.Provider value={{ isDark, toggleTheme }}>
-        <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading, isLoggingOut }}>
-          <ChatNotificationProvider>
-            <AppContext.Provider value={{ currentPage, setCurrentPage }}>
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-foreground flex flex-col relative overflow-hidden">
-              {/* Dynamic background particles */}
+        <ThemeProvider>
+          <AuthContext.Provider value={{ user, login, logout, isLoggedIn, isLoading, isLoggingOut }}>
+            <ChatNotificationProvider>
+              <AppContext.Provider value={{ currentPage, setCurrentPage }}>
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-foreground flex flex-col relative overflow-hidden transition-smooth">
+              {/* Enhanced dynamic background particles */}
               <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-20 left-10 w-96 h-96 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-full animate-float"></div>
-                <div className="absolute top-40 right-20 w-64 h-64 bg-gradient-to-br from-pink-500/5 to-red-500/5 rounded-full animate-float delay-1000"></div>
-                <div className="absolute bottom-32 left-1/3 w-80 h-80 bg-gradient-to-br from-green-500/5 to-teal-500/5 rounded-full animate-float delay-2000"></div>
-                <div className="absolute top-1/2 right-1/4 w-48 h-48 bg-gradient-to-br from-yellow-500/5 to-orange-500/5 rounded-full animate-float delay-3000"></div>
+                <div className="absolute top-20 left-10 w-96 h-96 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-full animate-float hover-glow"></div>
+                <div className="absolute top-40 right-20 w-64 h-64 bg-gradient-to-br from-pink-500/5 to-red-500/5 rounded-full animate-float hover-glow" style={{ animationDelay: '1s' }}></div>
+                <div className="absolute bottom-32 left-1/3 w-80 h-80 bg-gradient-to-br from-green-500/5 to-teal-500/5 rounded-full animate-float hover-glow" style={{ animationDelay: '2s' }}></div>
+                <div className="absolute top-1/2 right-1/4 w-48 h-48 bg-gradient-to-br from-yellow-500/5 to-orange-500/5 rounded-full animate-float hover-glow" style={{ animationDelay: '3s' }}></div>
               </div>
               
               <Header />
-              {/* Main layout container with flex for sidebar and content */}
+              {/* Main layout container with flex for sidebar and content; already offset by pt-16 for header */}
               <div className="flex h-screen pt-16">
                 {/* Sticky Sidebar - stays in document flow but sticks to top when scrolling */}
                 <aside className="animate-slideInLeft flex-shrink-0">
@@ -502,8 +474,8 @@ export default function App() {
                     - overflow-x-hidden prevents horizontal scrollbar
                     - Custom scrollbar styling for consistency with design
                   */}
-                  <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500 glass-dark">
-                    <div className="animate-fadeIn">
+                  <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500 glass-dark transition-smooth">
+                    <div className="animate-fadeIn transition-smooth">
                       <ErrorBoundary>
                         {renderCurrentPage()}
                       </ErrorBoundary>
@@ -558,7 +530,7 @@ export default function App() {
           </AppContext.Provider>
           </ChatNotificationProvider>
         </AuthContext.Provider>
-      </ThemeContext.Provider>
+        </ThemeProvider>
     </GlobalLoadingProvider>
   );
 }

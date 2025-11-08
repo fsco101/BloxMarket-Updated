@@ -286,7 +286,7 @@ function ImageDisplay({ src, alt, className, fallback }: ImageDisplayProps) {
 
   if (imageError) {
     return fallback || (
-      <div className={`bg-gray-100 dark:bg-gray-800 flex items-center justify-center ${className}`}>
+      <div className={`bg-gray-100 flex items-center justify-center ${className}`}>
         <div className="text-center text-gray-400">
           <ImageIcon className="w-8 h-8 mx-auto mb-1" />
           <span className="text-xs">Image unavailable</span>
@@ -298,7 +298,7 @@ function ImageDisplay({ src, alt, className, fallback }: ImageDisplayProps) {
   return (
     <div className={`relative ${className}`}>
       {imageLoading && (
-        <div className="absolute inset-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center rounded">
+        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center rounded">
           <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
         </div>
       )}
@@ -799,8 +799,8 @@ export function Dashboard() {
                 title={post.user.username}
                 subtitle={`@${post.user.robloxUsername || post.user.username}`}
                 badges={[
-                  ...(post.user.verified ? [<Badge key="verified" variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">✓ Verified</Badge>] : []),
-                  ...(post.user.moderator ? [<Badge key="mod" variant="secondary" className="text-xs bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">MOD</Badge>] : [])
+                  ...(post.user.verified ? [<Badge key="verified" variant="secondary" className="text-xs bg-blue-100 text-blue-700">✓ Verified</Badge>] : []),
+                  ...(post.user.moderator ? [<Badge key="mod" variant="secondary" className="text-xs bg-red-100 text-red-700">MOD</Badge>] : [])
                 ]}
                 timestamp={post.timestamp}
                 actions={
@@ -858,10 +858,10 @@ export function Dashboard() {
                             ))}
                             {post.images.length > 3 && (
                               <div 
-                                className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg border flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
+                                className="aspect-square bg-gray-100 rounded-lg border flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
                                 onClick={() => handlePostClick(post)}
                               >
-                                <div className="text-center text-gray-500 dark:text-gray-400">
+                                <div className="text-center text-gray-500">
                                   <ImageIcon className="w-8 h-8 mx-auto mb-2" />
                                   <span className="text-sm">+{post.images.length - 3} more</span>
                                 </div>
@@ -880,26 +880,26 @@ export function Dashboard() {
                 ]}
                 tags={[
                   ...(post.type === 'trade' && post.items ? post.items.map((item, i) => (
-                    <Badge key={`offering-${i}`} variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
+                    <Badge key={`offering-${i}`} variant="outline" className="bg-green-50 text-green-700">
                       {item}
                     </Badge>
                   )) : []),
                   ...(post.type === 'trade' && post.wantedItems ? post.wantedItems.map((item, i) => (
-                    <Badge key={`wanted-${i}`} variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                    <Badge key={`wanted-${i}`} variant="outline" className="bg-blue-50 text-blue-700">
                       {item}
                     </Badge>
                   )) : []),
                   ...(post.type === 'trade' && post.status ? [
                     <Badge key="status" variant="outline" className={`${
-                      post.status === 'open' ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300' :
-                      post.status === 'completed' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' :
-                      'bg-gray-50 text-gray-700 dark:bg-gray-950 dark:text-gray-300'
+                      post.status === 'open' ? 'bg-green-50 text-green-700' :
+                      post.status === 'completed' ? 'bg-blue-50 text-blue-700' :
+                      'bg-gray-50 text-gray-700'
                     }`}>
                       {post.status}
                     </Badge>
                   ] : []),
                   ...(post.type === 'forum' && post.category ? [
-                    <Badge key="category" variant="outline" className="bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                    <Badge key="category" variant="outline" className="bg-purple-50 text-purple-700">
                       {post.category.replace('_', ' ').toUpperCase()}
                     </Badge>
                   ] : [])

@@ -390,9 +390,9 @@ function WishlistDetailsModal({
             </div>
             <div className="flex items-center gap-2">
               <Badge className={
-                wishlist.priority === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' :
-                wishlist.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' :
-                'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                wishlist.priority === 'high' ? 'bg-red-100 text-red-700' :
+                wishlist.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-green-100 text-green-700'
               }>
                 {wishlist.priority} priority
               </Badge>
@@ -408,7 +408,7 @@ function WishlistDetailsModal({
                 size="sm"
                 onClick={handleUpvote}
                 disabled={votingLoading}
-                className={`${userVote === 'up' ? 'text-green-600 bg-green-50 dark:bg-green-950' : 'text-muted-foreground hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950'} transition-colors`}
+                className={`${userVote === 'up' ? 'text-green-600 bg-green-50' : 'text-muted-foreground hover:text-green-600 hover:bg-green-50'} transition-colors`}
               >
                 <ArrowUp className={`w-5 h-5 mr-2 ${userVote === 'up' ? 'fill-current' : ''}`} />
                 {upvotes}
@@ -419,7 +419,7 @@ function WishlistDetailsModal({
                 size="sm"
                 onClick={handleDownvote}
                 disabled={votingLoading}
-                className={`${userVote === 'down' ? 'text-red-600 bg-red-50 dark:bg-red-950' : 'text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950'} transition-colors`}
+                className={`${userVote === 'down' ? 'text-red-600 bg-red-50' : 'text-muted-foreground hover:text-red-600 hover:bg-red-50'} transition-colors`}
               >
                 <ArrowDown className={`w-5 h-5 mr-2 ${userVote === 'down' ? 'fill-current' : ''}`} />
                 {downvotes}
@@ -483,7 +483,7 @@ function WishlistDetailsModal({
           <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
             <div>
               <span className="text-sm text-muted-foreground">Max Price:</span>
-              <p className="font-semibold text-green-600 dark:text-green-400 text-lg">
+              <p className="font-semibold text-green-600 text-lg">
                 {wishlist.max_price}
               </p>
             </div>

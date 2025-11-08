@@ -1,32 +1,28 @@
 import { useState } from 'react';
-import { useTheme } from '../App';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Switch } from './ui/switch';
-import { Moon, Sun } from 'lucide-react';
 import { Login } from './Login';
 import { Registration } from './Registration';
 
 export function AuthPage() {
-  const { isDark, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       {/* Fallback gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900" />
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50" />
 
       {/* Background Image with Blur and Gray Shade */}
       <div
         className="absolute inset-0 bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url('/authpage.jpg')`,
+          backgroundImage: `url('/landingpage.jpg')`,
           backgroundSize: 'cover',
           filter: 'blur(3px) grayscale(20%) brightness(0.8)',
           transform: 'scale(1.1)', // Slight scale to prevent blur edges
         }}
       />
       {/* Enhanced Overlay for better text readability */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-gray-800/50 to-gray-900/60 dark:from-gray-900/70 dark:via-gray-800/60 dark:to-gray-900/70" />      {/* Content */}
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-gray-800/50 to-gray-900/60" />      {/* Content */}
       <div className="relative w-full max-w-md z-10">
         {/* Theme Toggle
         <div className="flex justify-end mb-4">
@@ -38,17 +34,14 @@ export function AuthPage() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg overflow-hidden">
+          <div className="inline-flex items-center justify-center width-200 height-100">
             <img 
-              src="/logo.jpg" 
+              src="/NEWLOGO1.gif" 
               alt="BloxMarket Logo" 
               className="w-full h-full object-contain"
               style={{objectFit: 'contain'}}
             />
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            BloxMarket
-          </h1>
           <p className="text-muted-foreground mt-2">
             The ultimate Roblox trading community
           </p>

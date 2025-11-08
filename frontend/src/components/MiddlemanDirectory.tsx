@@ -260,11 +260,11 @@ export function MiddlemanDirectory() {
 
   const getTierColor = (tier: string) => {
     switch (tier) {
-      case 'diamond': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300';
-      case 'platinum': return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
-      case 'gold': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300';
-      case 'silver': return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
-      default: return 'bg-bronze-100 text-bronze-700 dark:bg-bronze-900 dark:text-bronze-300';
+      case 'diamond': return 'bg-cyan-100 text-cyan-700';
+      case 'platinum': return 'bg-gray-100 text-gray-700';
+      case 'gold': return 'bg-yellow-100 text-yellow-700';
+      case 'silver': return 'bg-slate-100 text-slate-700';
+      default: return 'bg-bronze-100 text-bronze-700';
     }
   };
 
@@ -505,7 +505,7 @@ export function MiddlemanDirectory() {
                         
                         {/* Credibility Score */}
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge className="bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300">
+                          <Badge className="bg-pink-100 text-pink-700">
                             <Heart className="w-3 h-3 mr-1" />
                             {mm.credibilityScore} credibility
                           </Badge>
@@ -574,7 +574,7 @@ export function MiddlemanDirectory() {
                               <Button 
                                 size="sm" 
                                 variant="outline"
-                                className="w-full bg-pink-50 border-pink-200 text-pink-700 hover:bg-pink-100 dark:bg-pink-950 dark:border-pink-800 dark:text-pink-300"
+                                className="w-full bg-pink-50 border-pink-200 text-pink-700 hover:bg-pink-100"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleUnvouch(mm.id.toString());

@@ -12,6 +12,9 @@ const BloxMascot: React.FC<MascotProps> = ({ className = '' }) => {
   const [currentState, setCurrentState] = useState<'idle' | 'talking' | 'celebrating' | 'thinking' | 'waving'>('idle');
   const [message, setMessage] = useState('');
   const [showMessage, setShowMessage] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<{ x: number; y: number } | null>(null);
   const messageTimeoutRef = useRef<number | null>(null);
   const stateTimeoutRef = useRef<number | null>(null);
 
@@ -107,6 +110,17 @@ const BloxMascot: React.FC<MascotProps> = ({ className = '' }) => {
     return () => clearInterval(interval);
   }, [randomMessages]);
 
+  // Add event listeners for drag
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      setIsDragging(false);
+      dragRef.current = null;
+    };
+
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
+
   const showMascotMessage = (msg: string, state: 'idle' | 'talking' | 'celebrating' | 'thinking' | 'waving' = 'talking') => {
     setMessage(msg);
     setCurrentState(state);
@@ -172,19 +186,50 @@ const BloxMascot: React.FC<MascotProps> = ({ className = '' }) => {
 
   if (!isVisible) return null;
 
+  // Add drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    dragRef.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && dragRef.current) {
+      const newX = e.clientX - dragRef.current.x;
+      const newY = e.clientY - dragRef.current.y;
+      setPosition({ x: newX, y: newY });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    dragRef.current = null;
+  };
+
   return (
     <>
       {/* Mascot Character */}
-      <div className={`fixed bottom-6 right-6 z-40 ${className}`}>
+      <div 
+        className={`fixed z-40 ${className}`}
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          cursor: isDragging ? 'grabbing' : 'grab'
+        }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+      >
         <div className="relative">
           {/* Message Bubble */}
           {showMessage && message && (
-            <div className="absolute bottom-full right-0 mb-10 animate-fadeInUp">
-              <div className="relative bg-white dark:bg-gray-800 text-gray-800 dark:text-white px-6 py-3 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-96 max-w-[400px] min-w-[320px] transform -translate-x-full translate-x-2">
+            <div className="absolute left-full ml-4 top-0 animate-fadeInUp">
+              <div className="relative bg-white dark:bg-gray-800 text-gray-800 dark:text-white px-6 py-3 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-96 max-w-[400px] min-w-[320px]">
                 <p className="text-sm font-medium leading-snug whitespace-nowrap overflow-hidden text-ellipsis">{message}</p>
                 {/* Speech bubble tail */}
-                <div className="absolute top-full right-10 transform translate-x-1/2">
-                  <div className="border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-white dark:border-t-gray-800"></div>
+                <div className="absolute left-0 top-1/2 -translate-x-2 -translate-y-1/2">
+                  <div className="border-t-8 border-b-8 border-r-8 border-t-transparent border-b-transparent border-r-white dark:border-r-gray-800"></div>
                 </div>
               </div>
             </div>
@@ -224,13 +269,20 @@ const BloxMascot: React.FC<MascotProps> = ({ className = '' }) => {
 
       {/* Restore Button (when hidden) */}
       {!isVisible && (
-        <button
-          onClick={() => setIsVisible(true)}
-          className="fixed bottom-6 right-6 z-40 w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-full shadow-lg flex items-center justify-center text-xl transition-all duration-300 hover:scale-110"
-          title="Show BloxBot"
+        <div
+          style={{
+            transform: `translate(${position.x}px, ${position.y}px)`,
+          }}
+          className="fixed z-40"
         >
-          🤖
-        </button>
+          <button
+            onClick={() => setIsVisible(true)}
+            className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-full shadow-lg flex items-center justify-center text-xl transition-all duration-300 hover:scale-110"
+            title="Show BloxBot"
+          >
+            🤖
+          </button>
+        </div>
       )}
     </>
   );
