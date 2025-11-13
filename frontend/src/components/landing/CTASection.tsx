@@ -12,6 +12,13 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button } from '../ui/button';
 import { PremiumCard } from '../ui/card-container';
 import { useInView } from 'react-intersection-observer';
+import { 
+  TypingAnimation, 
+  FadeInAnimation, 
+  ShimmerText, 
+  TextWave,
+  FlipWords 
+} from '../ui/text-animations';
 
 interface CTASectionProps {
   isLoggedIn: boolean;
@@ -131,7 +138,7 @@ export function CTASection({
                 </div>
               </div>
 
-              {/* Enhanced Main Headlines with 3D Effect */}
+              {/* Enhanced Main Headlines with Text Animations and 3D Effect */}
               <div className="text-center mb-8 relative">
                 <div className="absolute inset-0 transform translate-x-2 translate-y-2 opacity-20">
                   <h2
@@ -141,7 +148,7 @@ export function CTASection({
                       color: "#000000"
                     }}
                   >
-                    JOIN THE
+                    <TextWave text="JOIN THE" delay={50} />
                   </h2>
                   <h2
                     className="text-6xl md:text-8xl lg:text-9xl uppercase tracking-tight"
@@ -150,7 +157,7 @@ export function CTASection({
                       color: "#000000"
                     }}
                   >
-                    COMMUNITY
+                    <TextWave text="COMMUNITY" delay={50} />
                   </h2>
                 </div>
                 
@@ -167,7 +174,9 @@ export function CTASection({
                       filter: "drop-shadow(0 4px 20px rgba(255, 255, 255, 0.5))"
                     }}
                   >
-                    JOIN THE
+                    <FadeInAnimation delay={300} direction="up">
+                      <ShimmerText text="JOIN THE" shimmerColor="rgba(255, 255, 255, 0.9)" />
+                    </FadeInAnimation>
                   </h2>
                   <h2
                     className="text-6xl md:text-8xl lg:text-9xl uppercase tracking-tight"
@@ -181,36 +190,48 @@ export function CTASection({
                       animation: "community-glow 3s ease-in-out infinite"
                     }}
                   >
-                    COMMUNITY
+                    <FadeInAnimation delay={600} direction="up">
+                      <ShimmerText text="COMMUNITY" shimmerColor="rgba(0, 178, 255, 0.9)" />
+                    </FadeInAnimation>
                   </h2>
                 </div>
               </div>
 
-              {/* Enhanced Description */}
+              {/* Enhanced Description with Text Animations */}
               <div className="text-center mb-16 relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent rounded-xl blur-sm" />
-                <p className="relative text-2xl md:text-3xl text-white max-w-4xl mx-auto leading-relaxed">
-                  Start trading safely today. 
-                  <span className="text-[#00B2FF] font-bold"> Showcase your items</span>, 
-                  connect with <span className="text-[#FFD700] font-bold">trusted traders</span>, 
-                  and grow your collection with <span className="text-[#FF2D2D] font-bold">BloxMarket's secure platform</span>.
-                </p>
-                <div className="mt-6 flex items-center justify-center gap-4 text-white">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-400 rounded-full animate-ping" />
-                    <span>Live Support</span>
+                <FadeInAnimation delay={900} direction="up">
+                  <p className="relative text-2xl md:text-3xl text-white max-w-4xl mx-auto leading-relaxed">
+                    <TypingAnimation text="Start trading safely today." speed={40} delay={1000} showCursor={false} />
+                    <br />
+                    <span className="text-[#00B2FF] font-bold">
+                      <FlipWords words={['Showcase your items', 'Display your collection', 'Share your inventory']} />
+                    </span>, 
+                    connect with <span className="text-[#FFD700] font-bold">
+                      <TextWave text="trusted traders" delay={80} />
+                    </span>, 
+                    <br />
+                    and grow your collection with <span className="text-[#FF2D2D] font-bold">BloxMarket's secure platform</span>.
+                  </p>
+                </FadeInAnimation>
+                <FadeInAnimation delay={1400} direction="up">
+                  <div className="mt-6 flex items-center justify-center gap-4 text-white">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-400 rounded-full animate-ping" />
+                      <span>Live Support</span>
+                    </div>
+                    <div className="w-1 h-1 bg-white rounded-full" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse" />
+                      <span>Instant Trading</span>
+                    </div>
+                    <div className="w-1 h-1 bg-white rounded-full" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse" />
+                      <span>Secure Platform</span>
+                    </div>
                   </div>
-                  <div className="w-1 h-1 bg-white rounded-full" />
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse" />
-                    <span>Instant Trading</span>
-                  </div>
-                  <div className="w-1 h-1 bg-white rounded-full" />
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse" />
-                    <span>Secure Platform</span>
-                  </div>
-                </div>
+                </FadeInAnimation>
               </div>
 
               {/* Enhanced CTA Buttons */}
@@ -260,7 +281,13 @@ export function CTASection({
                 <div className="flex flex-col sm:flex-row gap-12 justify-center items-center mt-8">
                   {[
                     { label: "VERIFIED TRADES", value: "100K+", color: "#00B2FF", icon: faLock },
+                    <div>
+
+                    </div>,
                     { label: "ACTIVE USERS", value: "50K+", color: "#FFD700", icon: faUsers },
+                    <div>
+                      
+                    </div>,
                     { label: "TRUST RATING", value: "4.9★", color: "#FF2D2D", icon: faStar }
                   ].map((stat, index) => (
                     <div key={index} className="text-center relative group">

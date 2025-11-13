@@ -51,6 +51,9 @@ import notificationRoutes from './routes/notifications.js';
 import messageRoutes from './routes/messages.js';
 import chatRoutes from './routes/chats.js';
 
+// Import Firebase service
+import { firebaseService } from './services/firebaseService.js';
+
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
@@ -342,10 +345,28 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Start server
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🍃 Database: ${MONGODB_URI.includes('localhost') ? 'Local MongoDB' : 'Remote MongoDB'}`);
-  console.log(`💬 Socket.IO: Enabled for real-time messaging`);
-});
+// Start server (wait for Firebase initialization)
+(async () => {
+  try {
+    console.log('🔥 Starting Firebase initialization...');
+    await firebaseService.init();
+    console.log('✅ Firebase initialization complete');
+
+    // Now start the server
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🍃 Database: ${MONGODB_URI.includes('localhost') ? 'Local MongoDB' : 'Remote MongoDB'}`);
+      console.log(`💬 Socket.IO: Enabled for real-time messaging`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to initialize Firebase:', error.message);
+    // Start server anyway, but Firebase auth won't work
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT} (Firebase auth unavailable)`);
+      console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🍃 Database: ${MONGODB_URI.includes('localhost') ? 'Local MongoDB' : 'Remote MongoDB'}`);
+      console.log(`💬 Socket.IO: Enabled for real-time messaging`);
+    });
+  }
+})();

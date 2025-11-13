@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Login } from './Login';
 import { Registration } from './Registration';
+import { SocialLogin } from './SocialLogin';
 
 export function AuthPage() {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -54,11 +55,37 @@ export function AuthPage() {
           </TabsList>
 
           <TabsContent value="login">
-            <Login />
+            <div className="space-y-4">
+              <SocialLogin />
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with email
+                  </span>
+                </div>
+              </div>
+              <Login />
+            </div>
           </TabsContent>
 
           <TabsContent value="register">
-            <Registration />
+            <div className="space-y-4">
+              <SocialLogin />
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with email
+                  </span>
+                </div>
+              </div>
+              <Registration />
+            </div>
           </TabsContent>
         </Tabs>
 

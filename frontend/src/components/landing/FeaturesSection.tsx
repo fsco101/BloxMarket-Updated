@@ -9,6 +9,13 @@ import {
 import { GlassCard } from '../ui/card-container';
 import { useInView } from 'react-intersection-observer';
 import type { LucideIcon } from 'lucide-react';
+import { 
+  TypingAnimation, 
+  FadeInAnimation, 
+  ShimmerText, 
+  TextWave,
+  StaggeredAnimation 
+} from '../ui/text-animations';
 
 interface Feature {
   icon: LucideIcon;
@@ -137,7 +144,7 @@ export function FeaturesSection() {
                     color: "rgba(0, 0, 0, 0.3)"
                   }}
                 >
-                  WHY BLOXMARKET
+                  <TextWave text="WHY BLOXMARKET" delay={50} />
                 </h2>
               </div>
               <h2
@@ -152,7 +159,9 @@ export function FeaturesSection() {
                   animation: "title-shimmer 4s ease-in-out infinite"
                 }}
               >
-                WHY BLOXMARKET
+                <FadeInAnimation delay={300} direction="up">
+                  <ShimmerText text="WHY BLOXMARKET" shimmerColor="rgba(255, 255, 255, 0.9)" />
+                </FadeInAnimation>
               </h2>
             </div>
             
@@ -163,24 +172,28 @@ export function FeaturesSection() {
             </div>
           </div>
           
-          {/* Enhanced Subtitle */}
+          {/* Enhanced Subtitle with Text Animations */}
           <div className="relative">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Sparkles className="w-6 h-6 text-[#FFD700] animate-spin" />
-              <p className="text-2xl text-gray-300 uppercase tracking-wider font-bold">
-                THE MOST TRUSTED TRADING PLATFORM
+            <FadeInAnimation delay={800} direction="up">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Sparkles className="w-6 h-6 text-[#FFD700] animate-spin" />
+                <p className="text-2xl text-gray-300 uppercase tracking-wider font-bold">
+                  <TypingAnimation text="THE MOST TRUSTED TRADING PLATFORM" speed={40} delay={1000} showCursor={false} />
+                </p>
+                <Zap className="w-6 h-6 text-[#00B2FF] animate-pulse" />
+              </div>
+            </FadeInAnimation>
+            <FadeInAnimation delay={1200} direction="up">
+              <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+                Experience the future of Roblox trading with cutting-edge security, 
+                stunning showcases, and an unmatched community experience.
               </p>
-              <Zap className="w-6 h-6 text-[#00B2FF] animate-pulse" />
-            </div>
-            <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-              Experience the future of Roblox trading with cutting-edge security, 
-              stunning showcases, and an unmatched community experience.
-            </p>
+            </FadeInAnimation>
           </div>
         </div>
 
-        {/* Enhanced Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+        {/* Enhanced Features Grid with Staggered Animations */}
+        <StaggeredAnimation staggerDelay={200} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
@@ -266,7 +279,7 @@ export function FeaturesSection() {
               </div>
             );
           })}
-        </div>
+        </StaggeredAnimation>
 
         {/* Enhanced Call-to-Action */}
         <div className={`text-center mt-20 transition-all duration-1000 ${featuresInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ transitionDelay: '600ms' }}>

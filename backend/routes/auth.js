@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { sendVerificationEmail } from '../services/emailService.js';
+import { firebaseService } from '../services/firebaseService.js';
 
 const router = express.Router();
 
@@ -337,6 +338,58 @@ router.post('/logout', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Logout error:', error);
     res.status(500).json({ error: 'Logout failed' });
+  }
+});
+
+// Firebase Google Authentication
+router.post('/firebase/google', async (req, res) => {
+  try {
+    if (!firebaseService.isInitialized()) {
+      return res.status(503).json({ error: 'Firebase authentication is not available. Please try again later.' });
+    }
+
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({ error: 'ID token is required' });
+    }
+
+    const result = await firebaseService.handleGoogleAuth(idToken);
+
+    res.json({
+      message: 'Google authentication successful',
+      token: result.token,
+      user: result.user
+    });
+  } catch (error) {
+    console.error('Firebase Google auth error:', error);
+    res.status(500).json({ error: error.message || 'Google authentication failed' });
+  }
+});
+
+// Firebase Facebook Authentication
+router.post('/firebase/facebook', async (req, res) => {
+  try {
+    if (!firebaseService.isInitialized()) {
+      return res.status(503).json({ error: 'Firebase authentication is not available. Please try again later.' });
+    }
+
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({ error: 'ID token is required' });
+    }
+
+    const result = await firebaseService.handleFacebookAuth(idToken);
+
+    res.json({
+      message: 'Facebook authentication successful',
+      token: result.token,
+      user: result.user
+    });
+  } catch (error) {
+    console.error('Firebase Facebook auth error:', error);
+    res.status(500).json({ error: error.message || 'Facebook authentication failed' });
   }
 });
 

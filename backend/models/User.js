@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
   },
   password_hash: {
     type: String,
-    required: function() { return this.is_active; } // Only required when user is active
+    required: false // Not required for social login
   },
   roblox_username: {
     type: String,
@@ -88,6 +88,12 @@ const userSchema = new mongoose.Schema({
   },
   verificationCodeExpires: {
     type: Date
+  },
+  // Firebase authentication
+  firebaseUid: {
+    type: String,
+    unique: true,
+    sparse: true // Allow multiple null values
   },
   verification_requested: {
     type: Boolean,

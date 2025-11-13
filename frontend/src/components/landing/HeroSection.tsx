@@ -12,6 +12,14 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button } from '../ui/button';
 import { GlassCard } from '../ui/card-container';
 import { useInView } from 'react-intersection-observer';
+import { 
+  TypingAnimation, 
+  FadeInAnimation, 
+  ShimmerText, 
+  TextWave,
+  FlipWords,
+  StaggeredAnimation 
+} from '../ui/text-animations';
 
 interface HeroSectionProps {
   isLoggedIn: boolean;
@@ -63,7 +71,7 @@ export function HeroSection({
           </div>
         </div>
 
-        {/* Enhanced Main Title with 3D Effect */}
+        {/* Enhanced Main Title with Text Animations and 3D Effect */}
         <div className="relative mb-10">
           <div className="absolute inset-0 transform translate-x-3 translate-y-3">
             <h1
@@ -74,7 +82,7 @@ export function HeroSection({
                 textShadow: '0 0 20px rgba(0, 0, 0, 0.8)'
               }}
             >
-              TRADE SAFE
+              <TextWave text="TRADE SAFE" delay={50} />
             </h1>
           </div>
           <h1
@@ -90,23 +98,36 @@ export function HeroSection({
               textShadow: '0 4px 20px rgba(0, 0, 0, 0.9), 0 0 40px rgba(255, 255, 255, 0.3)'
             }}
           >
-            TRADE SAFE
+            <FadeInAnimation delay={500} direction="up">
+              <ShimmerText text="TRADE SAFE" shimmerColor="rgba(255, 255, 255, 0.9)" />
+            </FadeInAnimation>
           </h1>
         </div>
 
-        {/* Enhanced Subtitle with Typewriter Effect */}
+        {/* Enhanced Subtitle with Text Animations */}
         <div className="relative mb-14">
-          <p className="text-xl md:text-3xl text-white max-w-4xl mx-auto leading-relaxed animate-fade-in-up" 
-             style={{ 
-               textShadow: '0 4px 20px rgba(0, 0, 0, 0.9), 0 2px 10px rgba(0, 0, 0, 0.8)', 
-               filter: 'drop-shadow(0 0 30px rgba(0, 0, 0, 0.7))' 
-             }}>
-            The <span className="text-[#00B2FF] font-bold" style={{ textShadow: '0 0 20px rgba(0, 178, 255, 0.8), 0 2px 10px rgba(0, 0, 0, 0.9)' }}>ultimate social marketplace</span> for Roblox items. 
-            <br />
-            Showcase your collection, trade safely with <span className="text-[#FFD700] font-bold" style={{ textShadow: '0 0 20px rgba(255, 215, 0, 0.8), 0 2px 10px rgba(0, 0, 0, 0.9)' }}>trusted middlemen</span>, 
-            <br />
-            and join a <span className="text-[#FF2D2D] font-bold" style={{ textShadow: '0 0 20px rgba(255, 45, 45, 0.8), 0 2px 10px rgba(0, 0, 0, 0.9)' }}>thriving community</span> of collectors.
-          </p>
+          <FadeInAnimation delay={1000} direction="up">
+            <p className="text-xl md:text-3xl text-white max-w-4xl mx-auto leading-relaxed" 
+               style={{ 
+                 textShadow: '0 4px 20px rgba(0, 0, 0, 0.9), 0 2px 10px rgba(0, 0, 0, 0.8)', 
+                 filter: 'drop-shadow(0 0 30px rgba(0, 0, 0, 0.7))' 
+               }}>
+              The <span className="text-[#00B2FF] font-bold" style={{ textShadow: '0 0 20px rgba(0, 178, 255, 0.8), 0 2px 10px rgba(0, 0, 0, 0.9)' }}>
+                <FlipWords words={['ultimate social marketplace', 'safest trading platform', 'premier community hub']} />
+              </span> for Roblox items. 
+              <br />
+              <TypingAnimation 
+                text="Showcase your collection, trade safely with trusted middlemen," 
+                speed={30} 
+                delay={2000}
+                showCursor={false}
+              />
+              <br />
+              and join a <span className="text-[#FF2D2D] font-bold" style={{ textShadow: '0 0 20px rgba(255, 45, 45, 0.8), 0 2px 10px rgba(0, 0, 0, 0.9)' }}>
+                <TextWave text="thriving community" delay={80} />
+              </span> of collectors.
+            </p>
+          </FadeInAnimation>
         </div>
 
         {/* Enhanced CTA Buttons with Hover Effects */}
@@ -150,8 +171,8 @@ export function HeroSection({
           )}
         </div>
 
-        {/* Enhanced Stats with 3D Cards */}
-        <div className="grid grid-cols-3 gap-8 mt-24 max-w-4xl mx-auto">
+        {/* Enhanced Stats with Staggered Text Animations and 3D Cards */}
+        <StaggeredAnimation staggerDelay={200} className="grid grid-cols-3 gap-8 mt-24 max-w-4xl mx-auto">
           {[
             { value: "50K+", label: "MEMBERS", color: "#00B2FF", icon: faUsers },
             { value: "100K+", label: "TRADES", color: "#FFD700", icon: faBriefcase },
@@ -180,17 +201,17 @@ export function HeroSection({
                     filter: `drop-shadow(0 2px 15px ${stat.color}50)`
                   }}
                 >
-                  {stat.value}
+                  <ShimmerText text={stat.value} shimmerColor={stat.color} />
                 </div>
                 <div className="text-xs text-white uppercase tracking-wider font-bold" style={{ textShadow: '0 2px 10px rgba(0, 0, 0, 0.8)' }}>
-                  {stat.label}
+                  <TextWave text={stat.label} delay={100} />
                 </div>
                 <div className={`absolute top-3 right-3 w-4 h-4 rounded-full animate-ping`} 
                      style={{ backgroundColor: stat.color, boxShadow: `0 0 20px ${stat.color}` }} />
               </GlassCard>
             </div>
           ))}
-        </div>
+        </StaggeredAnimation>
 
         {/* Enhanced Scroll Indicator with Animation */}
         <div className="mt-20 relative">
