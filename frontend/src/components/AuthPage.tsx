@@ -35,7 +35,7 @@ export function AuthPage() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center width-200 height-100">
+          <div className="inline-flex items-center justify-center width-300 height-200">
             <img 
               src="/NEWLOGO1.gif" 
               alt="BloxMarket Logo" 

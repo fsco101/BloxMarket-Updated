@@ -52,7 +52,7 @@ export function HeroSection({
           <div className="absolute inset-0 bg-gradient-to-r from-[#00B2FF] to-[#FF2D2D] rounded-full blur-md opacity-50 animate-pulse" />
           <GlassCard className="relative inline-flex items-center gap-3 border-2 border-[#00B2FF] rounded-full px-8 py-3 backdrop-blur-xl shadow-2xl" opacity={95} blur="xl">
             <FontAwesomeIcon icon={faShield} className="w-5 h-5 text-[#00B2FF] animate-pulse drop-shadow-lg" />
-            <span className="text-[#00B2FF] font-black text-sm tracking-wider drop-shadow-lg" style={{ textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 178, 255, 0.5)' }}>TRUSTED TRADING PLATFORM</span>
+            <span className="text-[#0000FF] font-blue text-sm tracking-wider drop-shadow-lg" style={{ textShadow: '0 2px 8px rgba(39, 133, 255, 0.8), 0 0 20px rgba(0, 178, 255, 0.5)' }}>TRUSTED TRADING PLATFORM</span>
             <div className="w-2 h-2 bg-green-400 rounded-full animate-ping drop-shadow-lg" />
           </GlassCard>
         </div>
@@ -78,7 +78,7 @@ export function HeroSection({
               className="text-5xl md:text-6xl lg:text-8xl uppercase tracking-tight"
               style={{
                 fontFamily: "'Arial Black', -apple-system, BlinkMacSystemFont, sans-serif",
-                color: "rgba(0, 0, 0, 0.6)",
+                color: "rgba(0, 253, 55, 0.6)",
                 textShadow: '0 0 20px rgba(0, 0, 0, 0.8)'
               }}
             >
@@ -95,11 +95,11 @@ export function HeroSection({
               WebkitTextFillColor: "transparent",
               filter: "drop-shadow(0 8px 40px rgba(0, 178, 255, 0.8)) drop-shadow(0 0 60px rgba(0, 0, 0, 0.9))",
               animation: "gradient-shift 3s ease-in-out infinite",
-              textShadow: '0 4px 20px rgba(0, 0, 0, 0.9), 0 0 40px rgba(255, 255, 255, 0.3)'
+              textShadow: '0 4px 20px rgba(51, 255, 0, 0.9), 0 0 40px rgba(255, 255, 255, 0.3)'
             }}
           >
             <FadeInAnimation delay={500} direction="up">
-              <ShimmerText text="TRADE SAFE" shimmerColor="rgba(255, 255, 255, 0.9)" />
+              <ShimmerText text="TRADE SAFE" shimmerColor="rgba(0, 252, 42, 0.9)" />
             </FadeInAnimation>
           </h1>
         </div>
